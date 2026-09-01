@@ -6,6 +6,7 @@ export type PersonaProfile = {
 
 export type PersonaRecord = {
   id?: string;
+  creator_user_id?: string | null;
   creator_name: string;
   creator_handle: string;
   source_content: string;

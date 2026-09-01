@@ -2,6 +2,7 @@ create extension if not exists pgcrypto;
 
 create table if not exists public.personas (
   id uuid primary key default gen_random_uuid(),
+  creator_user_id uuid references auth.users(id) on delete set null,
   creator_name text not null,
   creator_handle text not null unique,
   source_content text not null default '',
@@ -19,6 +20,7 @@ create table if not exists public.personas (
 create table if not exists public.conversations (
   id uuid primary key default gen_random_uuid(),
   persona_id uuid not null references public.personas(id) on delete cascade,
+  fan_user_id uuid references auth.users(id) on delete set null,
   paid boolean not null default false,
   stripe_session_id text,
   created_at timestamptz not null default now()
@@ -35,7 +37,9 @@ create table if not exists public.messages (
 );
 
 create index if not exists personas_handle_idx on public.personas (creator_handle);
+create index if not exists personas_creator_user_idx on public.personas (creator_user_id);
 create index if not exists conversations_persona_idx on public.conversations (persona_id, created_at desc);
+create index if not exists conversations_fan_user_idx on public.conversations (fan_user_id);
 create index if not exists messages_conversation_idx on public.messages (conversation_id, created_at asc);
 create index if not exists messages_flagged_idx on public.messages (flagged) where flagged = true;
 

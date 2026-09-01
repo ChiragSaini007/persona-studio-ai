@@ -494,6 +494,63 @@ input:disabled {
   padding: 12px 14px;
 }
 
+.auth-switch {
+  background: var(--canvas);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 4px;
+  margin: 22px 0 0;
+  padding: 4px;
+}
+
+.auth-switch button {
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  font-weight: 850;
+  padding: 10px 16px;
+}
+
+.auth-switch button.active {
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 3px 12px rgba(17, 17, 17, 0.08);
+}
+
+.connected-account,
+.fan-auth-box {
+  background: var(--mint);
+  border-radius: 18px;
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 16px;
+}
+
+.connected-account {
+  align-items: center;
+  grid-template-columns: 1fr auto;
+}
+
+.fan-auth-box {
+  background: var(--canvas);
+  margin-bottom: 18px;
+}
+
+.fan-auth-box input {
+  width: 100%;
+}
+
+.fan-connected {
+  margin-bottom: 18px;
+}
+
+.form-section-title {
+  font-size: 18px;
+  margin: 28px 0 0;
+}
+
 .runtime-note {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.22);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { clearStoredSession, getStoredSession, supabasePasswordAuth } from "../../auth-client";
 import { cleanHandle, findFlag, generatePersonaReply, Message, uid, usePersonaWorkspace } from "../../persona-model";
 
 type RemotePersona = ReturnType<typeof usePersonaWorkspace>["workspace"];
@@ -19,12 +20,22 @@ export default function FanChatPage() {
   const [conversationId, setConversationId] = useState("");
   const [remoteMessages, setRemoteMessages] = useState<Message[]>([]);
   const [notice, setNotice] = useState("");
+  const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
+  const [fanEmail, setFanEmail] = useState("");
+  const [fanPassword, setFanPassword] = useState("");
+  const [fanAccessToken, setFanAccessToken] = useState("");
   const activeConversation = workspace.conversations[workspace.conversations.length - 1];
   const activePersona = remotePersona || workspace;
   const fanPath = `/p/${handle}`;
   const paidFromStripe = useMemo(() => searchParams.get("paid") === "1", [searchParams]);
 
   useEffect(() => {
+    const session = getStoredSession();
+    if (session?.access_token) {
+      setFanAccessToken(session.access_token);
+      setFanEmail(session.user?.email || "");
+    }
+
     async function loadPersona() {
       try {
         const response = await fetch(`/api/personas?handle=${encodeURIComponent(handle)}`);
@@ -54,14 +65,35 @@ export default function FanChatPage() {
     void loadPersona();
   }, [handle]);
 
+  async function authenticateFan() {
+    setNotice(authMode === "signup" ? "Creating fan account..." : "Signing in...");
+    try {
+      const session = await supabasePasswordAuth(authMode, fanEmail, fanPassword);
+      setFanAccessToken(session.access_token);
+      setNotice(authMode === "signup" ? "Fan account created. You can start chatting." : "Signed in. You can start chatting.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Authentication failed");
+    }
+  }
+
+  function signOutFan() {
+    clearStoredSession();
+    setFanAccessToken("");
+    setNotice("Signed out.");
+  }
+
   async function startConversation(paid = false) {
     const isPaid = paid || paidFromStripe;
+    if (!fanAccessToken) {
+      setNotice("Please sign up or sign in before starting the chat.");
+      return;
+    }
 
     if (remotePersona) {
       try {
         const response = await fetch("/api/chat/start", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${fanAccessToken}` },
           body: JSON.stringify({
             handle,
             paid: isPaid,
@@ -236,6 +268,36 @@ export default function FanChatPage() {
                         ? "Fan access is free for this persona."
                         : `This creator charges $${activePersona.price.toFixed(2)} per conversation.`}
                     </p>
+                    {!fanAccessToken && (
+                      <div className="fan-auth-box">
+                        <div className="auth-switch">
+                          <button className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>
+                            Sign up
+                          </button>
+                          <button className={authMode === "signin" ? "active" : ""} onClick={() => setAuthMode("signin")}>
+                            Sign in
+                          </button>
+                        </div>
+                        <input value={fanEmail} type="email" placeholder="Email" onChange={(event) => setFanEmail(event.target.value)} />
+                        <input
+                          value={fanPassword}
+                          type="password"
+                          placeholder="Password"
+                          onChange={(event) => setFanPassword(event.target.value)}
+                        />
+                        <button onClick={authenticateFan} className="secondary-action">
+                          {authMode === "signup" ? "Create fan account" : "Sign in"}
+                        </button>
+                      </div>
+                    )}
+                    {fanAccessToken && (
+                      <div className="connected-account fan-connected">
+                        <strong>{fanEmail || "Fan account connected"}</strong>
+                        <button className="secondary-action" onClick={signOutFan}>
+                          Sign out
+                        </button>
+                      </div>
+                    )}
                     <button
                       onClick={() =>
                         activePersona.monetization === "free" || paidFromStripe
@@ -243,6 +305,7 @@ export default function FanChatPage() {
                           : void openCheckout()
                       }
                       className="primary-btn"
+                      disabled={!fanAccessToken}
                     >
                       {activePersona.monetization === "free" || paidFromStripe ? "Start conversation" : "Continue to paywall"}
                     </button>

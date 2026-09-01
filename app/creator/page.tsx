@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { clearStoredSession, getStoredSession, supabasePasswordAuth } from "../auth-client";
 import { cleanHandle, guardrails, makePersonaProfile, usePersonaWorkspace } from "../persona-model";
 
 const wizardSteps = [
@@ -18,11 +19,20 @@ export default function CreatorPortal() {
   const [origin, setOrigin] = useState("");
   const [saving, setSaving] = useState(false);
   const [systemNotice, setSystemNotice] = useState("");
+  const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [accessToken, setAccessToken] = useState("");
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
 
   useEffect(() => {
     setOrigin(window.location.origin);
+    const session = getStoredSession();
+    if (session?.access_token) {
+      setAccessToken(session.access_token);
+      setEmail(session.user?.email || "");
+    }
   }, []);
 
   function updateField<K extends keyof typeof workspace>(field: K, value: (typeof workspace)[K]) {
@@ -57,6 +67,12 @@ export default function CreatorPortal() {
   }
 
   async function savePersona(status: "draft" | "live" | "paused") {
+    if (!accessToken) {
+      setStep(1);
+      setSystemNotice("Please sign up or sign in before publishing.");
+      return;
+    }
+
     setSaving(true);
     setSystemNotice(status === "live" ? "Publishing persona..." : "Saving persona...");
     setWorkspace((current) => ({ ...current, status }));
@@ -65,7 +81,7 @@ export default function CreatorPortal() {
       const nextWorkspace = { ...workspace, status };
       const response = await fetch("/api/personas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({
           creator_name: nextWorkspace.creatorName,
           creator_handle: nextWorkspace.creatorHandle,
@@ -74,8 +90,8 @@ export default function CreatorPortal() {
           enabled_guardrails: nextWorkspace.enabledGuardrails,
           custom_boundary: nextWorkspace.customBoundary,
           fallback_text: nextWorkspace.fallbackText,
-          monetization: nextWorkspace.monetization,
-          price_cents: Math.round(nextWorkspace.price * 100),
+          monetization: "free",
+          price_cents: 0,
           status,
         }),
       });
@@ -100,6 +116,23 @@ export default function CreatorPortal() {
 
   async function copyShareLink() {
     if (shareUrl) await navigator.clipboard.writeText(shareUrl);
+  }
+
+  async function authenticate() {
+    setSystemNotice(authMode === "signup" ? "Creating creator account..." : "Signing in...");
+    try {
+      const session = await supabasePasswordAuth(authMode, email, password);
+      setAccessToken(session.access_token);
+      setSystemNotice(authMode === "signup" ? "Creator account created. Continue to content." : "Signed in. Continue to content.");
+    } catch (error) {
+      setSystemNotice(error instanceof Error ? error.message : "Authentication failed");
+    }
+  }
+
+  function signOut() {
+    clearStoredSession();
+    setAccessToken("");
+    setSystemNotice("Signed out.");
   }
 
   return (
@@ -144,8 +177,42 @@ export default function CreatorPortal() {
           {step === 1 && (
             <div className="product-card">
               <span className="section-kicker">Step 1</span>
-              <h2>Sign up as the creator or celeb</h2>
-              <p>Use your public identity. The handle becomes part of the fan chat URL.</p>
+              <h2>{accessToken ? "Creator account connected" : "Sign up or sign in"}</h2>
+              <p>Supabase Auth protects the creator portal so only the creator account can publish or pause its persona.</p>
+              {!accessToken && (
+                <>
+                  <div className="auth-switch">
+                    <button className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>
+                      Sign up
+                    </button>
+                    <button className={authMode === "signin" ? "active" : ""} onClick={() => setAuthMode("signin")}>
+                      Sign in
+                    </button>
+                  </div>
+                  <div className="field-grid">
+                    <label>
+                      Email
+                      <input value={email} type="email" onChange={(event) => setEmail(event.target.value)} />
+                    </label>
+                    <label>
+                      Password
+                      <input value={password} type="password" onChange={(event) => setPassword(event.target.value)} />
+                    </label>
+                  </div>
+                  <button className="primary-action" onClick={authenticate}>
+                    {authMode === "signup" ? "Create account" : "Sign in"}
+                  </button>
+                </>
+              )}
+              {accessToken && (
+                <div className="connected-account">
+                  <strong>{email || "Creator account"}</strong>
+                  <button className="secondary-action" onClick={signOut}>
+                    Sign out
+                  </button>
+                </div>
+              )}
+              <h3 className="form-section-title">Public creator profile</h3>
               <div className="field-grid">
                 <label>
                   Creator name
@@ -160,7 +227,7 @@ export default function CreatorPortal() {
                 <input type="checkbox" defaultChecked />
                 I confirm I own or have permission to use this content and fans will see an AI disclosure.
               </label>
-              <button className="primary-action" onClick={() => setStep(2)}>
+              <button className="primary-action" onClick={() => setStep(2)} disabled={!accessToken}>
                 Continue to content
               </button>
             </div>
@@ -232,7 +299,7 @@ export default function CreatorPortal() {
           {step === 4 && (
             <div className="product-card">
               <span className="section-kicker">Step 4</span>
-              <h2>Set safety, fallback, and payment</h2>
+              <h2>Set safety and fallback</h2>
               <p>Flagged means a fan interaction touched a safety rule, blocked topic, identity boundary, or fallback path.</p>
               <div className="guardrail-grid">
                 {guardrails.map((rail) => (
@@ -258,20 +325,10 @@ export default function CreatorPortal() {
                   Custom off-limits topic
                   <input value={workspace.customBoundary} onChange={(event) => updateField("customBoundary", event.target.value)} />
                 </label>
-                <label>
-                  Access model
-                  <select
-                    value={workspace.monetization}
-                    onChange={(event) => updateField("monetization", event.target.value as typeof workspace.monetization)}
-                  >
-                    <option value="free">Free fan access</option>
-                    <option value="pay_per_conversation">Paid per conversation</option>
-                  </select>
-                </label>
-                <label>
-                  Price
-                  <input type="number" min={1} value={workspace.price} onChange={(event) => updateField("price", Number(event.target.value))} />
-                </label>
+                <div className="fallback-box">
+                  <strong>Access model</strong>
+                  <p>Free fan access for the first production test. Paid chat can be enabled after Stripe is configured.</p>
+                </div>
                 <div className="fallback-box">
                   <strong>Fixed fallback</strong>
                   <p>{workspace.fallbackText}</p>

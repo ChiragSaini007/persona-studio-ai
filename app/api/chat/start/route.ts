@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { bearerToken, getAuthUser } from "../../../../lib/auth";
 import { cleanHandle, PersonaRecord } from "../../../../lib/persona";
 import { supabaseRest } from "../../../../lib/supabase-rest";
 
 type ConversationRow = {
   id: string;
   persona_id: string;
+  fan_user_id?: string;
   paid: boolean;
 };
 
 export async function POST(request: NextRequest) {
+  const user = await getAuthUser(bearerToken(request));
+  if (!user) return NextResponse.json({ error: "Fan login required" }, { status: 401 });
+
   const { handle, paid = false, stripe_session_id } = await request.json();
   const creatorHandle = cleanHandle(handle || "");
 
@@ -28,6 +33,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       body: {
         persona_id: persona.id,
+        fan_user_id: user.id,
         paid: Boolean(paid),
         stripe_session_id: stripe_session_id || null,
       },

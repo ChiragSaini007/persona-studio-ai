@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { bearerToken, getAuthUser } from "../../../lib/auth";
 import { cleanHandle, PersonaRecord } from "../../../lib/persona";
 import { supabaseRest } from "../../../lib/supabase-rest";
 
@@ -18,8 +19,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const user = await getAuthUser(bearerToken(request));
+  if (!user) return NextResponse.json({ error: "Creator login required" }, { status: 401 });
+
   const body = await request.json();
   const persona: PersonaRecord = {
+    creator_user_id: user.id,
     creator_name: body.creator_name,
     creator_handle: cleanHandle(body.creator_handle),
     source_content: body.source_content || "",
@@ -33,6 +38,13 @@ export async function POST(request: NextRequest) {
   };
 
   try {
+    const existing = await supabaseRest<PersonaRecord[]>(
+      `personas?creator_handle=eq.${encodeURIComponent(persona.creator_handle)}&select=id,creator_user_id`,
+    );
+    if (existing[0]?.creator_user_id && existing[0].creator_user_id !== user.id) {
+      return NextResponse.json({ error: "This handle belongs to another creator account" }, { status: 403 });
+    }
+
     const rows = await supabaseRest<PersonaRecord[]>("personas?on_conflict=creator_handle", {
       method: "POST",
       body: persona,

@@ -28,7 +28,7 @@ export default function Home() {
           <h1>Create an AI persona fans can chat with from your Instagram bio.</h1>
           <p>
             Persona Studio gives creators a controlled way to turn approved content into a fan-facing AI chat
-            experience, with clear disclosure, strict guardrails, optional monetization, and a shareable public link.
+            experience, with Supabase login, clear disclosure, strict guardrails, and a shareable public link.
           </p>
           <div className="cta-row">
             <Link href="/creator" className="primary-action">
@@ -101,7 +101,8 @@ export default function Home() {
           <div>Fixed AI disclosure</div>
           <div>Creator-approved fallback</div>
           <div>Pause / unpublish control</div>
-          <div>Flagged interaction dashboard</div>
+              <div>Logged-in fan conversations</div>
+              <div>Flagged interaction dashboard</div>
         </div>
       </section>
     </main>

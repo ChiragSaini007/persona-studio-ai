@@ -16,6 +16,8 @@ export default function CreatorPortal() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
   const [step, setStep] = useState(1);
   const [origin, setOrigin] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [systemNotice, setSystemNotice] = useState("");
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
 
@@ -36,8 +38,63 @@ export default function CreatorPortal() {
     }));
   }
 
+  async function generateProfile() {
+    setSystemNotice("Generating persona profile...");
+    try {
+      const response = await fetch("/api/personas/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: workspace.content }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Profile generation failed");
+      setWorkspace((current) => ({ ...current, profile: data.profile || makePersonaProfile(current.content) }));
+      setSystemNotice(data.usedAI ? "Profile generated with AI." : "Profile generated locally. Add OpenAI key for production AI.");
+    } catch (error) {
+      setWorkspace((current) => ({ ...current, profile: makePersonaProfile(current.content) }));
+      setSystemNotice(error instanceof Error ? error.message : "Profile generated locally.");
+    }
+  }
+
+  async function savePersona(status: "draft" | "live" | "paused") {
+    setSaving(true);
+    setSystemNotice(status === "live" ? "Publishing persona..." : "Saving persona...");
+    setWorkspace((current) => ({ ...current, status }));
+
+    try {
+      const nextWorkspace = { ...workspace, status };
+      const response = await fetch("/api/personas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creator_name: nextWorkspace.creatorName,
+          creator_handle: nextWorkspace.creatorHandle,
+          source_content: nextWorkspace.content,
+          profile: nextWorkspace.profile,
+          enabled_guardrails: nextWorkspace.enabledGuardrails,
+          custom_boundary: nextWorkspace.customBoundary,
+          fallback_text: nextWorkspace.fallbackText,
+          monetization: nextWorkspace.monetization,
+          price_cents: Math.round(nextWorkspace.price * 100),
+          status,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Backend save failed");
+      setSystemNotice(status === "live" ? "Persona is live. Share the Instagram bio link." : "Persona saved.");
+    } catch (error) {
+      setSystemNotice(
+        error instanceof Error
+          ? `${error.message}. Local prototype state is updated, but production storage needs env setup.`
+          : "Local prototype state is updated, but production storage needs env setup.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function publish() {
-    setWorkspace((current) => ({ ...current, status: "live" }));
+    void savePersona("live");
     setStep(5);
   }
 
@@ -80,6 +137,7 @@ export default function CreatorPortal() {
             <strong>{workspace.status === "live" ? "Live" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
             <p>{workspace.status === "live" ? "Your fan link is ready to share." : "Your fan link unlocks after publishing."}</p>
           </div>
+          {systemNotice && <div className="system-notice">{systemNotice}</div>}
         </aside>
 
         <section className="wizard-content">
@@ -125,7 +183,7 @@ export default function CreatorPortal() {
                 <button
                   className="primary-action"
                   onClick={() => {
-                    setWorkspace((current) => ({ ...current, profile: makePersonaProfile(current.content) }));
+                    void generateProfile();
                     setStep(3);
                   }}
                 >
@@ -223,8 +281,8 @@ export default function CreatorPortal() {
                 <button className="secondary-action" onClick={() => setStep(3)}>
                   Back
                 </button>
-                <button className="primary-action" onClick={publish}>
-                  Publish persona
+                <button className="primary-action" onClick={publish} disabled={saving}>
+                  {saving ? "Publishing..." : "Publish persona"}
                 </button>
               </div>
             </div>
@@ -245,8 +303,8 @@ export default function CreatorPortal() {
                 </div>
                 <div className="button-row">
                   {workspace.status !== "live" && (
-                    <button className="primary-action" onClick={publish}>
-                      Make persona live
+                    <button className="primary-action" onClick={publish} disabled={saving}>
+                      {saving ? "Publishing..." : "Make persona live"}
                     </button>
                   )}
                   {workspace.status === "live" && (
@@ -257,7 +315,7 @@ export default function CreatorPortal() {
                       <Link className="secondary-action" href={publicPath}>
                         Open fan chat
                       </Link>
-                      <button className="secondary-action" onClick={() => updateField("status", "paused")}>
+                      <button className="secondary-action" onClick={() => void savePersona("paused")} disabled={saving}>
                         Pause persona
                       </button>
                     </>

@@ -481,6 +481,25 @@ input:disabled {
   font-size: 22px;
 }
 
+.system-notice,
+.runtime-note {
+  background: #fff7d6;
+  border: 1px solid #ead685;
+  border-radius: 14px;
+  color: #6a5000;
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.45;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+
+.runtime-note {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #f2d889 !important;
+}
+
 .wizard-content,
 .screen-stack {
   display: grid;

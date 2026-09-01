@@ -1,30 +1,123 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
-import { cleanHandle, findFlag, generatePersonaReply, uid, usePersonaWorkspace } from "../../persona-model";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { cleanHandle, findFlag, generatePersonaReply, Message, uid, usePersonaWorkspace } from "../../persona-model";
+
+type RemotePersona = ReturnType<typeof usePersonaWorkspace>["workspace"];
 
 export default function FanChatPage() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
+  const params = useParams<{ handle: string }>();
+  const searchParams = useSearchParams();
+  const handle = cleanHandle(params?.handle || workspace.creatorHandle);
+  const [remotePersona, setRemotePersona] = useState<RemotePersona | null>(null);
   const [started, setStarted] = useState(false);
   const [paywall, setPaywall] = useState(false);
   const [input, setInput] = useState("");
+  const [conversationId, setConversationId] = useState("");
+  const [remoteMessages, setRemoteMessages] = useState<Message[]>([]);
+  const [notice, setNotice] = useState("");
   const activeConversation = workspace.conversations[workspace.conversations.length - 1];
-  const fanPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
+  const activePersona = remotePersona || workspace;
+  const fanPath = `/p/${handle}`;
+  const paidFromStripe = useMemo(() => searchParams.get("paid") === "1", [searchParams]);
 
-  function startConversation(paid = false) {
+  useEffect(() => {
+    async function loadPersona() {
+      try {
+        const response = await fetch(`/api/personas?handle=${encodeURIComponent(handle)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Using local preview persona");
+        const persona = data.persona;
+        setRemotePersona({
+          ...workspace,
+          creatorName: persona.creator_name,
+          creatorHandle: `@${persona.creator_handle}`,
+          content: persona.source_content,
+          profile: persona.profile,
+          enabledGuardrails: persona.enabled_guardrails,
+          customBoundary: persona.custom_boundary,
+          fallbackText: persona.fallback_text,
+          monetization: persona.monetization,
+          price: persona.price_cents / 100,
+          status: persona.status,
+        });
+        setNotice("");
+      } catch (error) {
+        setRemotePersona(null);
+        setNotice(error instanceof Error ? error.message : "Using local preview persona");
+      }
+    }
+
+    void loadPersona();
+  }, [handle]);
+
+  async function startConversation(paid = false) {
+    const isPaid = paid || paidFromStripe;
+
+    if (remotePersona) {
+      try {
+        const response = await fetch("/api/chat/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            handle,
+            paid: isPaid,
+            stripe_session_id: searchParams.get("session_id"),
+          }),
+        });
+        const data = await response.json();
+        if (response.status === 402) {
+          setPaywall(true);
+          return;
+        }
+        if (!response.ok) throw new Error(data.error || "Unable to start chat");
+        setConversationId(data.conversation.id);
+        setRemoteMessages([]);
+        setStarted(true);
+        setPaywall(false);
+        return;
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Using local chat fallback");
+      }
+    }
+
     setStarted(true);
     setPaywall(false);
     setWorkspace((current) => ({
       ...current,
-      conversations: [...current.conversations, { id: uid(), paid, messages: [] }],
+      conversations: [...current.conversations, { id: uid(), paid: isPaid, messages: [] }],
     }));
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
     if (!text) return;
+
+    if (remotePersona && conversationId) {
+      setInput("");
+      setRemoteMessages((current) => [...current, { id: uid(), from: "fan", text }]);
+
+      try {
+        const response = await fetch("/api/chat/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId, message: text }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Unable to send message");
+        setRemoteMessages((current) => [
+          ...current,
+          { id: uid(), from: "persona", text: data.reply, flagged: Boolean(data.flagReason), flagReason: data.flagReason },
+        ]);
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Message failed");
+      }
+      return;
+    }
 
     const flagReason = findFlag(workspace, text);
     const reply = generatePersonaReply(workspace, text, flagReason);
@@ -46,19 +139,40 @@ export default function FanChatPage() {
     setInput("");
   }
 
-  if (workspace.status !== "live") {
+  async function openCheckout() {
+    if (!remotePersona) {
+      setPaywall(true);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to open checkout");
+      window.location.href = data.url;
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Stripe is not configured");
+      setPaywall(true);
+    }
+  }
+
+  if (activePersona.status !== "live") {
     return (
       <main className="app-shell">
         <section className="stage fan-stage">
           <nav className="top-nav">
             <Link className="brand-script" href="/">
-              Persona
+              Persona Studio
             </Link>
             <div className="nav-tabs">
               <Link href="/creator">Creator portal</Link>
               <span className="active">{fanPath}</span>
             </div>
-            <span className={`status-chip ${workspace.status}`}>{workspace.status}</span>
+            <span className={`status-chip ${activePersona.status}`}>{activePersona.status}</span>
           </nav>
           <div className="empty-public">
             <h1>This persona is not live yet</h1>
@@ -66,19 +180,21 @@ export default function FanChatPage() {
             <Link className="primary-btn" href="/creator">
               Open creator portal
             </Link>
+            {notice && <p className="runtime-note">{notice}</p>}
           </div>
         </section>
       </main>
     );
   }
 
+  const visibleMessages = remotePersona ? remoteMessages : activeConversation.messages;
+
   return (
     <main className="app-shell fan-shell">
-      <div className="burst burst-top" />
       <section className="stage fan-stage">
         <nav className="top-nav">
           <Link className="brand-script" href="/">
-            Persona
+            Persona Studio
           </Link>
           <div className="nav-tabs">
             <span className="active">{fanPath}</span>
@@ -89,16 +205,16 @@ export default function FanChatPage() {
 
         <header className="fan-hero">
           <div>
-            <p className="eyebrow">Public fan URL</p>
+            <p className="section-kicker">Public fan URL</p>
             <h1>
-              Chat with <span>{workspace.creatorName}</span>
+              Chat with <span>{activePersona.creatorName}</span>
             </h1>
             <p>
               This is a disclosed AI persona trained on creator-provided content. Boundaries are strict and visible to
               the creator.
             </p>
           </div>
-          <div className="fan-stats pop-card mint-card">
+          <div className="fan-stats">
             <strong>{analytics.fanMessages}</strong>
             <span>fan messages in pilot</span>
           </div>
@@ -107,32 +223,34 @@ export default function FanChatPage() {
         <section className="chat-layout public-chat-layout">
           <div className="chat-window">
             <div className="disclosure">
-              You are chatting with an AI persona trained on {workspace.creatorName}&apos;s provided content. This is not
-              the real creator. Risky or off-topic questions receive a fixed fallback.
+              You are chatting with an AI persona trained on {activePersona.creatorName}&apos;s provided content. This is
+              not the real creator. Risky or off-topic questions receive a fixed fallback.
             </div>
             <div className="chat-body">
               <div className="messages">
                 {!started && (
                   <div className="empty-chat">
-                    <h2>{workspace.monetization === "free" ? "Start chatting" : "Unlock this chat"}</h2>
+                    <h2>{activePersona.monetization === "free" ? "Start chatting" : "Unlock this chat"}</h2>
                     <p>
-                      {workspace.monetization === "free"
+                      {activePersona.monetization === "free"
                         ? "Fan access is free for this persona."
-                        : `This creator charges $${workspace.price.toFixed(2)} per conversation.`}
+                        : `This creator charges $${activePersona.price.toFixed(2)} per conversation.`}
                     </p>
                     <button
                       onClick={() =>
-                        workspace.monetization === "free" ? startConversation(false) : setPaywall(true)
+                        activePersona.monetization === "free" || paidFromStripe
+                          ? void startConversation(paidFromStripe)
+                          : void openCheckout()
                       }
                       className="primary-btn"
                     >
-                      {workspace.monetization === "free" ? "Start conversation" : "Continue to paywall"}
+                      {activePersona.monetization === "free" || paidFromStripe ? "Start conversation" : "Continue to paywall"}
                     </button>
                   </div>
                 )}
 
                 {started &&
-                  activeConversation.messages.map((message) => (
+                  visibleMessages.map((message) => (
                     <div key={message.id} className={`message ${message.from === "fan" ? "fan" : ""} ${message.flagged ? "flagged" : ""}`}>
                       {message.text}
                       {message.flagged && <div className="flag-label">Flagged: {message.flagReason}</div>}
@@ -140,12 +258,7 @@ export default function FanChatPage() {
                   ))}
               </div>
               <form onSubmit={submit} className="chat-form">
-                <input
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  disabled={!started}
-                  placeholder="Ask a question..."
-                />
+                <input value={input} onChange={(event) => setInput(event.target.value)} disabled={!started} placeholder="Ask a question..." />
                 <button className="primary-btn compact">Send</button>
               </form>
             </div>
@@ -153,18 +266,19 @@ export default function FanChatPage() {
 
           <aside className="side-stack">
             {paywall && (
-              <div className="pop-card purple-card">
+              <div className="purple-card">
                 <h3>Paywall</h3>
-                <p>Mock checkout for this MVP.</p>
-                <strong className="price">${workspace.price.toFixed(2)}</strong>
-                <button className="primary-btn" onClick={() => startConversation(true)}>
+                <p>{remotePersona ? "Stripe is not configured yet." : "Mock checkout for local preview."}</p>
+                <strong className="price">${activePersona.price.toFixed(2)}</strong>
+                <button className="primary-btn" onClick={() => void startConversation(true)}>
                   Pay and start chat
                 </button>
               </div>
             )}
-            <div className="pop-card dark-card">
+            <div className="dark-card">
               <span className="tiny-label">Boundaries</span>
               <p>Questions about identity deception, medical, legal, financial, politics, or private personal life may be flagged.</p>
+              {notice && <p className="runtime-note">{notice}</p>}
             </div>
           </aside>
         </section>

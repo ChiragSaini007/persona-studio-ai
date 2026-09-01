@@ -259,162 +259,142 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f4ef] text-[#171819]">
-      <section className="border-b border-[#d9d4c8] bg-[#fffdf8]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7b684f]">Persona Studio AI</p>
-            <h1 className="text-2xl font-semibold tracking-tight text-[#171819]">Creator-controlled AI fan chat</h1>
-          </div>
-          <nav className="grid grid-cols-2 gap-2 sm:flex" aria-label="Persona Studio sections">
+    <main className="app-shell">
+      <div className="burst burst-top" />
+      <div className="burst burst-left" />
+      <section className="stage">
+        <nav className="top-nav" aria-label="Persona Studio sections">
+          <div className="brand-script">Persona</div>
+          <div className="nav-tabs">
             {(["signup", "studio", "chat", "dashboard"] as Tab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`h-10 rounded-md border px-4 text-sm font-semibold capitalize transition ${
-                  activeTab === tab
-                    ? "border-[#171819] bg-[#171819] text-white"
-                    : "border-[#d9d4c8] bg-white text-[#504d47] hover:border-[#8f887b]"
-                }`}
-              >
+              <button key={tab} onClick={() => setActiveTab(tab)} className={activeTab === tab ? "active" : ""}>
                 {tab}
               </button>
             ))}
-          </nav>
-        </div>
-      </section>
-
-      <section className="mx-auto grid max-w-7xl gap-5 px-5 py-6 lg:grid-cols-[280px_1fr]">
-        <aside className="space-y-4">
-          <div className="rounded-lg border border-[#d9d4c8] bg-white p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-[#504d47]">Persona status</span>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold ${
-                  status === "live"
-                    ? "bg-[#d9f6df] text-[#146c2e]"
-                    : status === "paused"
-                      ? "bg-[#ffe2df] text-[#9f271f]"
-                      : "bg-[#eee9df] text-[#6d6254]"
-                }`}
-              >
-                {status}
-              </span>
-            </div>
-            <div className="mt-4 space-y-2 text-sm text-[#5f5b53]">
-              <p>{creatorName || "Creator"} can sign up directly and publish after reviewing the AI profile.</p>
-              <p>Payment is optional. Guardrails stay active for free and paid chats.</p>
-            </div>
           </div>
+          <div className={`status-chip ${status}`}>{status}</div>
+        </nav>
 
-          <div className="rounded-lg border border-[#d9d4c8] bg-[#25231f] p-4 text-white">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#f1c876]">Architecture-ready V0</p>
-            <ul className="mt-3 space-y-2 text-sm text-[#eee8dc]">
-              <li>Next.js creator and fan surfaces</li>
-              <li>Supabase-ready content and analytics model</li>
-              <li>OpenAI retrieval and moderation path</li>
-              <li>Stripe-ready optional paywall</li>
-            </ul>
+        <header className="hero-row">
+          <div className="hero-copy">
+            <p className="eyebrow">Creator-controlled AI fan chat</p>
+            <h1>
+              Build your <span>AI persona</span>
+            </h1>
+            <p>
+              Creators sign up, upload content, approve the persona, set guardrails, and share a fan chat link with an
+              optional paywall.
+            </p>
           </div>
-        </aside>
+          <div className="creator-poster" aria-label="Persona preview">
+            <div className="poster-card">
+              <div className="avatar-cutout">{creatorName.slice(0, 1) || "P"}</div>
+              <div className="poster-label">{creatorHandle}</div>
+            </div>
+            <div className="scribble-arrow">↝</div>
+          </div>
+        </header>
 
-        <div className="min-w-0">
+        <section className="workspace-grid">
+          <aside className="side-stack">
+            <div className="pop-card mint-card">
+              <span className="tiny-label">Status</span>
+              <strong>{status === "live" ? "Persona live" : status === "paused" ? "Paused" : "Draft mode"}</strong>
+              <p>{creatorName || "Creator"} can publish only after reviewing profile and boundaries.</p>
+            </div>
+
+            <div className="pop-card dark-card">
+              <span className="tiny-label">Stack</span>
+              <p>Next.js surface, Supabase-ready data, OpenAI runtime, Stripe optional payments.</p>
+            </div>
+          </aside>
+
+          <div className="content-stack">
           {activeTab === "signup" && (
-            <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
-              <form onSubmit={signUp} className="rounded-lg border border-[#d9d4c8] bg-white p-5">
-                <p className="text-sm font-semibold text-[#7b684f]">Creator signup</p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight">Create your AI persona workspace</h2>
-                <p className="mt-3 max-w-2xl text-[#5f5b53]">
+            <section className="two-col">
+              <form onSubmit={signUp} className="pop-card main-card">
+                <p className="tiny-label">Creator signup</p>
+                <h2>Create your AI persona workspace</h2>
+                <p>
                   V0 allows creators and celebs to sign up directly, upload their own content, approve the persona, and
                   decide whether fan access is free or paid.
                 </p>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                  <label className="text-sm font-semibold text-[#504d47]">
+                <div className="field-grid">
+                  <label>
                     Creator name
                     <input
                       value={creatorName}
                       onChange={(event) => setCreatorName(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-md border border-[#cfc8ba] px-3 outline-none focus:border-[#171819]"
                     />
                   </label>
-                  <label className="text-sm font-semibold text-[#504d47]">
+                  <label>
                     Public handle
                     <input
                       value={creatorHandle}
                       onChange={(event) => setCreatorHandle(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-md border border-[#cfc8ba] px-3 outline-none focus:border-[#171819]"
                     />
                   </label>
                 </div>
-                <label className="mt-5 flex items-start gap-3 rounded-md border border-[#d9d4c8] bg-[#fbfaf6] p-4 text-sm text-[#504d47]">
-                  <input type="checkbox" defaultChecked className="mt-1" />
+                <label className="check-row">
+                  <input type="checkbox" defaultChecked />
                   I confirm I own or have permission to use the uploaded content and understand fans will see a clear AI
                   disclosure.
                 </label>
-                <button className="mt-6 h-11 rounded-md bg-[#171819] px-5 text-sm font-bold text-white">
-                  Continue to studio
-                </button>
+                <button className="primary-btn">Continue to studio</button>
               </form>
 
-              <div className="rounded-lg border border-[#d9d4c8] bg-[#fffdf8] p-5">
-                <h3 className="text-lg font-semibold">V0 signup posture</h3>
-                <div className="mt-4 space-y-3 text-sm text-[#5f5b53]">
-                  <p>Open signup keeps onboarding lightweight.</p>
-                  <p>Consent and content ownership are still explicit because the product speaks through a real identity.</p>
-                  <p>Stronger verification can be added later for high-risk public figures.</p>
+              <div className="pop-card purple-card">
+                <h3>Open signup</h3>
+                <p>Lightweight onboarding with explicit content ownership and AI disclosure acceptance.</p>
+                <div className="mini-badges">
+                  <span>Consent</span>
+                  <span>Content</span>
+                  <span>Control</span>
                 </div>
               </div>
             </section>
           )}
 
           {activeTab === "studio" && (
-            <section className="space-y-5">
-              <div className="rounded-lg border border-[#d9d4c8] bg-white p-5">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <section className="screen-stack">
+              <div className="pop-card main-card">
+                <div className="split-head">
                   <div>
-                    <p className="text-sm font-semibold text-[#7b684f]">Creator Studio</p>
-                    <h2 className="mt-1 text-3xl font-semibold tracking-tight">Train, review, and publish</h2>
-                    <p className="mt-2 max-w-2xl text-[#5f5b53]">
+                    <p className="tiny-label">Creator Studio</p>
+                    <h2>Train, review, and publish</h2>
+                    <p>
                       Upload or paste creator-provided content. The profile below is generated for review before the
                       persona can go live.
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="button-row">
                     <button
                       onClick={() => setStatus(status === "paused" ? "live" : "paused")}
-                      className="h-10 rounded-md border border-[#cfc8ba] px-4 text-sm font-bold text-[#504d47]"
+                      className="secondary-btn"
                     >
                       {status === "paused" ? "Resume" : "Pause"}
                     </button>
-                    <button onClick={publishPersona} className="h-10 rounded-md bg-[#171819] px-4 text-sm font-bold text-white">
-                      Publish
-                    </button>
+                    <button onClick={publishPersona} className="primary-btn compact">Publish</button>
                   </div>
                 </div>
                 <textarea
                   value={content}
                   onChange={(event) => setContent(event.target.value)}
-                  className="mt-5 min-h-48 w-full rounded-md border border-[#cfc8ba] bg-[#fbfaf6] p-4 text-sm leading-6 outline-none focus:border-[#171819]"
                 />
-                <button
-                  onClick={generateProfile}
-                  className="mt-4 h-10 rounded-md border border-[#171819] px-4 text-sm font-bold text-[#171819]"
-                >
-                  Generate persona profile
-                </button>
+                <button onClick={generateProfile} className="secondary-btn">Generate persona profile</button>
               </div>
 
-              <div className="grid gap-5 lg:grid-cols-3">
+              <div className="profile-grid">
                 {[
                   ["Topics", profile.topics, "topic"],
                   ["Tone", profile.tone, "tone"],
                   ["Recurring phrases", profile.phrases, "phrase"],
                 ].map(([title, items, key]) => (
-                  <div key={String(title)} className="rounded-lg border border-[#d9d4c8] bg-white p-5">
-                    <h3 className="font-semibold">{String(title)}</h3>
-                    <div className="mt-4 flex flex-wrap gap-2">
+                  <div key={String(title)} className="pop-card small-card">
+                    <h3>{String(title)}</h3>
+                    <div className="chip-wrap">
                       {(items as string[]).map((item) => (
-                        <span key={item} className={`rounded-full px-3 py-1 text-xs font-bold ${key}`}>
+                        <span key={item} className={`pill ${key}`}>
                           {item}
                         </span>
                       ))}
@@ -423,16 +403,16 @@ export default function Home() {
                 ))}
               </div>
 
-              <div className="rounded-lg border border-[#d9d4c8] bg-white p-5">
-                <h3 className="text-lg font-semibold">Guardrails and fallback</h3>
-                <p className="mt-2 text-sm text-[#5f5b53]">
+              <div className="pop-card main-card">
+                <h3>Guardrails and fallback</h3>
+                <p>
                   Flagged means a chat touched a safety rule, blocked topic, identity boundary, or fallback path. It is
                   logged for creator visibility.
                 </p>
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <div className="guardrail-grid">
                   {guardrails.map((rail) => (
-                    <label key={rail.key} className="rounded-md border border-[#d9d4c8] bg-[#fbfaf6] p-4">
-                      <span className="flex items-start gap-3">
+                    <label key={rail.key} className="guardrail-card">
+                      <span>
                         <input
                           type="checkbox"
                           checked={enabledGuardrails[rail.key]}
@@ -440,29 +420,27 @@ export default function Home() {
                           onChange={() =>
                             setEnabledGuardrails((current) => ({ ...current, [rail.key]: !current[rail.key] }))
                           }
-                          className="mt-1"
                         />
                         <span>
-                          <span className="font-semibold">{rail.title}</span>
-                          {rail.locked && <span className="ml-2 text-xs font-bold text-[#9f271f]">Always on</span>}
-                          <span className="mt-1 block text-sm text-[#5f5b53]">{rail.description}</span>
+                          <strong>{rail.title}</strong>
+                          {rail.locked && <em>Always on</em>}
+                          <small>{rail.description}</small>
                         </span>
                       </span>
                     </label>
                   ))}
                 </div>
-                <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                  <label className="text-sm font-semibold text-[#504d47]">
+                <div className="field-grid">
+                  <label>
                     Custom off-limits topic
                     <input
                       value={customBoundary}
                       onChange={(event) => setCustomBoundary(event.target.value)}
-                      className="mt-2 h-11 w-full rounded-md border border-[#cfc8ba] px-3 outline-none focus:border-[#171819]"
                     />
                   </label>
-                  <div className="rounded-md border border-[#d9d4c8] bg-[#fbfaf6] p-4 text-sm text-[#504d47]">
-                    <span className="font-semibold">Fixed fallback</span>
-                    <p className="mt-2">{fallbackText}</p>
+                  <div className="fallback-box">
+                    <strong>Fixed fallback</strong>
+                    <p>{fallbackText}</p>
                   </div>
                 </div>
               </div>
@@ -470,22 +448,22 @@ export default function Home() {
           )}
 
           {activeTab === "chat" && (
-            <section className="grid gap-5 lg:grid-cols-[1fr_320px]">
-              <div className="overflow-hidden rounded-lg border border-[#d9d4c8] bg-white">
-                <div className="border-b border-[#d9d4c8] bg-[#fff7df] p-4 text-sm text-[#5f4a1a]">
+            <section className="chat-layout">
+              <div className="chat-window">
+                <div className="disclosure">
                   You are chatting with an AI persona trained on {creatorName}&apos;s provided content. This is not the
                   real creator, and risky or off-topic questions receive a fixed fallback.
                 </div>
-                <div className="flex h-[520px] flex-col">
-                  <div className="flex-1 space-y-3 overflow-y-auto p-5">
+                <div className="chat-body">
+                  <div className="messages">
                     {!conversationStarted && (
-                      <div className="rounded-md border border-[#d9d4c8] bg-[#fbfaf6] p-5 text-center">
-                        <h2 className="text-2xl font-semibold">Chat with {creatorName}&apos;s AI persona</h2>
-                        <p className="mt-2 text-sm text-[#5f5b53]">Access can be free or paid, based on creator settings.</p>
+                      <div className="empty-chat">
+                        <h2>Chat with {creatorName}&apos;s AI persona</h2>
+                        <p>Access can be free or paid, based on creator settings.</p>
                         <button
                           onClick={() => (monetization === "free" ? startConversation(false) : setPaywallOpen(true))}
                           disabled={status === "paused"}
-                          className="mt-5 h-11 rounded-md bg-[#171819] px-5 text-sm font-bold text-white disabled:opacity-40"
+                          className="primary-btn"
                         >
                           Start conversation
                         </button>
@@ -495,82 +473,59 @@ export default function Home() {
                       activeConversation.messages.map((message) => (
                         <div
                           key={message.id}
-                          className={`max-w-[82%] rounded-lg p-3 text-sm leading-6 ${
-                            message.from === "fan"
-                              ? "ml-auto bg-[#171819] text-white"
-                              : message.flagged
-                                ? "border border-[#efb6af] bg-[#fff1ef] text-[#5d211c]"
-                                : "bg-[#eee9df] text-[#25231f]"
-                          }`}
+                          className={`message ${message.from === "fan" ? "fan" : ""} ${message.flagged ? "flagged" : ""}`}
                         >
                           {message.text}
-                          {message.flagged && (
-                            <div className="mt-2 text-xs font-bold uppercase tracking-[0.12em]">
-                              Flagged: {message.flagReason}
-                            </div>
-                          )}
+                          {message.flagged && <div className="flag-label">Flagged: {message.flagReason}</div>}
                         </div>
                       ))}
                   </div>
-                  <form onSubmit={sendMessage} className="flex gap-2 border-t border-[#d9d4c8] p-4">
+                  <form onSubmit={sendMessage} className="chat-form">
                     <input
                       value={fanInput}
                       onChange={(event) => setFanInput(event.target.value)}
                       disabled={!conversationStarted || status === "paused"}
                       placeholder="Ask about creator economy, AI products, or product strategy..."
-                      className="h-11 min-w-0 flex-1 rounded-md border border-[#cfc8ba] px-3 text-sm outline-none focus:border-[#171819] disabled:bg-[#eee9df]"
                     />
-                    <button className="h-11 rounded-md bg-[#171819] px-5 text-sm font-bold text-white">Send</button>
+                    <button className="primary-btn compact">Send</button>
                   </form>
                 </div>
               </div>
 
-              <aside className="space-y-4">
-                <div className="rounded-lg border border-[#d9d4c8] bg-white p-5">
-                  <h3 className="font-semibold">Fan access</h3>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
+              <aside className="side-stack">
+                <div className="pop-card mint-card">
+                  <h3>Fan access</h3>
+                  <div className="toggle-row">
                     <button
                       onClick={() => setMonetization("free")}
-                      className={`h-10 rounded-md border text-sm font-bold ${
-                        monetization === "free" ? "border-[#171819] bg-[#171819] text-white" : "border-[#cfc8ba]"
-                      }`}
+                      className={monetization === "free" ? "active" : ""}
                     >
                       Free
                     </button>
                     <button
                       onClick={() => setMonetization("pay_per_conversation")}
-                      className={`h-10 rounded-md border text-sm font-bold ${
-                        monetization === "pay_per_conversation"
-                          ? "border-[#171819] bg-[#171819] text-white"
-                          : "border-[#cfc8ba]"
-                      }`}
+                      className={monetization === "pay_per_conversation" ? "active" : ""}
                     >
                       Paid
                     </button>
                   </div>
-                  <label className="mt-4 block text-sm font-semibold text-[#504d47]">
+                  <label>
                     Price per conversation
                     <input
                       type="number"
                       value={price}
                       min={1}
                       onChange={(event) => setPrice(Number(event.target.value))}
-                      className="mt-2 h-10 w-full rounded-md border border-[#cfc8ba] px-3"
                     />
                   </label>
                 </div>
 
                 {paywallOpen && (
-                  <div className="rounded-lg border border-[#171819] bg-[#fffdf8] p-5">
-                    <h3 className="text-lg font-semibold">Unlock conversation</h3>
-                    <p className="mt-2 text-sm text-[#5f5b53]">Mock Stripe checkout for V0 validation.</p>
-                    <p className="mt-4 text-3xl font-bold">${price.toFixed(2)}</p>
-                    <button
-                      onClick={() => startConversation(true)}
-                      className="mt-4 h-10 w-full rounded-md bg-[#171819] text-sm font-bold text-white"
-                    >
-                      Pay and unlock
-                    </button>
+                  <div className="pop-card purple-card">
+                    <h3>Unlock conversation</h3>
+                    <p>Mock Stripe checkout for V0 validation.</p>
+                    <strong className="price">${price.toFixed(2)}</strong>
+                    <button onClick={() => startConversation(true)} className="primary-btn">Pay and unlock</button>
                   </div>
                 )}
               </aside>
@@ -578,76 +533,72 @@ export default function Home() {
           )}
 
           {activeTab === "dashboard" && (
-            <section className="space-y-5">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section className="screen-stack">
+              <div className="metric-grid">
                 {[
                   ["Conversations", analytics.conversationCount],
                   ["Fan messages", analytics.messageCount],
                   ["Fallback rate", `${analytics.fallbackRate}%`],
                   ["Revenue", `$${analytics.revenue.toFixed(2)}`],
                 ].map(([label, value]) => (
-                  <div key={String(label)} className="rounded-lg border border-[#d9d4c8] bg-white p-5">
-                    <p className="text-sm font-semibold text-[#7b684f]">{String(label)}</p>
-                    <p className="mt-2 text-3xl font-bold">{String(value)}</p>
+                  <div key={String(label)} className="pop-card metric-card">
+                    <p>{String(label)}</p>
+                    <strong>{String(value)}</strong>
                   </div>
                 ))}
               </div>
 
-              <div className="grid gap-5 lg:grid-cols-2">
-                <div className="rounded-lg border border-[#d9d4c8] bg-white p-5">
-                  <h3 className="text-lg font-semibold">Common fan topics</h3>
-                  <div className="mt-4 space-y-3">
+              <div className="two-col">
+                <div className="pop-card main-card">
+                  <h3>Common fan topics</h3>
+                  <div className="table-list">
                     {analytics.topicCounts.map(({ topic, count }) => (
-                      <div key={topic} className="flex items-center justify-between border-b border-[#eee9df] pb-3">
-                        <span className="text-sm font-semibold">{topic}</span>
-                        <span className="text-sm text-[#5f5b53]">{count} mentions</span>
+                      <div key={topic}>
+                        <strong>{topic}</strong>
+                        <span>{count} mentions</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-[#d9d4c8] bg-white p-5">
-                  <div className="flex items-start justify-between gap-3">
+                <div className="pop-card main-card">
+                  <div className="split-head">
                     <div>
-                      <h3 className="text-lg font-semibold">Flagged interactions</h3>
-                      <p className="mt-1 text-sm text-[#5f5b53]">
+                      <h3>Flagged interactions</h3>
+                      <p>
                         Flagged means the system hit a safety rule, off-limits topic, or fixed fallback.
                       </p>
                     </div>
-                    <span className="rounded-full bg-[#fff1ef] px-3 py-1 text-xs font-bold text-[#9f271f]">
-                      {analytics.flagged.length}
-                    </span>
+                    <span className="count-badge">{analytics.flagged.length}</span>
                   </div>
-                  <div className="mt-4 space-y-3">
+                  <div className="flag-list">
                     {analytics.flagged.length === 0 && (
-                      <p className="rounded-md bg-[#fbfaf6] p-4 text-sm text-[#5f5b53]">No flagged interactions yet.</p>
+                      <p>No flagged interactions yet.</p>
                     )}
                     {analytics.flagged.map((message) => (
-                      <div key={message.id} className="rounded-md border border-[#efb6af] bg-[#fff8f7] p-4">
-                        <p className="text-sm font-semibold text-[#9f271f]">{message.flagReason}</p>
-                        <p className="mt-2 text-sm text-[#5f5b53]">{message.text}</p>
+                      <div key={message.id}>
+                        <strong>{message.flagReason}</strong>
+                        <p>{message.text}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-[#d9d4c8] bg-[#25231f] p-5 text-white">
-                <h3 className="text-lg font-semibold">Pilot health</h3>
-                <p className="mt-2 text-sm text-[#eee8dc]">
+              <div className="pop-card dark-card">
+                <h3>Pilot health</h3>
+                <p>
                   Fan return rate is currently {analytics.returnRate}%. For V0, the question is simple: do fans return
                   even when the AI is clearly disclosed and conservative?
                 </p>
-                <button
-                  onClick={() => setReturningFans((count) => count + 1)}
-                  className="mt-4 h-10 rounded-md bg-white px-4 text-sm font-bold text-[#171819]"
-                >
+                <button onClick={() => setReturningFans((count) => count + 1)} className="light-btn">
                   Simulate returning fan
                 </button>
               </div>
             </section>
           )}
         </div>
+      </section>
       </section>
     </main>
   );

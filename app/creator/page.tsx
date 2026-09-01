@@ -1,20 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { cleanHandle, guardrails, makePersonaProfile, usePersonaWorkspace } from "../persona-model";
+
+const wizardSteps = [
+  { id: 1, label: "Account" },
+  { id: 2, label: "Content" },
+  { id: 3, label: "Persona" },
+  { id: 4, label: "Safety" },
+  { id: 5, label: "Publish" },
+];
 
 export default function CreatorPortal() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
+  const [step, setStep] = useState(1);
+  const [origin, setOrigin] = useState("");
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
+  const shareUrl = `${origin}${publicPath}`;
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   function updateField<K extends keyof typeof workspace>(field: K, value: (typeof workspace)[K]) {
     setWorkspace((current) => ({ ...current, [field]: value }));
-  }
-
-  function signUp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    updateField("status", "draft");
   }
 
   function toggleGuardrail(key: string) {
@@ -28,118 +38,143 @@ export default function CreatorPortal() {
 
   function publish() {
     setWorkspace((current) => ({ ...current, status: "live" }));
+    setStep(5);
+  }
+
+  async function copyShareLink() {
+    if (shareUrl) await navigator.clipboard.writeText(shareUrl);
   }
 
   return (
-    <main className="app-shell">
-      <div className="burst burst-top" />
-      <div className="burst burst-left" />
-      <section className="stage">
-        <nav className="top-nav">
-          <Link className="brand-script" href="/">
-            Persona
-          </Link>
-          <div className="nav-tabs">
-            <a href="#setup" className="active">
-              Setup
-            </a>
-            <a href="#studio">Studio</a>
-            <a href="#dashboard">Dashboard</a>
-            <Link href={publicPath}>Fan URL</Link>
-          </div>
-          <span className={`status-chip ${workspace.status}`}>{workspace.status}</span>
-        </nav>
+    <main className="app-page">
+      <nav className="product-nav">
+        <Link href="/" className="wordmark">
+          Persona Studio
+        </Link>
+        <div>
+          <Link href="/">Landing</Link>
+          <Link href={publicPath}>Fan page</Link>
+        </div>
+      </nav>
 
-        <header className="portal-head">
-          <div className="hero-copy">
-            <p className="eyebrow">Creator portal</p>
-            <h1>
-              Train, control, and publish your <span>AI persona</span>
-            </h1>
-          </div>
-          <div className="share-card">
-            <span className="tiny-label">Live fan URL</span>
-            <strong>{workspace.status === "live" ? publicPath : "Publish to unlock"}</strong>
-            <p>{workspace.status === "live" ? "Fans can now chat on a separate public page." : "The link appears once your persona is live."}</p>
-            <Link className="primary-btn" href={publicPath}>
-              Open fan page
-            </Link>
-          </div>
-        </header>
+      <section className="portal-shell">
+        <aside className="wizard-panel">
+          <span className="section-kicker">Creator portal</span>
+          <h1>Create your AI persona</h1>
+          <p>Complete each step, review the output, then publish a link you can share on Instagram.</p>
 
-        <section className="creator-layout">
-          <div className="screen-stack">
-            <form id="setup" onSubmit={signUp} className="pop-card main-card">
-              <p className="tiny-label">1. Account</p>
-              <h2>Creator signup</h2>
-              <p>Creators and celebs can sign up directly. No invite gate in this MVP.</p>
+          <div className="wizard-steps">
+            {wizardSteps.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setStep(item.id)}
+                className={`${step === item.id ? "active" : ""} ${step > item.id || workspace.status === "live" ? "done" : ""}`}
+              >
+                <span>{item.id}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className={`publish-state ${workspace.status}`}>
+            <strong>{workspace.status === "live" ? "Live" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
+            <p>{workspace.status === "live" ? "Your fan link is ready to share." : "Your fan link unlocks after publishing."}</p>
+          </div>
+        </aside>
+
+        <section className="wizard-content">
+          {step === 1 && (
+            <div className="product-card">
+              <span className="section-kicker">Step 1</span>
+              <h2>Sign up as the creator or celeb</h2>
+              <p>Use your public identity. The handle becomes part of the fan chat URL.</p>
               <div className="field-grid">
                 <label>
                   Creator name
-                  <input
-                    value={workspace.creatorName}
-                    onChange={(event) => updateField("creatorName", event.target.value)}
-                  />
+                  <input value={workspace.creatorName} onChange={(event) => updateField("creatorName", event.target.value)} />
                 </label>
                 <label>
                   Public handle
-                  <input
-                    value={workspace.creatorHandle}
-                    onChange={(event) => updateField("creatorHandle", event.target.value)}
-                  />
+                  <input value={workspace.creatorHandle} onChange={(event) => updateField("creatorHandle", event.target.value)} />
                 </label>
               </div>
-              <label className="check-row">
+              <label className="consent-row">
                 <input type="checkbox" defaultChecked />
-                I own or have permission to use this content and accept that fans see an AI disclosure.
+                I confirm I own or have permission to use this content and fans will see an AI disclosure.
               </label>
-            </form>
+              <button className="primary-action" onClick={() => setStep(2)}>
+                Continue to content
+              </button>
+            </div>
+          )}
 
-            <section id="studio" className="pop-card main-card">
-              <div className="split-head">
-                <div>
-                  <p className="tiny-label">2. Studio</p>
-                  <h2>Upload content and generate persona</h2>
-                  <p>Paste captions, transcripts, interviews, writing samples, or creator-approved notes.</p>
-                </div>
-                <button
-                  className="secondary-btn"
-                  onClick={() =>
-                    setWorkspace((current) => ({ ...current, profile: makePersonaProfile(current.content) }))
-                  }
-                >
-                  Generate profile
-                </button>
-              </div>
+          {step === 2 && (
+            <div className="product-card">
+              <span className="section-kicker">Step 2</span>
+              <h2>Upload creator-approved content</h2>
+              <p>For V0, paste captions, transcripts, interviews, writing samples, or notes directly.</p>
               <textarea
                 value={workspace.content}
                 onChange={(event) => updateField("content", event.target.value)}
                 aria-label="Creator content"
               />
-            </section>
+              <div className="button-row">
+                <button className="secondary-action" onClick={() => setStep(1)}>
+                  Back
+                </button>
+                <button
+                  className="primary-action"
+                  onClick={() => {
+                    setWorkspace((current) => ({ ...current, profile: makePersonaProfile(current.content) }));
+                    setStep(3);
+                  }}
+                >
+                  Generate persona
+                </button>
+              </div>
+            </div>
+          )}
 
-            <section className="profile-grid">
-              {[
-                ["Topics", workspace.profile.topics, "topic"],
-                ["Tone", workspace.profile.tone, "tone"],
-                ["Recurring phrases", workspace.profile.phrases, "phrase"],
-              ].map(([title, items, key]) => (
-                <div key={String(title)} className="pop-card small-card">
-                  <h3>{String(title)}</h3>
-                  <div className="chip-wrap">
-                    {(items as string[]).map((item) => (
-                      <span key={item} className={`pill ${key}`}>
-                        {item}
-                      </span>
-                    ))}
+          {step === 3 && (
+            <div className="screen-stack">
+              <div className="product-card">
+                <span className="section-kicker">Step 3</span>
+                <h2>Review the AI persona profile</h2>
+                <p>This is the creator approval gate. The fan chat should only reflect this reviewed profile.</p>
+              </div>
+              <div className="profile-grid">
+                {[
+                  ["Topics", workspace.profile.topics, "topic"],
+                  ["Tone", workspace.profile.tone, "tone"],
+                  ["Recurring phrases", workspace.profile.phrases, "phrase"],
+                ].map(([title, items, key]) => (
+                  <div key={String(title)} className="product-card mini-card">
+                    <h3>{String(title)}</h3>
+                    <div className="chip-wrap">
+                      {(items as string[]).map((item) => (
+                        <span key={item} className={`pill ${key}`}>
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </section>
+                ))}
+              </div>
+              <div className="button-row">
+                <button className="secondary-action" onClick={() => setStep(2)}>
+                  Back
+                </button>
+                <button className="primary-action" onClick={() => setStep(4)}>
+                  Approve profile
+                </button>
+              </div>
+            </div>
+          )}
 
-            <section className="pop-card main-card">
-              <p className="tiny-label">3. Controls</p>
-              <h2>Guardrails and monetization</h2>
+          {step === 4 && (
+            <div className="product-card">
+              <span className="section-kicker">Step 4</span>
+              <h2>Set safety, fallback, and payment</h2>
               <p>Flagged means a fan interaction touched a safety rule, blocked topic, identity boundary, or fallback path.</p>
               <div className="guardrail-grid">
                 {guardrails.map((rail) => (
@@ -163,10 +198,7 @@ export default function CreatorPortal() {
               <div className="field-grid">
                 <label>
                   Custom off-limits topic
-                  <input
-                    value={workspace.customBoundary}
-                    onChange={(event) => updateField("customBoundary", event.target.value)}
-                  />
+                  <input value={workspace.customBoundary} onChange={(event) => updateField("customBoundary", event.target.value)} />
                 </label>
                 <label>
                   Access model
@@ -180,57 +212,74 @@ export default function CreatorPortal() {
                 </label>
                 <label>
                   Price
-                  <input
-                    type="number"
-                    min={1}
-                    value={workspace.price}
-                    onChange={(event) => updateField("price", Number(event.target.value))}
-                  />
+                  <input type="number" min={1} value={workspace.price} onChange={(event) => updateField("price", Number(event.target.value))} />
                 </label>
                 <div className="fallback-box">
                   <strong>Fixed fallback</strong>
                   <p>{workspace.fallbackText}</p>
                 </div>
               </div>
-            </section>
-          </div>
-
-          <aside className="side-stack">
-            <div className="pop-card purple-card">
-              <span className="tiny-label">Publish</span>
-              <h3>{workspace.creatorName}</h3>
-              <p>Make the persona live, pause it instantly, or open the separate fan page.</p>
-              <div className="button-column">
-                <button className="primary-btn" onClick={publish}>
-                  Make persona live
+              <div className="button-row">
+                <button className="secondary-action" onClick={() => setStep(3)}>
+                  Back
                 </button>
-                <button className="secondary-btn" onClick={() => updateField("status", "paused")}>
-                  Pause persona
+                <button className="primary-action" onClick={publish}>
+                  Publish persona
                 </button>
-                <Link className="light-btn" href={publicPath}>
-                  Open {publicPath}
-                </Link>
               </div>
             </div>
+          )}
 
-            <section id="dashboard" className="pop-card dark-card">
-              <span className="tiny-label">Dashboard</span>
-              <div className="dashboard-stack">
-                <div>
-                  <strong>{analytics.conversations}</strong>
-                  <span>Conversations</span>
+          {step === 5 && (
+            <div className="screen-stack">
+              <div className="launch-card">
+                <span className="section-kicker">Step 5</span>
+                <h2>{workspace.status === "live" ? "Your AI persona is live" : "Publish your persona"}</h2>
+                <p>
+                  Once live, share this link in your Instagram bio, story sticker, Linktree, broadcast channel, or fan
+                  community.
+                </p>
+                <div className="share-url-box">
+                  <span>Instagram bio link</span>
+                  <strong>{workspace.status === "live" ? shareUrl : "Publish the persona to generate your fan link"}</strong>
                 </div>
-                <div>
-                  <strong>{analytics.fallbackRate}%</strong>
-                  <span>Fallback rate</span>
-                </div>
-                <div>
-                  <strong>${analytics.revenue.toFixed(2)}</strong>
-                  <span>Revenue</span>
+                <div className="button-row">
+                  {workspace.status !== "live" && (
+                    <button className="primary-action" onClick={publish}>
+                      Make persona live
+                    </button>
+                  )}
+                  {workspace.status === "live" && (
+                    <>
+                      <button className="primary-action" onClick={copyShareLink}>
+                        Copy share link
+                      </button>
+                      <Link className="secondary-action" href={publicPath}>
+                        Open fan chat
+                      </Link>
+                      <button className="secondary-action" onClick={() => updateField("status", "paused")}>
+                        Pause persona
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
-            </section>
-          </aside>
+
+              <section className="analytics-grid">
+                {[
+                  ["Conversations", analytics.conversations],
+                  ["Fan messages", analytics.fanMessages],
+                  ["Fallback rate", `${analytics.fallbackRate}%`],
+                  ["Revenue", `$${analytics.revenue.toFixed(2)}`],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="product-card metric-card">
+                    <span>{String(label)}</span>
+                    <strong>{String(value)}</strong>
+                  </div>
+                ))}
+              </section>
+            </div>
+          )}
         </section>
       </section>
     </main>

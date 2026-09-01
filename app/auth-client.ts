@@ -1,7 +1,7 @@
 "use client";
 
 type AuthSession = {
-  access_token: string;
+  access_token?: string;
   refresh_token?: string;
   user?: {
     id: string;
@@ -41,6 +41,13 @@ export async function supabasePasswordAuth(mode: "signup" | "signin", email: str
 
   const data = await response.json();
   if (!response.ok) throw new Error(data.error_description || data.msg || data.message || "Authentication failed");
+  if (!data.access_token) {
+    throw new Error(
+      mode === "signup"
+        ? "Account created, but Supabase requires email confirmation before login. Confirm the email, then switch to Sign in."
+        : "Signed in response did not include a session. Check Supabase Auth email/password settings.",
+    );
+  }
 
   const session: AuthSession = {
     access_token: data.access_token,

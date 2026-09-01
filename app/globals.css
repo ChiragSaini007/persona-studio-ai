@@ -557,6 +557,37 @@ input:disabled {
   color: #f2d889 !important;
 }
 
+.readiness-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.readiness-card strong {
+  font-size: 15px;
+}
+
+.readiness-card span {
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 8px 10px;
+}
+
+.readiness-card .ready {
+  background: var(--mint);
+  color: #14633f;
+}
+
+.readiness-card .missing {
+  background: var(--danger);
+  color: #8d271b;
+}
+
 .wizard-content,
 .screen-stack {
   display: grid;

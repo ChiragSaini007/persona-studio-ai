@@ -13,6 +13,12 @@ const wizardSteps = [
   { id: 5, label: "Publish" },
 ];
 
+type HealthState = {
+  supabase: boolean;
+  openai: boolean;
+  stripe: boolean;
+};
+
 export default function CreatorPortal() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
   const [step, setStep] = useState(1);
@@ -23,6 +29,7 @@ export default function CreatorPortal() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [accessToken, setAccessToken] = useState("");
+  const [health, setHealth] = useState<HealthState | null>(null);
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
 
@@ -33,6 +40,18 @@ export default function CreatorPortal() {
       setAccessToken(session.access_token);
       setEmail(session.user?.email || "");
     }
+
+    async function loadHealth() {
+      try {
+        const response = await fetch("/api/health");
+        const data = await response.json();
+        setHealth(data);
+      } catch {
+        setHealth(null);
+      }
+    }
+
+    void loadHealth();
   }, []);
 
   function updateField<K extends keyof typeof workspace>(field: K, value: (typeof workspace)[K]) {
@@ -73,9 +92,13 @@ export default function CreatorPortal() {
       return;
     }
 
+    if (!health?.supabase) {
+      setSystemNotice("Production storage is not connected yet. Add SUPABASE_SERVICE_ROLE_KEY and run the schema before publishing.");
+      return;
+    }
+
     setSaving(true);
     setSystemNotice(status === "live" ? "Publishing persona..." : "Saving persona...");
-    setWorkspace((current) => ({ ...current, status }));
 
     try {
       const nextWorkspace = { ...workspace, status };
@@ -97,12 +120,13 @@ export default function CreatorPortal() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Backend save failed");
+      setWorkspace((current) => ({ ...current, status }));
       setSystemNotice(status === "live" ? "Persona is live. Share the Instagram bio link." : "Persona saved.");
     } catch (error) {
       setSystemNotice(
         error instanceof Error
-          ? `${error.message}. Local prototype state is updated, but production storage needs env setup.`
-          : "Local prototype state is updated, but production storage needs env setup.",
+          ? `${error.message}. The persona was not published.`
+          : "The persona was not published.",
       );
     } finally {
       setSaving(false);
@@ -171,6 +195,12 @@ export default function CreatorPortal() {
             <p>{workspace.status === "live" ? "Your fan link is ready to share." : "Your fan link unlocks after publishing."}</p>
           </div>
           {systemNotice && <div className="system-notice">{systemNotice}</div>}
+          <div className="readiness-card">
+            <strong>Production readiness</strong>
+            <span className={health?.supabase ? "ready" : "missing"}>Supabase storage {health?.supabase ? "ready" : "missing"}</span>
+            <span className={health?.openai ? "ready" : "missing"}>OpenAI {health?.openai ? "ready" : "missing"}</span>
+            <span className="ready">Fan access free</span>
+          </div>
         </aside>
 
         <section className="wizard-content">

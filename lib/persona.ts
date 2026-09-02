@@ -110,5 +110,7 @@ export function findFlag(persona: Pick<PersonaRecord, "enabled_guardrails" | "cu
 export function buildLocalReply(persona: PersonaRecord, text: string, flagReason: string) {
   if (flagReason) return persona.fallback_text;
   const topic = persona.profile.topics.find((item) => text.toLowerCase().includes(item.toLowerCase().split(" ")[0]));
-  return `${persona.profile.phrases[0] || "Honestly"}, ${topic ? topic.toLowerCase() : "that"} connects back to the creator's approved point of view. The useful lens is what helps the fan feel closer without putting risky words in the creator's mouth.`;
+  const opener = persona.profile.phrases[0] || "Honestly";
+  const subject = topic ? topic.toLowerCase() : "that";
+  return `${opener}, I would keep ${subject} simple. Start with the real problem, say what you believe clearly, and make the next step useful enough that people want to come back.`;
 }

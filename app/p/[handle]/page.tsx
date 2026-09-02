@@ -237,35 +237,35 @@ export default function FanChatPage() {
 
         <header className="fan-hero">
           <div>
-            <p className="section-kicker">Public fan URL</p>
+            <p className="section-kicker">Creator AI chat</p>
             <h1>
               Chat with <span>{activePersona.creatorName}</span>
             </h1>
             <p>
-              This is a disclosed AI persona trained on creator-provided content. Boundaries are strict and visible to
-              the creator.
+              Ask a question, get a quick answer in {activePersona.creatorName}&apos;s approved style, and keep the
+              conversation going whenever you want a second opinion.
             </p>
           </div>
           <div className="fan-stats">
             <strong>{analytics.fanMessages}</strong>
-            <span>fan messages in pilot</span>
+            <span>fan questions answered</span>
           </div>
         </header>
 
         <section className="chat-layout public-chat-layout">
           <div className="chat-window">
             <div className="disclosure">
-              You are chatting with an AI persona trained on {activePersona.creatorName}&apos;s provided content. This is
-              not the real creator. Risky or off-topic questions receive a fixed fallback.
+              This is {activePersona.creatorName}&apos;s AI persona, built from approved content. It is not the real
+              creator, and it will step back from anything private, risky, or outside its lane.
             </div>
             <div className="chat-body">
               <div className="messages">
                 {!started && (
                   <div className="empty-chat">
-                    <h2>{activePersona.monetization === "free" ? "Start chatting" : "Unlock this chat"}</h2>
+                    <h2>{activePersona.monetization === "free" ? "What do you want to ask?" : "Unlock this chat"}</h2>
                     <p>
                       {activePersona.monetization === "free"
-                        ? "Fan access is free for this persona."
+                        ? "Start with a question you would naturally ask the creator."
                         : `This creator charges $${activePersona.price.toFixed(2)} per conversation.`}
                     </p>
                     {!fanAccessToken && (
@@ -321,7 +321,12 @@ export default function FanChatPage() {
                   ))}
               </div>
               <form onSubmit={submit} className="chat-form">
-                <input value={input} onChange={(event) => setInput(event.target.value)} disabled={!started} placeholder="Ask a question..." />
+                <input
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  disabled={!started}
+                  placeholder={`Ask ${activePersona.creatorName.split(" ")[0] || "the creator"}'s AI something...`}
+                />
                 <button className="primary-btn compact">Send</button>
               </form>
             </div>
@@ -339,8 +344,11 @@ export default function FanChatPage() {
               </div>
             )}
             <div className="dark-card">
-              <span className="tiny-label">Boundaries</span>
-              <p>Questions about identity deception, medical, legal, financial, politics, or private personal life may be flagged.</p>
+              <span className="tiny-label">Good to know</span>
+              <p>
+                This AI can talk about approved topics and style. It will not pretend to be the creator, give sensitive
+                advice, or answer private-life questions.
+              </p>
               {notice && <p className="runtime-note">{notice}</p>}
             </div>
           </aside>

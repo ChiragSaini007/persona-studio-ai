@@ -222,5 +222,7 @@ export function findFlag(workspace: PersonaWorkspace, text: string) {
 export function generatePersonaReply(workspace: PersonaWorkspace, text: string, flagReason: string) {
   if (flagReason) return workspace.fallbackText;
   const topic = workspace.profile.topics.find((item) => text.toLowerCase().includes(item.toLowerCase().split(" ")[0]));
-  return `${workspace.profile.phrases[0]}, ${topic ? topic.toLowerCase() : "that"} connects back to trust and repeat engagement. The practical lens is: what would make the fan feel closer without putting words in the creator's mouth?`;
+  const opener = workspace.profile.phrases[0] || "Honestly";
+  const subject = topic ? topic.toLowerCase() : "that";
+  return `${opener}, I would keep ${subject} simple. Start with the real problem, say what you believe clearly, and make the next step useful enough that people want to come back.`;
 }

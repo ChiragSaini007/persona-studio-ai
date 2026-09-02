@@ -207,7 +207,7 @@ export default function CreatorPortal() {
     setProfileInputs((current) => ({ ...current, [field]: "" }));
   }
 
-  function updateProfileText(field: "bio" | "fanRelationship" | "responseStyle", value: string) {
+  function updateProfileText(field: "bio" | "fanRelationship" | "responseStyle" | "greetingStyle", value: string) {
     setWorkspace((current) => ({
       ...current,
       profile: {
@@ -268,6 +268,7 @@ export default function CreatorPortal() {
         `About the creator: ${workspace.profile.bio}`,
         `How fans relate to them: ${workspace.profile.fanRelationship}`,
         `How the AI should talk: ${workspace.profile.responseStyle}`,
+        `How the AI should greet fans: ${workspace.profile.greetingStyle}`,
         `Ideal example replies:\n${workspace.profile.exampleReplies.map((item) => `- ${item}`).join("\n")}`,
         `Never say or imply:\n${workspace.profile.neverSay.map((item) => `- ${item}`).join("\n")}`,
         "Approved creator content:",
@@ -289,6 +290,7 @@ export default function CreatorPortal() {
             bio: current.profile.bio || generated.bio,
             fanRelationship: current.profile.fanRelationship || generated.fanRelationship,
             responseStyle: current.profile.responseStyle || generated.responseStyle,
+            greetingStyle: current.profile.greetingStyle || generated.greetingStyle,
           },
         };
       });
@@ -303,6 +305,7 @@ export default function CreatorPortal() {
             bio: current.profile.bio || generated.bio,
             fanRelationship: current.profile.fanRelationship || generated.fanRelationship,
             responseStyle: current.profile.responseStyle || generated.responseStyle,
+            greetingStyle: current.profile.greetingStyle || generated.greetingStyle,
           },
         };
       });
@@ -427,6 +430,7 @@ export default function CreatorPortal() {
         bio: "",
         fanRelationship: "",
         responseStyle: "",
+        greetingStyle: "",
         exampleReplies: [],
         neverSay: [],
         retrievalChunks: [],
@@ -809,7 +813,7 @@ export default function CreatorPortal() {
               <div className="prompt-list">
                 <span>What should a fan feel when they talk to this persona?</span>
                 <span>What opinions, phrases, and stories make the creator recognizable?</span>
-                <span>What should the AI never say or imply on behalf of the creator?</span>
+                <span>How should the persona handle greetings, vague messages, and short DMs?</span>
               </div>
               <div className="field-grid persona-detail-fields">
                 <label>
@@ -837,6 +841,15 @@ export default function CreatorPortal() {
                     value={workspace.profile.responseStyle}
                     onChange={(event) => updateProfileText("responseStyle", event.target.value)}
                     placeholder="Example: Use first person, be warm and direct, keep answers concise, and sound naturally opinionated."
+                  />
+                </label>
+                <label>
+                  How the AI should greet fans
+                  <textarea
+                    className="compact-textarea"
+                    value={workspace.profile.greetingStyle}
+                    onChange={(event) => updateProfileText("greetingStyle", event.target.value)}
+                    placeholder="Example: Say hi naturally, keep it short, and invite the fan to ask a real question."
                   />
                 </label>
               </div>
@@ -903,6 +916,10 @@ export default function CreatorPortal() {
                 <div>
                   <strong>Response style</strong>
                   <p>{workspace.profile.responseStyle || "Add the desired speaking style in Step 2."}</p>
+                </div>
+                <div>
+                  <strong>Greeting style</strong>
+                  <p>{workspace.profile.greetingStyle || "Add how the persona should handle greetings in Step 2."}</p>
                 </div>
                 <div>
                   <strong>Example replies</strong>

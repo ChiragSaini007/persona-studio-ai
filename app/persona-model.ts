@@ -12,6 +12,7 @@ export type PersonaProfile = {
   bio: string;
   fanRelationship: string;
   responseStyle: string;
+  greetingStyle: string;
   exampleReplies: string[];
   neverSay: string[];
   retrievalChunks: string[];
@@ -137,6 +138,8 @@ export function makePersonaProfile(content: string): PersonaProfile {
       "Fans come for direct, useful advice that feels like a thoughtful voice note from the creator.",
     responseStyle:
       "Answer in a natural first-person voice. Be concise, opinionated, warm, and practical. Use creator phrases when they fit, but do not force them.",
+    greetingStyle:
+      "Start casually and warmly. For greetings, say hi back and invite the fan to ask about the creator's approved topics.",
     exampleReplies: [
       "Real talk, start with the pain people already feel. If the answer does not improve trust, distribution, or retention, it is probably a feature pretending to be a business.",
       "My honest view is that the first version should be useful, narrow, and easy to repeat. Fancy comes later.",
@@ -160,6 +163,7 @@ export function normalizePersonaProfile(profile?: Partial<PersonaProfile> | null
     bio: profile?.bio || fallback.bio,
     fanRelationship: profile?.fanRelationship || fallback.fanRelationship,
     responseStyle: profile?.responseStyle || fallback.responseStyle,
+    greetingStyle: profile?.greetingStyle || fallback.greetingStyle,
     exampleReplies: profile?.exampleReplies?.length ? profile.exampleReplies : fallback.exampleReplies,
     neverSay: profile?.neverSay?.length ? profile.neverSay : fallback.neverSay,
     retrievalChunks: profile?.retrievalChunks?.length ? profile.retrievalChunks : fallback.retrievalChunks,
@@ -298,10 +302,33 @@ export function findFlag(workspace: PersonaWorkspace, text: string) {
   return "";
 }
 
+export type ChatIntent = "greeting" | "vague" | "question" | "risky";
+
+export function detectChatIntent(text: string, flagReason = ""): ChatIntent {
+  if (flagReason) return "risky";
+  const normalized = text.toLowerCase().replace(/[^a-z0-9 ?!]/g, " ").trim();
+  const words = normalized.split(/\s+/).filter(Boolean);
+  const greetingWords = ["hi", "hey", "hello", "yo", "sup", "namaste"];
+  const isGreeting = words.length <= 4 && words.some((word) => greetingWords.includes(word));
+  if (isGreeting) return "greeting";
+  if (words.length < 4 && !normalized.includes("?")) return "vague";
+  return "question";
+}
+
 export function generatePersonaReply(workspace: PersonaWorkspace, text: string, flagReason: string) {
+  const intent = detectChatIntent(text, flagReason);
   if (flagReason) return workspace.fallbackText;
+  if (intent === "greeting") {
+    const topics = workspace.profile.topics.slice(0, 3).join(", ").toLowerCase();
+    return `Hey, good to see you here. Ask me anything around ${topics}, or send me what you are thinking about.`;
+  }
+  if (intent === "vague") {
+    return "Tell me a little more. What are you trying to figure out?";
+  }
   const topic = workspace.profile.topics.find((item) => text.toLowerCase().includes(item.toLowerCase().split(" ")[0]));
-  const opener = workspace.profile.phrases[0] || "Honestly";
+  const opener =
+    workspace.profile.phrases.find((phrase) => text.toLowerCase().includes(phrase.toLowerCase().split(" ")[0])) ||
+    "I would say";
   const subject = topic ? topic.toLowerCase() : "that";
-  return `${opener}, I would keep ${subject} simple. Start with the real problem, say what you believe clearly, and make the next step useful enough that people want to come back.`;
+  return `${opener}, keep ${subject} simple. Start with what is actually happening, then choose the next step that makes the situation clearer.`;
 }

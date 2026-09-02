@@ -43,6 +43,10 @@ export default function FanChatPage() {
   const activePersona = remotePersona || workspace;
   const fanPath = `/p/${handle}`;
   const paidFromStripe = useMemo(() => searchParams.get("paid") === "1", [searchParams]);
+  const welcomeMessage = `Hey, good to see you here. Ask me anything around ${activePersona.profile.topics
+    .slice(0, 3)
+    .join(", ")
+    .toLowerCase()}, or send me what you are thinking about.`;
 
   useEffect(() => {
     const session = getStoredSession();
@@ -148,7 +152,7 @@ export default function FanChatPage() {
         }
         if (!response.ok) throw new Error(data.error || "Unable to start chat");
         setConversationId(data.conversation.id);
-        setRemoteMessages([]);
+        setRemoteMessages([{ id: uid(), from: "persona", text: welcomeMessage }]);
         await loadFanHistory();
         setStarted(true);
         setPaywall(false);
@@ -162,7 +166,7 @@ export default function FanChatPage() {
     setPaywall(false);
     setWorkspace((current) => ({
       ...current,
-      conversations: [...current.conversations, { id: uid(), paid: isPaid, messages: [] }],
+      conversations: [...current.conversations, { id: uid(), paid: isPaid, messages: [{ id: uid(), from: "persona", text: welcomeMessage }] }],
     }));
   }
 

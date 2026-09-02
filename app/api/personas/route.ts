@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { savePersonaEmbeddings } from "../../../lib/ai";
 import { bearerToken, getAuthUser } from "../../../lib/auth";
-import { cleanHandle, PersonaRecord } from "../../../lib/persona";
+import { buildRetrievalChunks, cleanHandle, normalizeProfile, PersonaRecord } from "../../../lib/persona";
 import { supabaseRest } from "../../../lib/supabase-rest";
 
 type MessageRow = {
@@ -115,12 +116,17 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Creator login required" }, { status: 401 });
 
   const body = await request.json();
+  const sourceContent = body.source_content || "";
+  const profile = {
+    ...normalizeProfile(body.profile, sourceContent),
+    retrievalChunks: buildRetrievalChunks(sourceContent),
+  };
   const persona: PersonaRecord = {
     creator_user_id: user.id,
     creator_name: body.creator_name,
     creator_handle: cleanHandle(body.creator_handle),
-    source_content: body.source_content || "",
-    profile: body.profile,
+    source_content: sourceContent,
+    profile,
     enabled_guardrails: body.enabled_guardrails || {},
     custom_boundary: body.custom_boundary || "",
     fallback_text: body.fallback_text,
@@ -143,7 +149,9 @@ export async function POST(request: NextRequest) {
       prefer: "resolution=merge-duplicates,return=representation",
     });
 
-    return NextResponse.json({ persona: rows[0] });
+    const savedPersona = rows[0];
+    if (savedPersona) await savePersonaEmbeddings(savedPersona);
+    return NextResponse.json({ persona: savedPersona });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to save persona" }, { status: 500 });
   }

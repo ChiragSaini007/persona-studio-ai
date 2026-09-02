@@ -1,4 +1,5 @@
 create extension if not exists pgcrypto;
+create extension if not exists vector;
 
 create table if not exists public.personas (
   id uuid primary key default gen_random_uuid(),
@@ -36,12 +37,26 @@ create table if not exists public.messages (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.persona_content_chunks (
+  id uuid primary key default gen_random_uuid(),
+  persona_id uuid not null references public.personas(id) on delete cascade,
+  chunk_index integer not null,
+  content text not null,
+  embedding vector(1536) not null,
+  created_at timestamptz not null default now(),
+  unique (persona_id, chunk_index)
+);
+
 create index if not exists personas_handle_idx on public.personas (creator_handle);
 create index if not exists personas_creator_user_idx on public.personas (creator_user_id);
 create index if not exists conversations_persona_idx on public.conversations (persona_id, created_at desc);
 create index if not exists conversations_fan_user_idx on public.conversations (fan_user_id);
 create index if not exists messages_conversation_idx on public.messages (conversation_id, created_at asc);
 create index if not exists messages_flagged_idx on public.messages (flagged) where flagged = true;
+create index if not exists persona_content_chunks_persona_idx on public.persona_content_chunks (persona_id, chunk_index);
+create index if not exists persona_content_chunks_embedding_idx
+on public.persona_content_chunks using ivfflat (embedding vector_cosine_ops)
+with (lists = 100);
 
 create or replace function public.touch_updated_at()
 returns trigger
@@ -58,3 +73,26 @@ create trigger personas_touch_updated_at
 before update on public.personas
 for each row
 execute function public.touch_updated_at();
+
+create or replace function public.match_persona_chunks(
+  match_persona_id uuid,
+  query_embedding vector(1536),
+  match_count int default 5
+)
+returns table (
+  id uuid,
+  content text,
+  similarity float
+)
+language sql
+stable
+as $$
+  select
+    persona_content_chunks.id,
+    persona_content_chunks.content,
+    1 - (persona_content_chunks.embedding <=> query_embedding) as similarity
+  from public.persona_content_chunks
+  where persona_content_chunks.persona_id = match_persona_id
+  order by persona_content_chunks.embedding <=> query_embedding
+  limit match_count;
+$$;

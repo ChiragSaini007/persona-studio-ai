@@ -4,6 +4,46 @@ import { cleanHandle, PersonaRecord } from "../../../lib/persona";
 import { supabaseRest } from "../../../lib/supabase-rest";
 
 export async function GET(request: NextRequest) {
+  const wantsOwnPersona = request.nextUrl.searchParams.get("mine") === "true";
+
+  if (wantsOwnPersona) {
+    const user = await getAuthUser(bearerToken(request));
+    if (!user) return NextResponse.json({ error: "Creator login required" }, { status: 401 });
+
+    try {
+      const personas = await supabaseRest<PersonaRecord[]>(
+        `personas?creator_user_id=eq.${encodeURIComponent(user.id)}&select=*&order=updated_at.desc&limit=1`,
+      );
+      const persona = personas[0];
+      if (!persona?.id) return NextResponse.json({ persona: null, metrics: null });
+
+      const conversations = await supabaseRest<{ id: string; paid: boolean }[]>(
+        `conversations?persona_id=eq.${encodeURIComponent(persona.id)}&select=id,paid`,
+      );
+      const conversationIds = conversations.map((conversation) => conversation.id);
+      const messages = conversationIds.length
+        ? await supabaseRest<{ id: string; role: string; flagged: boolean }[]>(
+            `messages?conversation_id=in.(${conversationIds.join(",")})&select=id,role,flagged`,
+          )
+        : [];
+      const fanMessages = messages.filter((message) => message.role === "fan");
+      const flagged = messages.filter((message) => message.flagged);
+
+      return NextResponse.json({
+        persona,
+        metrics: {
+          conversations: conversations.length,
+          fanMessages: fanMessages.length,
+          flagged: flagged.length,
+          fallbackRate: fanMessages.length ? Math.round((flagged.length / fanMessages.length) * 100) : 0,
+          revenue: 0,
+        },
+      });
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load persona" }, { status: 500 });
+    }
+  }
+
   const handle = cleanHandle(request.nextUrl.searchParams.get("handle") || "");
 
   try {

@@ -572,6 +572,46 @@ input:disabled {
   min-width: 250px;
 }
 
+.returning-dashboard {
+  background: var(--mint);
+  border: 1px solid #afd7c6;
+  border-radius: 22px;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.returning-dashboard h3 {
+  font-size: 28px;
+  margin: 0;
+}
+
+.returning-dashboard p {
+  color: #276248;
+  font-size: 15px;
+  margin: 6px 0 0;
+}
+
+.mini-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mini-metrics span {
+  background: white;
+  border: 1px solid #afd7c6;
+  border-radius: 999px;
+  color: #164b37;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 9px 12px;
+}
+
+.compact-actions {
+  margin-top: 4px;
+}
+
 .connected-account,
 .fan-auth-box {
   background: var(--mint);
@@ -721,10 +761,34 @@ select {
 
 textarea {
   line-height: 1.55;
-  margin-top: 22px;
+  margin-top: 18px;
   min-height: 260px;
   resize: vertical;
   width: 100%;
+}
+
+.prompt-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+  max-width: 860px;
+}
+
+.prompt-list span {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: #2a2a2a;
+  font-size: 14px;
+  font-weight: 820;
+  line-height: 1.35;
+  padding: 12px 14px;
+}
+
+.prompt-list.dark span {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff4cf;
 }
 
 .consent-row {
@@ -852,6 +916,22 @@ textarea {
   display: block;
   font-size: clamp(20px, 3vw, 32px);
   overflow-wrap: anywhere;
+}
+
+.share-url-box.compact {
+  background: white;
+  border-color: #afd7c6;
+  color: var(--ink);
+  margin-top: 0;
+}
+
+.share-url-box.compact span {
+  color: #276248;
+}
+
+.share-url-box.compact strong {
+  color: var(--ink);
+  font-size: clamp(18px, 3vw, 28px);
 }
 
 .publish-checklist {

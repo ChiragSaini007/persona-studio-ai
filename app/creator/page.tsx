@@ -19,6 +19,14 @@ type HealthState = {
   stripe: boolean;
 };
 
+type CreatorMetrics = {
+  conversations: number;
+  fanMessages: number;
+  flagged: number;
+  fallbackRate: number;
+  revenue: number;
+};
+
 export default function CreatorPortal() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
   const [step, setStep] = useState(1);
@@ -31,8 +39,17 @@ export default function CreatorPortal() {
   const [consentGiven, setConsentGiven] = useState(true);
   const [accessToken, setAccessToken] = useState("");
   const [health, setHealth] = useState<HealthState | null>(null);
+  const [creatorMetrics, setCreatorMetrics] = useState<CreatorMetrics | null>(null);
+  const [hasSavedPersona, setHasSavedPersona] = useState(false);
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
+  const dashboardMetrics = creatorMetrics || {
+    conversations: analytics.conversations,
+    fanMessages: analytics.fanMessages,
+    flagged: analytics.flagged.length,
+    fallbackRate: analytics.fallbackRate,
+    revenue: analytics.revenue,
+  };
   const canPublish = Boolean(accessToken && health?.supabase);
   const hasCreatorProfile = Boolean(workspace.creatorName.trim() && cleanHandle(workspace.creatorHandle));
   const canContinueFromAccount = Boolean(accessToken);
@@ -51,6 +68,7 @@ export default function CreatorPortal() {
     if (session?.access_token) {
       setAccessToken(session.access_token);
       setEmail(session.user?.email || "");
+      void loadCreatorPersona(session.access_token);
     }
 
     async function loadHealth() {
@@ -68,6 +86,36 @@ export default function CreatorPortal() {
 
   function updateField<K extends keyof typeof workspace>(field: K, value: (typeof workspace)[K]) {
     setWorkspace((current) => ({ ...current, [field]: value }));
+  }
+
+  async function loadCreatorPersona(token: string) {
+    try {
+      const response = await fetch("/api/personas?mine=true", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to load saved persona");
+      if (!data.persona) return;
+
+      setWorkspace((current) => ({
+        ...current,
+        creatorName: data.persona.creator_name,
+        creatorHandle: data.persona.creator_handle,
+        content: data.persona.source_content,
+        profile: data.persona.profile,
+        enabledGuardrails: data.persona.enabled_guardrails,
+        customBoundary: data.persona.custom_boundary,
+        fallbackText: data.persona.fallback_text,
+        monetization: data.persona.monetization,
+        price: Number(data.persona.price_cents || 0) / 100,
+        status: data.persona.status,
+      }));
+      setCreatorMetrics(data.metrics);
+      setHasSavedPersona(true);
+      setSystemNotice("Welcome back. Your saved persona is loaded.");
+    } catch (error) {
+      setSystemNotice(error instanceof Error ? error.message : "Unable to load saved persona.");
+    }
   }
 
   function toggleGuardrail(key: string) {
@@ -159,7 +207,8 @@ export default function CreatorPortal() {
     try {
       const session = await supabasePasswordAuth(authMode, email, password);
       setAccessToken(session.access_token);
-      setSystemNotice(authMode === "signup" ? "Creator account created. Continue to content." : "Signed in. Continue to content.");
+      if (authMode === "signin") await loadCreatorPersona(session.access_token);
+      setSystemNotice(authMode === "signup" ? "Creator account created. Continue to content." : "Signed in. Your workspace is ready.");
       return true;
     } catch (error) {
       setSystemNotice(error instanceof Error ? error.message : "Authentication failed");
@@ -191,6 +240,8 @@ export default function CreatorPortal() {
   function signOut() {
     clearStoredSession();
     setAccessToken("");
+    setCreatorMetrics(null);
+    setHasSavedPersona(false);
     setSystemNotice("Signed out.");
   }
 
@@ -210,7 +261,7 @@ export default function CreatorPortal() {
         <aside className="wizard-panel">
           <span className="section-kicker">Creator portal</span>
           <h1>Create your AI persona</h1>
-          <p>Complete each step, review the output, then publish a link you can share on Instagram.</p>
+          <p>Answer the prompts in each step. We turn your approved material into a persona you can review before fans see it.</p>
 
           <div className="wizard-steps">
             {wizardSteps.map((item) => (
@@ -246,11 +297,11 @@ export default function CreatorPortal() {
             <div className="product-card account-card">
               <span className="section-kicker">Step 1</span>
               <div className="account-heading">
-                <h2>{accessToken ? "Account ready" : authMode === "signup" ? "Create your creator account" : "Log in to continue"}</h2>
+                <h2>{accessToken ? "Welcome back" : authMode === "signup" ? "Create your creator account" : "Log in to continue"}</h2>
                 <p>
                   {authMode === "signup" && !accessToken
-                    ? "Create the account fans and platform admins will associate with this persona."
-                    : "Use your creator account to continue building, publishing, or pausing your persona."}
+                    ? "Who is this persona for, and what public handle should fans recognize?"
+                    : "Return to your saved persona, check performance, or continue editing before you publish again."}
                 </p>
               </div>
 
@@ -313,6 +364,36 @@ export default function CreatorPortal() {
                 </label>
               )}
 
+              {accessToken && hasSavedPersona && (
+                <section className="returning-dashboard">
+                  <div>
+                    <span className="section-kicker">Saved persona</span>
+                    <h3>{workspace.creatorName}</h3>
+                    <p>{workspace.status === "live" ? "Your fan link is live." : "Your persona is saved as a draft."}</p>
+                  </div>
+                  <div className="share-url-box compact">
+                    <span>Fan link</span>
+                    <strong>{shareUrl}</strong>
+                  </div>
+                  <div className="mini-metrics">
+                    <span>{dashboardMetrics.conversations} conversations</span>
+                    <span>{dashboardMetrics.fanMessages} fan messages</span>
+                    <span>{dashboardMetrics.fallbackRate}% fallback</span>
+                  </div>
+                  <div className="button-row compact-actions">
+                    <Link className="secondary-action" href={publicPath}>
+                      Open fan link
+                    </Link>
+                    <button className="secondary-action" onClick={() => setStep(5)}>
+                      View metrics
+                    </button>
+                    <button className="secondary-action" onClick={() => setStep(2)}>
+                      Edit persona
+                    </button>
+                  </div>
+                </section>
+              )}
+
               <button
                 className="primary-action account-submit"
                 onClick={() => void continueAccountStep()}
@@ -330,8 +411,13 @@ export default function CreatorPortal() {
           {step === 2 && (
             <div className="product-card">
               <span className="section-kicker">Step 2</span>
-              <h2>Upload creator-approved content</h2>
-              <p>For V0, paste captions, transcripts, interviews, writing samples, or notes directly.</p>
+              <h2>Add the words this AI can learn from</h2>
+              <p>Paste only content the creator approves: captions, interviews, transcripts, posts, FAQs, or notes.</p>
+              <div className="prompt-list">
+                <span>What topics should this persona confidently discuss?</span>
+                <span>What phrases, opinions, and examples sound unmistakably like the creator?</span>
+                <span>What should fans never mistake as real-time personal access?</span>
+              </div>
               <textarea
                 value={workspace.content}
                 onChange={(event) => updateField("content", event.target.value)}
@@ -358,8 +444,13 @@ export default function CreatorPortal() {
             <div className="screen-stack">
               <div className="product-card">
                 <span className="section-kicker">Step 3</span>
-                <h2>Review the AI persona profile</h2>
-                <p>This is the creator approval gate. The fan chat should only reflect this reviewed profile.</p>
+                <h2>Approve what the AI believes is “on-brand”</h2>
+                <p>Check whether these topics, tone markers, and phrases match the creator before fans can chat.</p>
+                <div className="prompt-list">
+                  <span>Are these the topics fans actually ask about?</span>
+                  <span>Does the tone feel natural, or too polished?</span>
+                  <span>Which phrases should be removed before launch?</span>
+                </div>
               </div>
               <div className="profile-grid">
                 {[
@@ -393,8 +484,13 @@ export default function CreatorPortal() {
           {step === 4 && (
             <div className="product-card">
               <span className="section-kicker">Step 4</span>
-              <h2>Set safety and fallback</h2>
-              <p>Flagged means a fan interaction touched a safety rule, blocked topic, identity boundary, or fallback path.</p>
+              <h2>Define what the persona must refuse</h2>
+              <p>Set the topics and situations where the AI should stop, disclose limits, and use the creator-approved fallback.</p>
+              <div className="prompt-list">
+                <span>What topics create reputation risk?</span>
+                <span>What private-life questions should always be blocked?</span>
+                <span>What exact response should fans see when the AI cannot answer?</span>
+              </div>
               <div className="guardrail-grid">
                 {guardrails.map((rail) => (
                   <label key={rail.key} className="guardrail-card">
@@ -445,9 +541,14 @@ export default function CreatorPortal() {
                 <span className="section-kicker">Step 5</span>
                 <h2>{workspace.status === "live" ? "Your AI persona is live" : "Publish your persona"}</h2>
                 <p>
-                  Once live, share this link in your Instagram bio, story sticker, Linktree, broadcast channel, or fan
-                  community.
+                  Review the final link, then share it where fans already follow the creator: Instagram bio, stories,
+                  Linktree, broadcast channels, or fan communities.
                 </p>
+                <div className="prompt-list dark">
+                  <span>Is the creator comfortable with this link going public?</span>
+                  <span>Do the guardrails cover risky fan questions?</span>
+                  <span>Who will review flagged conversations after launch?</span>
+                </div>
                 <div className="share-url-box">
                   <span>Instagram bio link</span>
                   <strong>{workspace.status === "live" ? shareUrl : "Publish the persona to generate your fan link"}</strong>
@@ -490,10 +591,10 @@ export default function CreatorPortal() {
 
               <section className="analytics-grid">
                 {[
-                  ["Conversations", analytics.conversations],
-                  ["Fan messages", analytics.fanMessages],
-                  ["Fallback rate", `${analytics.fallbackRate}%`],
-                  ["Revenue", `$${analytics.revenue.toFixed(2)}`],
+                  ["Conversations", dashboardMetrics.conversations],
+                  ["Fan messages", dashboardMetrics.fanMessages],
+                  ["Fallback rate", `${dashboardMetrics.fallbackRate}%`],
+                  ["Revenue", `$${dashboardMetrics.revenue.toFixed(2)}`],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="product-card metric-card">
                     <span>{String(label)}</span>

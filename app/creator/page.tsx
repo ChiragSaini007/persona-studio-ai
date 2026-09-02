@@ -64,6 +64,12 @@ export default function CreatorPortal() {
 
   useEffect(() => {
     setOrigin(window.location.origin);
+    const authError = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("error_description");
+    if (authError) {
+      setSystemNotice(authError.replace(/\+/g, " "));
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+
     const session = getStoredSession();
     if (session?.access_token) {
       setAccessToken(session.access_token);

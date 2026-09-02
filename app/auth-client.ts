@@ -30,7 +30,12 @@ export function clearStoredSession() {
 export async function supabasePasswordAuth(mode: "signup" | "signin", email: string, password: string) {
   const { url, anonKey } = supabaseAuthConfig();
   const endpoint = mode === "signup" ? "signup" : "token?grant_type=password";
-  const response = await fetch(`${url}/auth/v1/${endpoint}`, {
+  const redirectTo = typeof window === "undefined" ? "" : `${window.location.origin}/creator`;
+  const authUrl =
+    mode === "signup" && redirectTo
+      ? `${url}/auth/v1/${endpoint}?redirect_to=${encodeURIComponent(redirectTo)}`
+      : `${url}/auth/v1/${endpoint}`;
+  const response = await fetch(authUrl, {
     method: "POST",
     headers: {
       apikey: anonKey,

@@ -547,6 +547,10 @@ input:disabled {
   grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
 }
 
+.account-layout.login-only {
+  max-width: 620px;
+}
+
 .account-panel,
 .profile-panel {
   background: rgba(255, 255, 255, 0.72);

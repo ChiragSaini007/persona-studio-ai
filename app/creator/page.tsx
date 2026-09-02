@@ -35,8 +35,10 @@ export default function CreatorPortal() {
   const shareUrl = `${origin}${publicPath}`;
   const canPublish = Boolean(accessToken && health?.supabase);
   const hasCreatorProfile = Boolean(workspace.creatorName.trim() && cleanHandle(workspace.creatorHandle));
-  const canContinueFromAccount = Boolean(accessToken && hasCreatorProfile && consentGiven);
-  const canSubmitAuth = Boolean(email.trim() && password.trim());
+  const canContinueFromAccount = Boolean(accessToken);
+  const canSubmitAuth = Boolean(
+    email.trim() && password.trim() && (authMode === "signin" || (hasCreatorProfile && consentGiven)),
+  );
   const missingPublishItems = [
     !accessToken ? "Sign up or sign in as the creator" : "",
     health && !health.supabase ? "Add SUPABASE_SERVICE_ROLE_KEY and run the Supabase schema" : "",
@@ -158,24 +160,27 @@ export default function CreatorPortal() {
       const session = await supabasePasswordAuth(authMode, email, password);
       setAccessToken(session.access_token);
       setSystemNotice(authMode === "signup" ? "Creator account created. Continue to content." : "Signed in. Continue to content.");
+      return true;
     } catch (error) {
       setSystemNotice(error instanceof Error ? error.message : "Authentication failed");
+      return false;
     }
   }
 
   async function continueAccountStep() {
     if (!accessToken) {
-      await authenticate();
-      return;
-    }
+      if (authMode === "signup" && !hasCreatorProfile) {
+        setSystemNotice("Add your public creator name and handle before creating the account.");
+        return;
+      }
 
-    if (!hasCreatorProfile) {
-      setSystemNotice("Add your public creator name and handle before continuing.");
-      return;
-    }
+      if (authMode === "signup" && !consentGiven) {
+        setSystemNotice("Confirm content permission and AI disclosure before creating the account.");
+        return;
+      }
 
-    if (!consentGiven) {
-      setSystemNotice("Confirm content permission and AI disclosure before continuing.");
+      const authenticated = await authenticate();
+      if (authenticated) setStep(2);
       return;
     }
 
@@ -247,14 +252,15 @@ export default function CreatorPortal() {
             <div className="product-card account-card">
               <span className="section-kicker">Step 1</span>
               <div className="account-heading">
-                <h2>{accessToken ? "Account ready" : authMode === "signup" ? "Create your creator account" : "Sign in to continue"}</h2>
+                <h2>{accessToken ? "Account ready" : authMode === "signup" ? "Create your creator account" : "Log in to continue"}</h2>
                 <p>
-                  Use one creator account to build, publish, pause, and manage the AI persona link fans will open from
-                  Instagram.
+                  {authMode === "signup" && !accessToken
+                    ? "Create the account fans and platform admins will associate with this persona."
+                    : "Use your creator account to continue building, publishing, or pausing your persona."}
                 </p>
               </div>
 
-              <div className="account-layout">
+              <div className={authMode === "signup" && !accessToken ? "account-layout" : "account-layout login-only"}>
                 <section className="account-panel">
                   <div className="auth-switch" aria-label="Account mode">
                     <button className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>
@@ -289,25 +295,29 @@ export default function CreatorPortal() {
                   )}
                 </section>
 
-                <section className="profile-panel">
-                  <h3 className="form-section-title">Public profile</h3>
-                  <div className="account-fields">
-                    <label>
-                      Creator name
-                      <input value={workspace.creatorName} onChange={(event) => updateField("creatorName", event.target.value)} />
-                    </label>
-                    <label>
-                      Public handle
-                      <input value={workspace.creatorHandle} onChange={(event) => updateField("creatorHandle", event.target.value)} />
-                    </label>
-                  </div>
-                </section>
+                {authMode === "signup" && !accessToken && (
+                  <section className="profile-panel">
+                    <h3 className="form-section-title">Creator profile</h3>
+                    <div className="account-fields">
+                      <label>
+                        Creator name
+                        <input value={workspace.creatorName} onChange={(event) => updateField("creatorName", event.target.value)} />
+                      </label>
+                      <label>
+                        Public handle
+                        <input value={workspace.creatorHandle} onChange={(event) => updateField("creatorHandle", event.target.value)} />
+                      </label>
+                    </div>
+                  </section>
+                )}
               </div>
 
-              <label className="consent-row">
-                <input type="checkbox" checked={consentGiven} onChange={(event) => setConsentGiven(event.target.checked)} />
-                I confirm I own or have permission to use this content and fans will see an AI disclosure.
-              </label>
+              {authMode === "signup" && !accessToken && (
+                <label className="consent-row">
+                  <input type="checkbox" checked={consentGiven} onChange={(event) => setConsentGiven(event.target.checked)} />
+                  I confirm I own or have permission to use this content and fans will see an AI disclosure.
+                </label>
+              )}
 
               <button
                 className="primary-action account-submit"

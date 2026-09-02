@@ -610,7 +610,7 @@ export default function CreatorPortal() {
                 </label>
                 <div className="fallback-box">
                   <strong>Access model</strong>
-                  <p>Free fan access for the first production test. Paid chat can be enabled after Stripe is configured.</p>
+                  <p>Fan chat is free for now. Anyone with the published link can start after logging in.</p>
                 </div>
                 <div className="fallback-box">
                   <strong>Fixed fallback</strong>

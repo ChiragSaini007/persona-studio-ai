@@ -826,7 +826,28 @@ textarea {
 
 .mini-card h3 {
   font-size: 21px;
-  margin: 0 0 16px;
+  margin: 0 0 14px;
+}
+
+.chip-editor {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 16px;
+}
+
+.chip-editor input {
+  min-width: 0;
+}
+
+.chip-editor button {
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 12px;
+  color: white;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0 13px;
 }
 
 .chip-wrap {
@@ -841,6 +862,28 @@ textarea {
   font-size: 12px;
   font-weight: 850;
   padding: 7px 11px;
+}
+
+.pill.editable {
+  align-items: center;
+  gap: 8px;
+  padding-right: 7px;
+}
+
+.pill.editable button {
+  align-items: center;
+  background: rgba(17, 17, 17, 0.13);
+  border: 0;
+  border-radius: 50%;
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 950;
+  height: 20px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 20px;
 }
 
 .topic {

@@ -42,6 +42,7 @@ export default function CreatorPortal() {
   const [health, setHealth] = useState<HealthState | null>(null);
   const [creatorMetrics, setCreatorMetrics] = useState<CreatorMetrics | null>(null);
   const [hasSavedPersona, setHasSavedPersona] = useState(false);
+  const [profileInputs, setProfileInputs] = useState({ topics: "", tone: "", phrases: "" });
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
   const dashboardMetrics = creatorMetrics || {
@@ -134,6 +135,35 @@ export default function CreatorPortal() {
     setWorkspace((current) => ({
       ...current,
       enabledGuardrails: { ...current.enabledGuardrails, [key]: !current.enabledGuardrails[key] },
+    }));
+  }
+
+  function addProfileItem(field: "topics" | "tone" | "phrases") {
+    const value = profileInputs[field].trim();
+    if (!value) return;
+
+    setWorkspace((current) => {
+      const existing = current.profile[field];
+      if (existing.some((item) => item.toLowerCase() === value.toLowerCase())) return current;
+
+      return {
+        ...current,
+        profile: {
+          ...current.profile,
+          [field]: [...existing, value],
+        },
+      };
+    });
+    setProfileInputs((current) => ({ ...current, [field]: "" }));
+  }
+
+  function removeProfileItem(field: "topics" | "tone" | "phrases", value: string) {
+    setWorkspace((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        [field]: current.profile[field].filter((item) => item !== value),
+      },
     }));
   }
 
@@ -491,16 +521,42 @@ export default function CreatorPortal() {
               </div>
               <div className="profile-grid">
                 {[
-                  ["Topics", workspace.profile.topics, "topic"],
-                  ["Tone", workspace.profile.tone, "tone"],
-                  ["Recurring phrases", workspace.profile.phrases, "phrase"],
-                ].map(([title, items, key]) => (
+                  ["Topics", "topics", "topic", "Add a topic fans can ask about"],
+                  ["Tone", "tone", "tone", "Add a tone trait"],
+                  ["Recurring phrases", "phrases", "phrase", "Add a creator phrase"],
+                ].map(([title, field, key, placeholder]) => (
                   <div key={String(title)} className="product-card mini-card">
                     <h3>{String(title)}</h3>
+                    <form
+                      className="chip-editor"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        addProfileItem(field as "topics" | "tone" | "phrases");
+                      }}
+                    >
+                      <input
+                        value={profileInputs[field as "topics" | "tone" | "phrases"]}
+                        placeholder={String(placeholder)}
+                        onChange={(event) =>
+                          setProfileInputs((current) => ({
+                            ...current,
+                            [field as "topics" | "tone" | "phrases"]: event.target.value,
+                          }))
+                        }
+                      />
+                      <button type="submit">Add</button>
+                    </form>
                     <div className="chip-wrap">
-                      {(items as string[]).map((item) => (
-                        <span key={item} className={`pill ${key}`}>
+                      {workspace.profile[field as "topics" | "tone" | "phrases"].map((item) => (
+                        <span key={item} className={`pill editable ${key}`}>
                           {item}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${item}`}
+                            onClick={() => removeProfileItem(field as "topics" | "tone" | "phrases", item)}
+                          >
+                            x
+                          </button>
                         </span>
                       ))}
                     </div>

@@ -891,6 +891,46 @@ textarea {
   width: 100%;
 }
 
+.persona-detail-fields {
+  margin-top: 24px;
+}
+
+.compact-textarea {
+  margin-top: 0;
+  min-height: 132px;
+}
+
+.content-source-label {
+  display: block;
+  margin-top: 24px;
+}
+
+.persona-instructions-card {
+  box-shadow: none;
+  display: grid;
+  gap: 16px;
+}
+
+.persona-instructions-card > div {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.persona-instructions-card strong {
+  display: block;
+  font-size: 15px;
+}
+
+.persona-instructions-card p {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+
 .prompt-list {
   display: grid;
   gap: 10px;

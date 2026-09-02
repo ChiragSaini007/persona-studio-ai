@@ -1,4 +1,4 @@
-import { buildLocalReply, makeFallbackProfile, PersonaRecord, PersonaProfile } from "./persona";
+import { buildLocalReply, makeFallbackProfile, normalizeProfile, PersonaRecord, PersonaProfile } from "./persona";
 
 const openaiUrl = "https://api.openai.com/v1/responses";
 const moderationUrl = "https://api.openai.com/v1/moderations";
@@ -24,7 +24,7 @@ export async function generateProfileWithAI(content: string): Promise<{ profile:
         {
           role: "system",
           content:
-            "Extract a conservative AI persona profile from creator-provided content. Return only JSON with keys topics, phrases, tone. Each value must be an array of 3-8 short strings.",
+            "Extract an AI persona profile from creator-provided content. Return only JSON with keys topics, phrases, tone, bio, fanRelationship, responseStyle. topics, phrases, and tone must be arrays of 3-8 short strings. bio, fanRelationship, and responseStyle must be concise strings that help the AI sound like the creator while still respecting safety boundaries.",
         },
         { role: "user", content },
       ],
@@ -35,11 +35,14 @@ export async function generateProfileWithAI(content: string): Promise<{ profile:
           schema: {
             type: "object",
             additionalProperties: false,
-            required: ["topics", "phrases", "tone"],
+            required: ["topics", "phrases", "tone", "bio", "fanRelationship", "responseStyle"],
             properties: {
               topics: { type: "array", items: { type: "string" } },
               phrases: { type: "array", items: { type: "string" } },
               tone: { type: "array", items: { type: "string" } },
+              bio: { type: "string" },
+              fanRelationship: { type: "string" },
+              responseStyle: { type: "string" },
             },
           },
         },
@@ -52,7 +55,7 @@ export async function generateProfileWithAI(content: string): Promise<{ profile:
   const text = data.output_text || data.output?.flatMap((item: { content?: { text?: string }[] }) => item.content || []).find((item: { text?: string }) => item.text)?.text;
 
   try {
-    return { profile: JSON.parse(text), usedAI: true };
+    return { profile: normalizeProfile(JSON.parse(text), content), usedAI: true };
   } catch {
     return { profile: makeFallbackProfile(content), usedAI: false };
   }
@@ -83,8 +86,9 @@ export async function moderateText(text: string) {
 }
 
 export async function generateChatReply(persona: PersonaRecord, text: string, flagReason: string) {
+  const profile = normalizeProfile(persona.profile, persona.source_content);
   if (flagReason || !process.env.OPENAI_API_KEY) {
-    return { reply: buildLocalReply(persona, text, flagReason), usedAI: false };
+    return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
   }
 
   const response = await fetch(openaiUrl, {
@@ -99,14 +103,20 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
         {
           role: "system",
           content: [
-            `You are a disclosed AI persona for ${persona.creator_name}.`,
-            "Never claim to be the real person.",
+            `You are ${persona.creator_name}'s AI persona for fan conversations.`,
+            "The page already discloses that this is AI. In the conversation, write naturally in the creator's first-person voice when appropriate.",
+            "Sound like the creator's public persona: warm, direct, familiar, and conversational.",
+            "Do not say you are an AI in every answer. Only mention that you are an AI persona if the fan asks who/what you are or asks for real-world access.",
+            "Never claim to be the actual human, never claim real-time personal access, and never invent private facts.",
             "Only answer using the approved persona profile and creator-provided source content.",
             "If the question is outside approved topics, use the fallback exactly.",
             `Fallback: ${persona.fallback_text}`,
-            `Approved topics: ${persona.profile.topics.join(", ")}`,
-            `Tone: ${persona.profile.tone.join(", ")}`,
-            `Recurring phrases: ${persona.profile.phrases.join(", ")}`,
+            `Creator bio: ${profile.bio}`,
+            `Fan relationship: ${profile.fanRelationship}`,
+            `Response style: ${profile.responseStyle}`,
+            `Approved topics: ${profile.topics.join(", ")}`,
+            `Tone: ${profile.tone.join(", ")}`,
+            `Recurring phrases: ${profile.phrases.join(", ")}`,
             `Creator source content: ${persona.source_content.slice(0, 8000)}`,
           ].join("\n"),
         },
@@ -116,7 +126,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
     }),
   });
 
-  if (!response.ok) return { reply: buildLocalReply(persona, text, flagReason), usedAI: false };
+  if (!response.ok) return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
   const data = await response.json();
-  return { reply: data.output_text || buildLocalReply(persona, text, flagReason), usedAI: true };
+  return { reply: data.output_text || buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: true };
 }

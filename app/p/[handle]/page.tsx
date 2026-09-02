@@ -4,7 +4,15 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { clearStoredSession, getStoredSession, supabasePasswordAuth } from "../../auth-client";
-import { cleanHandle, findFlag, generatePersonaReply, Message, uid, usePersonaWorkspace } from "../../persona-model";
+import {
+  cleanHandle,
+  findFlag,
+  generatePersonaReply,
+  Message,
+  normalizePersonaProfile,
+  uid,
+  usePersonaWorkspace,
+} from "../../persona-model";
 
 type RemotePersona = ReturnType<typeof usePersonaWorkspace>["workspace"];
 
@@ -47,7 +55,7 @@ export default function FanChatPage() {
           creatorName: persona.creator_name,
           creatorHandle: `@${persona.creator_handle}`,
           content: persona.source_content,
-          profile: persona.profile,
+          profile: normalizePersonaProfile(persona.profile, persona.source_content),
           enabledGuardrails: persona.enabled_guardrails,
           customBoundary: persona.custom_boundary,
           fallbackText: persona.fallback_text,
@@ -242,8 +250,8 @@ export default function FanChatPage() {
               Chat with <span>{activePersona.creatorName}</span>
             </h1>
             <p>
-              Ask a question, get a quick answer in {activePersona.creatorName}&apos;s approved style, and keep the
-              conversation going whenever you want a second opinion.
+              Ask what you would normally DM {activePersona.creatorName.split(" ")[0] || "the creator"} about. The AI
+              replies in their approved public style, using the content and boundaries they set.
             </p>
           </div>
           <div className="fan-stats">
@@ -255,8 +263,8 @@ export default function FanChatPage() {
         <section className="chat-layout public-chat-layout">
           <div className="chat-window">
             <div className="disclosure">
-              This is {activePersona.creatorName}&apos;s AI persona, built from approved content. It is not the real
-              creator, and it will step back from anything private, risky, or outside its lane.
+              You are chatting with {activePersona.creatorName}&apos;s AI persona. It is built from approved creator content
+              and stays away from private, risky, or off-topic questions.
             </div>
             <div className="chat-body">
               <div className="messages">
@@ -346,8 +354,8 @@ export default function FanChatPage() {
             <div className="dark-card">
               <span className="tiny-label">Good to know</span>
               <p>
-                This AI can talk about approved topics and style. It will not pretend to be the creator, give sensitive
-                advice, or answer private-life questions.
+                Ask about the creator&apos;s approved topics, perspective, and style. For anything private or sensitive, the
+                persona will politely step back.
               </p>
               {notice && <p className="runtime-note">{notice}</p>}
             </div>

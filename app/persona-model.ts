@@ -9,6 +9,9 @@ export type PersonaProfile = {
   topics: string[];
   phrases: string[];
   tone: string[];
+  bio: string;
+  fanRelationship: string;
+  responseStyle: string;
 };
 
 export type Message = {
@@ -125,6 +128,24 @@ export function makePersonaProfile(content: string): PersonaProfile {
     topics: topics.length ? topics : ["Creator economy", "AI products", "Product strategy"],
     phrases: ["Real talk", "My honest view", "Who feels the pain?", "What keeps this defensible?"],
     tone: ["Direct", "Strategic", "Commercially minded", "Warm but controlled"],
+    bio:
+      "Product and business builder focused on AI products, creator economy infrastructure, growth, and practical startup strategy.",
+    fanRelationship:
+      "Fans come for direct, useful advice that feels like a thoughtful voice note from the creator.",
+    responseStyle:
+      "Answer in a natural first-person voice. Be concise, opinionated, warm, and practical. Use creator phrases when they fit, but do not force them.",
+  };
+}
+
+export function normalizePersonaProfile(profile?: Partial<PersonaProfile> | null, content = ""): PersonaProfile {
+  const fallback = makePersonaProfile(content);
+  return {
+    topics: profile?.topics?.length ? profile.topics : fallback.topics,
+    phrases: profile?.phrases?.length ? profile.phrases : fallback.phrases,
+    tone: profile?.tone?.length ? profile.tone : fallback.tone,
+    bio: profile?.bio || fallback.bio,
+    fanRelationship: profile?.fanRelationship || fallback.fanRelationship,
+    responseStyle: profile?.responseStyle || fallback.responseStyle,
   };
 }
 
@@ -168,7 +189,12 @@ export function usePersonaWorkspace() {
   useEffect(() => {
     const saved = window.localStorage.getItem(storageKey);
     if (saved) {
-      setWorkspace({ ...defaultWorkspace(), ...JSON.parse(saved) });
+      const parsed = JSON.parse(saved) as Partial<PersonaWorkspace>;
+      setWorkspace({
+        ...defaultWorkspace(),
+        ...parsed,
+        profile: normalizePersonaProfile(parsed.profile, parsed.content),
+      });
     }
     setLoaded(true);
   }, []);

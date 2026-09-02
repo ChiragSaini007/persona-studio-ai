@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { clearStoredSession, getStoredSession, resendSignupConfirmation, supabasePasswordAuth } from "../auth-client";
-import { cleanHandle, defaultWorkspace, guardrails, makePersonaProfile, usePersonaWorkspace } from "../persona-model";
+import {
+  cleanHandle,
+  defaultWorkspace,
+  guardrails,
+  makePersonaProfile,
+  normalizePersonaProfile,
+  usePersonaWorkspace,
+} from "../persona-model";
 
 const wizardSteps = [
   { id: 1, label: "Account" },
@@ -116,7 +123,7 @@ export default function CreatorPortal() {
         creatorName: data.persona.creator_name,
         creatorHandle: data.persona.creator_handle,
         content: data.persona.source_content,
-        profile: data.persona.profile,
+        profile: normalizePersonaProfile(data.persona.profile, data.persona.source_content),
         enabledGuardrails: data.persona.enabled_guardrails,
         customBoundary: data.persona.custom_boundary,
         fallbackText: data.persona.fallback_text,
@@ -162,6 +169,16 @@ export default function CreatorPortal() {
     setProfileInputs((current) => ({ ...current, [field]: "" }));
   }
 
+  function updateProfileText(field: "bio" | "fanRelationship" | "responseStyle", value: string) {
+    setWorkspace((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        [field]: value,
+      },
+    }));
+  }
+
   function removeProfileItem(field: "topics" | "tone" | "phrases", value: string) {
     setWorkspace((current) => ({
       ...current,
@@ -175,17 +192,48 @@ export default function CreatorPortal() {
   async function generateProfile() {
     setSystemNotice("Generating persona profile...");
     try {
+      const personaBrief = [
+        `Creator name: ${workspace.creatorName}`,
+        `Public handle: ${workspace.creatorHandle}`,
+        `About the creator: ${workspace.profile.bio}`,
+        `How fans relate to them: ${workspace.profile.fanRelationship}`,
+        `How the AI should talk: ${workspace.profile.responseStyle}`,
+        "Approved creator content:",
+        workspace.content,
+      ].join("\n\n");
       const response = await fetch("/api/personas/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: workspace.content }),
+        body: JSON.stringify({ content: personaBrief }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Profile generation failed");
-      setWorkspace((current) => ({ ...current, profile: data.profile || makePersonaProfile(current.content) }));
+      setWorkspace((current) => {
+        const generated = data.profile || makePersonaProfile(current.content);
+        return {
+          ...current,
+          profile: {
+            ...generated,
+            bio: current.profile.bio || generated.bio,
+            fanRelationship: current.profile.fanRelationship || generated.fanRelationship,
+            responseStyle: current.profile.responseStyle || generated.responseStyle,
+          },
+        };
+      });
       setSystemNotice(data.usedAI ? "Persona profile generated." : "Persona profile generated from your content.");
     } catch (error) {
-      setWorkspace((current) => ({ ...current, profile: makePersonaProfile(current.content) }));
+      setWorkspace((current) => {
+        const generated = makePersonaProfile(current.content);
+        return {
+          ...current,
+          profile: {
+            ...generated,
+            bio: current.profile.bio || generated.bio,
+            fanRelationship: current.profile.fanRelationship || generated.fanRelationship,
+            responseStyle: current.profile.responseStyle || generated.responseStyle,
+          },
+        };
+      });
       setSystemNotice(error instanceof Error ? error.message : "Profile generated locally.");
     }
   }
@@ -292,7 +340,12 @@ export default function CreatorPortal() {
       creatorName: "",
       creatorHandle: "",
       content: "",
-      profile: makePersonaProfile(""),
+      profile: {
+        ...makePersonaProfile(""),
+        bio: "",
+        fanRelationship: "",
+        responseStyle: "",
+      },
       enabledGuardrails: base.enabledGuardrails,
       customBoundary: "",
       fallbackText: base.fallbackText,
@@ -602,12 +655,44 @@ export default function CreatorPortal() {
             <div className="product-card">
               <span className="section-kicker">Step 2</span>
               <h2>Add the words this AI can learn from</h2>
-              <p>Paste only content the creator approves: captions, interviews, transcripts, posts, FAQs, or notes.</p>
+              <p>Tell us who the creator is, how fans know them, and what the AI should sound like in conversation.</p>
               <div className="prompt-list">
-                <span>What topics should this persona confidently discuss?</span>
-                <span>What phrases, opinions, and examples sound unmistakably like the creator?</span>
-                <span>What should fans never mistake as real-time personal access?</span>
+                <span>What should a fan feel when they talk to this persona?</span>
+                <span>What opinions, phrases, and stories make the creator recognizable?</span>
+                <span>What should the AI never say or imply on behalf of the creator?</span>
               </div>
+              <div className="field-grid persona-detail-fields">
+                <label>
+                  About the creator
+                  <textarea
+                    className="compact-textarea"
+                    value={workspace.profile.bio}
+                    onChange={(event) => updateProfileText("bio", event.target.value)}
+                    placeholder="Example: Chirag is a product and business builder focused on AI products, creator economy infrastructure, and growth."
+                  />
+                </label>
+                <label>
+                  How fans relate to them
+                  <textarea
+                    className="compact-textarea"
+                    value={workspace.profile.fanRelationship}
+                    onChange={(event) => updateProfileText("fanRelationship", event.target.value)}
+                    placeholder="Example: Fans come for practical, candid advice that feels like a thoughtful voice note."
+                  />
+                </label>
+                <label>
+                  How the AI should talk
+                  <textarea
+                    className="compact-textarea"
+                    value={workspace.profile.responseStyle}
+                    onChange={(event) => updateProfileText("responseStyle", event.target.value)}
+                    placeholder="Example: Use first person, be warm and direct, keep answers concise, and sound naturally opinionated."
+                  />
+                </label>
+              </div>
+              <label className="content-source-label">
+                Approved creator content
+              </label>
               <textarea
                 value={workspace.content}
                 onChange={(event) => updateField("content", event.target.value)}
@@ -634,12 +719,27 @@ export default function CreatorPortal() {
             <div className="screen-stack">
               <div className="product-card">
                 <span className="section-kicker">Step 3</span>
-                <h2>Approve what the AI believes is “on-brand”</h2>
-                <p>Check whether these topics, tone markers, and phrases match the creator before fans can chat.</p>
+                <h2>Approve how the persona will speak</h2>
+                <p>Adjust the traits that become the AI&apos;s system prompt before fans ever enter the chat.</p>
                 <div className="prompt-list">
-                  <span>Are these the topics fans actually ask about?</span>
-                  <span>Does the tone feel natural, or too polished?</span>
-                  <span>Which phrases should be removed before launch?</span>
+                  <span>Would this feel like a natural reply from the creator&apos;s public voice?</span>
+                  <span>Are the topics broad enough for fans but narrow enough to stay safe?</span>
+                  <span>Which phrases feel authentic, and which feel forced?</span>
+                </div>
+              </div>
+              <div className="product-card persona-instructions-card">
+                <span className="section-kicker">System prompt inputs</span>
+                <div>
+                  <strong>About</strong>
+                  <p>{workspace.profile.bio || "Add the creator bio in Step 2."}</p>
+                </div>
+                <div>
+                  <strong>Fan relationship</strong>
+                  <p>{workspace.profile.fanRelationship || "Add how fans relate to this creator in Step 2."}</p>
+                </div>
+                <div>
+                  <strong>Response style</strong>
+                  <p>{workspace.profile.responseStyle || "Add the desired speaking style in Step 2."}</p>
                 </div>
               </div>
               <div className="profile-grid">

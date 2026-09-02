@@ -808,71 +808,79 @@ export default function CreatorPortal() {
           {viewMode === "onboarding" && step === 2 && (
             <div className="product-card">
               <span className="section-kicker">Step 2</span>
-              <h2>Add the words this AI can learn from</h2>
-              <p>Tell us who the creator is, how fans know them, and what the AI should sound like in conversation.</p>
+              <h2>Teach the persona</h2>
+              <p>Answer these like a short quiz. The fan chat will use this as its voice and context.</p>
               <div className="prompt-list">
-                <span>What should a fan feel when they talk to this persona?</span>
-                <span>What opinions, phrases, and stories make the creator recognizable?</span>
-                <span>How should the persona handle greetings, vague messages, and short DMs?</span>
+                <span>Who is this creator?</span>
+                <span>Why do fans follow them?</span>
+                <span>What should the AI sound like?</span>
               </div>
               <div className="field-grid persona-detail-fields">
                 <label>
-                  About the creator
+                  Who is this creator?
                   <textarea
                     className="compact-textarea"
                     value={workspace.profile.bio}
                     onChange={(event) => updateProfileText("bio", event.target.value)}
-                    placeholder="Example: Chirag is a product and business builder focused on AI products, creator economy infrastructure, and growth."
+                    placeholder="Role, work, audience, and what they are known for."
                   />
                 </label>
                 <label>
-                  How fans relate to them
+                  Why do fans come to them?
                   <textarea
                     className="compact-textarea"
                     value={workspace.profile.fanRelationship}
                     onChange={(event) => updateProfileText("fanRelationship", event.target.value)}
-                    placeholder="Example: Fans come for practical, candid advice that feels like a thoughtful voice note."
+                    placeholder="Advice, entertainment, inspiration, behind-the-scenes, opinions, coaching."
                   />
                 </label>
                 <label>
-                  How the AI should talk
+                  How should replies sound?
                   <textarea
                     className="compact-textarea"
                     value={workspace.profile.responseStyle}
                     onChange={(event) => updateProfileText("responseStyle", event.target.value)}
-                    placeholder="Example: Use first person, be warm and direct, keep answers concise, and sound naturally opinionated."
+                    placeholder="Casual, sharp, funny, warm, direct, detailed, short, practical."
                   />
                 </label>
                 <label>
-                  How the AI should greet fans
+                  How should it greet fans?
                   <textarea
                     className="compact-textarea"
                     value={workspace.profile.greetingStyle}
                     onChange={(event) => updateProfileText("greetingStyle", event.target.value)}
-                    placeholder="Example: Say hi naturally, keep it short, and invite the fan to ask a real question."
+                    placeholder="A natural first message or greeting style."
                   />
                 </label>
               </div>
               <label className="example-replies-field">
-                Ideal replies fans should receive
+                Write 3-5 ideal replies
                 <textarea
                   className="compact-textarea"
                   value={workspace.profile.exampleReplies.join("\n")}
                   onChange={(event) => updateProfileList("exampleReplies", event.target.value)}
                   placeholder={[
-                    "Write 3-5 sample answers in the creator's voice, one per line.",
-                    "Example: Real talk, I would start with the audience pain before building anything.",
-                    "Example: My honest view is that consistency beats hacks when trust is the product.",
+                    "One reply per line.",
+                    "Example: Love that. Start with one real product and break down who it serves, what problem it solves, and why people come back.",
+                    "Example: I would keep it simple. Pick one skill, practice it daily, and ship something small every week.",
                   ].join("\n")}
                 />
               </label>
               <label className="content-source-label">
-                Approved creator content
+                Source material
               </label>
               <textarea
                 value={workspace.content}
                 onChange={(event) => updateField("content", event.target.value)}
                 aria-label="Creator content"
+                placeholder={[
+                  "Paste anything approved for the AI to learn from:",
+                  "- Writing samples or doc excerpts",
+                  "- Video transcripts",
+                  "- IG captions or post copy",
+                  "- FAQs, interviews, newsletters, notes",
+                  "- Links plus the relevant caption/transcript text",
+                ].join("\n")}
               />
               <div className="button-row">
                 <button className="secondary-action" onClick={() => setStep(1)}>

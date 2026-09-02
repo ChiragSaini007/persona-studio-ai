@@ -8,6 +8,12 @@ type ConversationRow = {
   persona_id: string;
 };
 
+type MessageRow = {
+  role: "fan" | "persona";
+  text: string;
+  created_at?: string;
+};
+
 export async function POST(request: NextRequest) {
   const { conversationId, message } = await request.json();
 
@@ -33,7 +39,10 @@ export async function POST(request: NextRequest) {
     const guardrailFlag = findFlag(persona, message);
     const moderationFlag = await moderateText(message);
     const flagReason = guardrailFlag || moderationFlag;
-    const { reply, usedAI } = await generateChatReply(persona, message, flagReason);
+    const history = await supabaseRest<MessageRow[]>(
+      `messages?conversation_id=eq.${encodeURIComponent(conversation.id)}&select=role,text,created_at&order=created_at.asc&limit=12`,
+    );
+    const { reply, usedAI } = await generateChatReply(persona, message, flagReason, history);
 
     const savedMessages = await supabaseRest("messages", {
       method: "POST",

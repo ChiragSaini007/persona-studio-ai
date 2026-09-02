@@ -323,12 +323,7 @@ export function generatePersonaReply(workspace: PersonaWorkspace, text: string, 
     return `Hey, good to see you here. Ask me anything around ${topics}, or send me what you are thinking about.`;
   }
   if (intent === "vague") {
-    return "Tell me a little more. What are you trying to figure out?";
+    return "I’m not fully sure what you mean. Ask me like you would in a DM, and I’ll take it from there.";
   }
-  const topic = workspace.profile.topics.find((item) => text.toLowerCase().includes(item.toLowerCase().split(" ")[0]));
-  const opener =
-    workspace.profile.phrases.find((phrase) => text.toLowerCase().includes(phrase.toLowerCase().split(" ")[0])) ||
-    "I would say";
-  const subject = topic ? topic.toLowerCase() : "that";
-  return `${opener}, keep ${subject} simple. Start with what is actually happening, then choose the next step that makes the situation clearer.`;
+  return "I’m having trouble pulling the creator-approved answer right now. Try again in a moment.";
 }

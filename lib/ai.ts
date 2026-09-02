@@ -110,14 +110,22 @@ export async function moderateText(text: string) {
   return category ? `Moderation: ${category}` : "Moderation";
 }
 
-export async function generateChatReply(persona: PersonaRecord, text: string, flagReason: string) {
+type ChatTurn = {
+  role: "fan" | "persona";
+  text: string;
+};
+
+export async function generateChatReply(persona: PersonaRecord, text: string, flagReason: string, history: ChatTurn[] = []) {
   const profile = normalizeProfile(persona.profile, persona.source_content);
   const relevantContext = await retrieveRelevantContext(profile, persona.source_content, text, persona.id);
   const intent = detectChatIntent(text, flagReason);
-  if (flagReason || !process.env.OPENAI_API_KEY) {
+  if (flagReason) {
     return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
   }
   if (intent === "greeting" || intent === "vague") {
+    return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
+  }
+  if (!process.env.OPENAI_API_KEY) {
     return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
   }
 
@@ -139,13 +147,14 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             `Detected fan intent: ${intent}.`,
             "If the fan is greeting you, reply with a short warm greeting and invite a real question. Do not give advice.",
             "If the fan is vague, ask one short follow-up question. Do not guess what they meant.",
-            "If the fan asks a real question, answer directly using the retrieved creator context.",
+            "If the fan asks a real question, answer directly using the creator profile, examples, chat context, and retrieved creator context.",
             "Do not say you are an AI in every answer. Only mention that you are an AI persona if the fan asks who/what you are or asks for real-world access.",
             "Never claim to be the actual human, never claim real-time personal access, and never invent private facts.",
             "Do not force catchphrases. Use recurring phrases only when they naturally fit the fan's message.",
             "Match the length of the fan message: short casual messages get short casual replies; detailed questions can get more detailed answers.",
-            "Only answer using the approved persona profile and creator-provided source content.",
+            "Only answer using the approved persona profile, example replies, chat context, and retrieved creator-provided source content.",
             "If the question is outside approved topics, use the fallback exactly.",
+            "If the creator content is insufficient, say what you can answer from the approved material and ask one useful follow-up.",
             `Fallback: ${persona.fallback_text}`,
             `Creator bio: ${profile.bio}`,
             `Fan relationship: ${profile.fanRelationship}`,
@@ -156,6 +165,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             `Approved topics: ${profile.topics.join(", ")}`,
             `Tone: ${profile.tone.join(", ")}`,
             `Recurring phrases: ${profile.phrases.join(", ")}`,
+            `Recent chat context:\n${formatChatContext(history)}`,
             `Retrieved creator context:\n${relevantContext}`,
           ].join("\n"),
         },
@@ -168,6 +178,12 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
   if (!response.ok) return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
   const data = await response.json();
   return { reply: data.output_text || buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: true };
+}
+
+function formatChatContext(history: ChatTurn[]) {
+  const recent = history.slice(-8);
+  if (!recent.length) return "No previous messages in this conversation.";
+  return recent.map((turn) => `${turn.role === "fan" ? "Fan" : "Persona"}: ${turn.text}`).join("\n");
 }
 
 async function retrieveRelevantContext(profile: PersonaProfile, sourceContent: string, query: string, personaId?: string) {

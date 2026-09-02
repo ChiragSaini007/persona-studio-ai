@@ -508,7 +508,7 @@ input:disabled {
   border-radius: 999px;
   display: inline-flex;
   gap: 4px;
-  margin: 22px 0 0;
+  margin: 0;
   padding: 4px;
 }
 
@@ -527,6 +527,47 @@ input:disabled {
   box-shadow: 0 3px 12px rgba(17, 17, 17, 0.08);
 }
 
+.account-card {
+  display: grid;
+  gap: 24px;
+}
+
+.account-heading h2 {
+  max-width: 980px;
+}
+
+.account-heading p {
+  margin-top: 16px;
+}
+
+.account-layout {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
+}
+
+.account-panel,
+.profile-panel {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  display: grid;
+  gap: 18px;
+  min-height: 100%;
+  padding: 18px;
+}
+
+.account-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.account-submit {
+  justify-self: start;
+  min-width: 250px;
+}
+
 .connected-account,
 .fan-auth-box {
   background: var(--mint);
@@ -540,6 +581,17 @@ input:disabled {
 .connected-account {
   align-items: center;
   grid-template-columns: 1fr auto;
+  margin-top: 0;
+}
+
+.connected-account small {
+  color: #276248;
+  display: block;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
 }
 
 .fan-auth-box {
@@ -557,7 +609,7 @@ input:disabled {
 
 .form-section-title {
   font-size: 18px;
-  margin: 28px 0 0;
+  margin: 0;
 }
 
 .runtime-note {
@@ -1087,6 +1139,7 @@ textarea {
 @media (max-width: 1040px) {
   .landing-hero-pro,
   .portal-shell,
+  .account-layout,
   .fan-hero,
   .chat-layout,
   .public-chat-layout,
@@ -1113,12 +1166,18 @@ textarea {
   }
 
   .field-grid,
+  .account-layout,
   .profile-grid,
   .guardrail-grid,
   .step-cards,
   .analytics-grid,
   .chat-form {
     grid-template-columns: 1fr;
+  }
+
+  .account-submit {
+    justify-self: stretch;
+    width: 100%;
   }
 
   .hero-copy-pro h1 {

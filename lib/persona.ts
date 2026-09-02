@@ -5,6 +5,9 @@ export type PersonaProfile = {
   bio: string;
   fanRelationship: string;
   responseStyle: string;
+  exampleReplies: string[];
+  neverSay: string[];
+  retrievalChunks: string[];
 };
 
 export type PersonaRecord = {
@@ -101,6 +104,17 @@ export function makeFallbackProfile(content: string): PersonaProfile {
       "Fans come for direct, useful advice that feels like a thoughtful voice note from the creator.",
     responseStyle:
       "Answer in a natural first-person voice. Be concise, opinionated, warm, and practical. Use creator phrases when they fit, but do not force them.",
+    exampleReplies: [
+      "Real talk, start with the pain people already feel. If the answer does not improve trust, distribution, or retention, it is probably a feature pretending to be a business.",
+      "My honest view is that the first version should be useful, narrow, and easy to repeat. Fancy comes later.",
+      "I would ask: who feels this problem, who pays, and what keeps working even when the novelty fades?",
+    ],
+    neverSay: [
+      "I can meet you privately.",
+      "This is definitely what I did today.",
+      "You should make a legal, medical, or investment decision based on this.",
+    ],
+    retrievalChunks: buildRetrievalChunks(content),
   };
 }
 
@@ -113,16 +127,53 @@ export function normalizeProfile(profile?: Partial<PersonaProfile> | null, conte
     bio: profile?.bio || fallback.bio,
     fanRelationship: profile?.fanRelationship || fallback.fanRelationship,
     responseStyle: profile?.responseStyle || fallback.responseStyle,
+    exampleReplies: profile?.exampleReplies?.length ? profile.exampleReplies : fallback.exampleReplies,
+    neverSay: profile?.neverSay?.length ? profile.neverSay : fallback.neverSay,
+    retrievalChunks: profile?.retrievalChunks?.length ? profile.retrievalChunks : fallback.retrievalChunks,
   };
 }
 
-export function findFlag(persona: Pick<PersonaRecord, "enabled_guardrails" | "custom_boundary">, text: string) {
+export function buildRetrievalChunks(content: string) {
+  const paragraphs = content
+    .split(/\n{2,}/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (!paragraphs.length) return [];
+
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const paragraph of paragraphs) {
+    const next = current ? `${current}\n\n${paragraph}` : paragraph;
+    if (next.length > 900 && current) {
+      chunks.push(current);
+      current = paragraph;
+    } else {
+      current = next;
+    }
+  }
+
+  if (current) chunks.push(current);
+  return chunks.slice(0, 24);
+}
+
+export function findFlag(persona: Pick<PersonaRecord, "enabled_guardrails" | "custom_boundary" | "profile">, text: string) {
   const lower = text.toLowerCase();
   const matched = guardrails.find(
     (rail) => persona.enabled_guardrails[rail.key] && rail.keywords.some((keyword) => lower.includes(keyword)),
   );
 
   if (matched) return matched.title;
+  const neverSayMatch = normalizeProfile(persona.profile).neverSay.find((item) => {
+    const keyTerms = item
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length > 4);
+    return keyTerms.length >= 2 && keyTerms.slice(0, 4).every((word) => lower.includes(word));
+  });
+  if (neverSayMatch) return "Creator never-say rule";
   if (persona.custom_boundary && lower.includes(persona.custom_boundary.toLowerCase())) return persona.custom_boundary;
   if (lower.includes("real creator") || lower.includes("secret")) return "Creator-approved boundary";
   return "";

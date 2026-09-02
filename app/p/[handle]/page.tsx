@@ -15,6 +15,12 @@ import {
 } from "../../persona-model";
 
 type RemotePersona = ReturnType<typeof usePersonaWorkspace>["workspace"];
+type FanConversation = {
+  id: string;
+  paid: boolean;
+  created_at?: string;
+  messages: Message[];
+};
 
 export default function FanChatPage() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
@@ -27,6 +33,7 @@ export default function FanChatPage() {
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState("");
   const [remoteMessages, setRemoteMessages] = useState<Message[]>([]);
+  const [fanHistory, setFanHistory] = useState<FanConversation[]>([]);
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
   const [fanEmail, setFanEmail] = useState("");
@@ -40,8 +47,11 @@ export default function FanChatPage() {
   useEffect(() => {
     const session = getStoredSession();
     if (session?.access_token) {
-      setFanAccessToken(session.access_token);
-      setFanEmail(session.user?.email || "");
+      queueMicrotask(() => {
+        setFanAccessToken(session.access_token || "");
+        setFanEmail(session.user?.email || "");
+      });
+      void loadFanHistory(session.access_token);
     }
 
     async function loadPersona() {
@@ -73,11 +83,34 @@ export default function FanChatPage() {
     void loadPersona();
   }, [handle]);
 
+  async function loadFanHistory(token = fanAccessToken) {
+    if (!token) return;
+    try {
+      const response = await fetch(`/api/chat/history?handle=${encodeURIComponent(handle)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to load chat history");
+      setFanHistory(data.conversations || []);
+    } catch {
+      setFanHistory([]);
+    }
+  }
+
+  function resumeConversation(conversation: FanConversation) {
+    setConversationId(conversation.id);
+    setRemoteMessages(conversation.messages || []);
+    setStarted(true);
+    setPaywall(false);
+    setNotice("");
+  }
+
   async function authenticateFan() {
     setNotice(authMode === "signup" ? "Creating fan account..." : "Signing in...");
     try {
       const session = await supabasePasswordAuth(authMode, fanEmail, fanPassword);
       setFanAccessToken(session.access_token);
+      await loadFanHistory(session.access_token);
       setNotice(authMode === "signup" ? "Fan account created. You can start chatting." : "Signed in. You can start chatting.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Authentication failed");
@@ -116,6 +149,7 @@ export default function FanChatPage() {
         if (!response.ok) throw new Error(data.error || "Unable to start chat");
         setConversationId(data.conversation.id);
         setRemoteMessages([]);
+        await loadFanHistory();
         setStarted(true);
         setPaywall(false);
         return;
@@ -153,6 +187,7 @@ export default function FanChatPage() {
           ...current,
           { id: uid(), from: "persona", text: data.reply, flagged: Boolean(data.flagReason), flagReason: data.flagReason },
         ]);
+        void loadFanHistory();
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "Message failed");
       }
@@ -359,6 +394,27 @@ export default function FanChatPage() {
               </p>
               {notice && <p className="runtime-note">{notice}</p>}
             </div>
+            {fanAccessToken && (
+              <div className="history-card">
+                <span className="tiny-label">Your chats</span>
+                <div className="history-list">
+                  {fanHistory.slice(0, 5).map((conversation) => {
+                    const firstFanMessage = conversation.messages.find((message) => message.from === "fan")?.text || "New conversation";
+                    return (
+                      <button
+                        key={conversation.id}
+                        className={conversation.id === conversationId ? "active" : ""}
+                        onClick={() => resumeConversation(conversation)}
+                      >
+                        <strong>{firstFanMessage}</strong>
+                        <span>{conversation.messages.length} messages</span>
+                      </button>
+                    );
+                  })}
+                  {!fanHistory.length && <p>No previous chats yet.</p>}
+                </div>
+              </div>
+            )}
           </aside>
         </section>
       </section>

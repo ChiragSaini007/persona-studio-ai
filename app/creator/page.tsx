@@ -34,6 +34,30 @@ type CreatorMetrics = {
   revenue: number;
 };
 
+type CreatorPersona = {
+  id?: string;
+  creator_name: string;
+  creator_handle: string;
+  source_content: string;
+  profile: ReturnType<typeof normalizePersonaProfile>;
+  enabled_guardrails: Record<string, boolean>;
+  custom_boundary: string;
+  fallback_text: string;
+  monetization: "free" | "pay_per_conversation";
+  price_cents: number;
+  status: "draft" | "live" | "paused";
+};
+
+type ReviewItem = {
+  id: string;
+  conversationId: string;
+  personaId?: string;
+  personaName: string;
+  text: string;
+  reason: string;
+  createdAt?: string;
+};
+
 export default function CreatorPortal() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
   const [viewMode, setViewMode] = useState<"onboarding" | "dashboard">("onboarding");
@@ -49,13 +73,17 @@ export default function CreatorPortal() {
   const [accessToken, setAccessToken] = useState("");
   const [health, setHealth] = useState<HealthState | null>(null);
   const [creatorMetrics, setCreatorMetrics] = useState<CreatorMetrics | null>(null);
+  const [personaPortfolio, setPersonaPortfolio] = useState<CreatorPersona[]>([]);
+  const [metricsByPersona, setMetricsByPersona] = useState<Record<string, CreatorMetrics>>({});
+  const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>([]);
   const [hasSavedPersona, setHasSavedPersona] = useState(false);
   const [creatingNewPersona, setCreatingNewPersona] = useState(false);
   const [profileInputs, setProfileInputs] = useState({ topics: "", tone: "", phrases: "" });
   const needsCreatorProfile = authMode === "signup" || creatingNewPersona;
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
-  const dashboardMetrics = creatorMetrics || {
+  const activePersonaId = personaPortfolio.find((persona) => cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle))?.id;
+  const dashboardMetrics = (activePersonaId && metricsByPersona[activePersonaId]) || creatorMetrics || {
     conversations: analytics.conversations,
     fanMessages: analytics.fanMessages,
     flagged: analytics.flagged.length,
@@ -78,17 +106,19 @@ export default function CreatorPortal() {
   ].filter(Boolean);
 
   useEffect(() => {
-    setOrigin(window.location.origin);
+    queueMicrotask(() => setOrigin(window.location.origin));
     const authError = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("error_description");
     if (authError) {
-      setSystemNotice(authError.replace(/\+/g, " "));
+      queueMicrotask(() => setSystemNotice(authError.replace(/\+/g, " ")));
       window.history.replaceState(null, "", window.location.pathname);
     }
 
     const session = getStoredSession();
     if (session?.access_token) {
-      setAccessToken(session.access_token);
-      setEmail(session.user?.email || "");
+      queueMicrotask(() => {
+        setAccessToken(session.access_token || "");
+        setEmail(session.user?.email || "");
+      });
       void loadCreatorPersona(session.access_token);
     }
 
@@ -132,6 +162,14 @@ export default function CreatorPortal() {
         status: data.persona.status,
       }));
       setCreatorMetrics(data.metrics);
+      setPersonaPortfolio(
+        (data.personas || []).map((item: CreatorPersona) => ({
+          ...item,
+          profile: normalizePersonaProfile(item.profile, item.source_content),
+        })),
+      );
+      setMetricsByPersona(data.metricsByPersona || {});
+      setReviewQueue(data.reviewQueue || []);
       setHasSavedPersona(true);
       setCreatingNewPersona(false);
       setViewMode("dashboard");
@@ -179,6 +217,38 @@ export default function CreatorPortal() {
     }));
   }
 
+  function updateProfileList(field: "exampleReplies" | "neverSay", value: string) {
+    setWorkspace((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        [field]: value
+          .split(/\n+/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .slice(0, field === "exampleReplies" ? 5 : 12),
+      },
+    }));
+  }
+
+  function selectPersona(persona: CreatorPersona) {
+    setWorkspace((current) => ({
+      ...current,
+      creatorName: persona.creator_name,
+      creatorHandle: persona.creator_handle,
+      content: persona.source_content,
+      profile: normalizePersonaProfile(persona.profile, persona.source_content),
+      enabledGuardrails: persona.enabled_guardrails,
+      customBoundary: persona.custom_boundary,
+      fallbackText: persona.fallback_text,
+      monetization: persona.monetization,
+      price: Number(persona.price_cents || 0) / 100,
+      status: persona.status,
+    }));
+    setCreatorMetrics(persona.id ? metricsByPersona[persona.id] : null);
+    setSystemNotice("");
+  }
+
   function removeProfileItem(field: "topics" | "tone" | "phrases", value: string) {
     setWorkspace((current) => ({
       ...current,
@@ -198,6 +268,8 @@ export default function CreatorPortal() {
         `About the creator: ${workspace.profile.bio}`,
         `How fans relate to them: ${workspace.profile.fanRelationship}`,
         `How the AI should talk: ${workspace.profile.responseStyle}`,
+        `Ideal example replies:\n${workspace.profile.exampleReplies.map((item) => `- ${item}`).join("\n")}`,
+        `Never say or imply:\n${workspace.profile.neverSay.map((item) => `- ${item}`).join("\n")}`,
         "Approved creator content:",
         workspace.content,
       ].join("\n\n");
@@ -276,6 +348,16 @@ export default function CreatorPortal() {
       setWorkspace((current) => ({ ...current, status }));
       setHasSavedPersona(true);
       setCreatingNewPersona(false);
+      if (data.persona) {
+        setPersonaPortfolio((current) => {
+          const normalized = {
+            ...data.persona,
+            profile: normalizePersonaProfile(data.persona.profile, data.persona.source_content),
+          };
+          const withoutCurrent = current.filter((item) => cleanHandle(item.creator_handle) !== cleanHandle(normalized.creator_handle));
+          return [normalized, ...withoutCurrent];
+        });
+      }
       if (status === "live") setViewMode("dashboard");
       setSystemNotice(status === "live" ? "Persona is live. Share the Instagram bio link." : "Persona saved.");
     } catch (error) {
@@ -345,6 +427,9 @@ export default function CreatorPortal() {
         bio: "",
         fanRelationship: "",
         responseStyle: "",
+        exampleReplies: [],
+        neverSay: [],
+        retrievalChunks: [],
       },
       enabledGuardrails: base.enabledGuardrails,
       customBoundary: "",
@@ -354,6 +439,7 @@ export default function CreatorPortal() {
       status: "draft",
     }));
     setCreatorMetrics(null);
+    setReviewQueue([]);
     setCreatingNewPersona(true);
     setViewMode("onboarding");
     setStep(1);
@@ -504,6 +590,45 @@ export default function CreatorPortal() {
                 </div>
               </section>
 
+              <section className="product-card portfolio-card">
+                <div className="section-heading-row">
+                  <div>
+                    <span className="section-kicker">Persona portfolio</span>
+                    <h3>All personas</h3>
+                  </div>
+                  <button className="secondary-action" onClick={startNewPersona}>
+                    New persona
+                  </button>
+                </div>
+                <div className="persona-table">
+                  {(personaPortfolio.length ? personaPortfolio : []).map((persona) => {
+                    const metrics = persona.id ? metricsByPersona[persona.id] : undefined;
+                    return (
+                      <button
+                        key={persona.id || persona.creator_handle}
+                        className={cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle) ? "active" : ""}
+                        onClick={() => selectPersona(persona)}
+                      >
+                        <span>
+                          <strong>{persona.creator_name}</strong>
+                          <small>@{cleanHandle(persona.creator_handle)}</small>
+                        </span>
+                        <em>{persona.status}</em>
+                        <span>{metrics?.conversations || 0} chats</span>
+                        <span>{metrics?.fanMessages || 0} messages</span>
+                        <span>{metrics?.fallbackRate || 0}% fallback</span>
+                      </button>
+                    );
+                  })}
+                  {!personaPortfolio.length && (
+                    <div className="empty-state">
+                      <strong>No published personas yet</strong>
+                      <p>Create and publish your first persona to see it here.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
               <section className="analytics-grid">
                 {[
                   ["Conversations", dashboardMetrics.conversations],
@@ -523,6 +648,31 @@ export default function CreatorPortal() {
                 <span className="section-kicker">Revenue</span>
                 <h3>Free access is active</h3>
                 <p>Revenue tracking will appear here when paid fan chat is switched on in a future release.</p>
+              </section>
+
+              <section className="product-card review-queue-card">
+                <div className="section-heading-row">
+                  <div>
+                    <span className="section-kicker">Review queue</span>
+                    <h3>Fallback and flagged conversations</h3>
+                  </div>
+                  <strong>{reviewQueue.length}</strong>
+                </div>
+                <div className="review-list">
+                  {reviewQueue.slice(0, 6).map((item) => (
+                    <article key={item.id}>
+                      <span>{item.personaName}</span>
+                      <p>{item.text}</p>
+                      <small>{item.reason}</small>
+                    </article>
+                  ))}
+                  {!reviewQueue.length && (
+                    <div className="empty-state">
+                      <strong>No flagged messages yet</strong>
+                      <p>Risky, off-topic, or fallback-triggering fan messages will appear here for creator review.</p>
+                    </div>
+                  )}
+                </div>
               </section>
             </div>
           )}
@@ -690,6 +840,19 @@ export default function CreatorPortal() {
                   />
                 </label>
               </div>
+              <label className="example-replies-field">
+                Ideal replies fans should receive
+                <textarea
+                  className="compact-textarea"
+                  value={workspace.profile.exampleReplies.join("\n")}
+                  onChange={(event) => updateProfileList("exampleReplies", event.target.value)}
+                  placeholder={[
+                    "Write 3-5 sample answers in the creator's voice, one per line.",
+                    "Example: Real talk, I would start with the audience pain before building anything.",
+                    "Example: My honest view is that consistency beats hacks when trust is the product.",
+                  ].join("\n")}
+                />
+              </label>
               <label className="content-source-label">
                 Approved creator content
               </label>
@@ -740,6 +903,14 @@ export default function CreatorPortal() {
                 <div>
                   <strong>Response style</strong>
                   <p>{workspace.profile.responseStyle || "Add the desired speaking style in Step 2."}</p>
+                </div>
+                <div>
+                  <strong>Example replies</strong>
+                  <p>
+                    {workspace.profile.exampleReplies.length
+                      ? workspace.profile.exampleReplies.slice(0, 3).join(" / ")
+                      : "Add 3-5 ideal answers in Step 2."}
+                  </p>
                 </div>
               </div>
               <div className="profile-grid">
@@ -830,6 +1001,19 @@ export default function CreatorPortal() {
                 <label>
                   Custom off-limits topic
                   <input value={workspace.customBoundary} onChange={(event) => updateField("customBoundary", event.target.value)} />
+                </label>
+                <label>
+                  Never say this
+                  <textarea
+                    className="compact-textarea"
+                    value={workspace.profile.neverSay.join("\n")}
+                    onChange={(event) => updateProfileList("neverSay", event.target.value)}
+                    placeholder={[
+                      "Add exact claims or phrases the persona must avoid, one per line.",
+                      "Example: I can meet you privately.",
+                      "Example: This is financial advice.",
+                    ].join("\n")}
+                  />
                 </label>
                 <div className="fallback-box">
                   <strong>Access model</strong>

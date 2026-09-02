@@ -3,6 +3,24 @@ import { bearerToken, getAuthUser } from "../../../lib/auth";
 import { cleanHandle, PersonaRecord } from "../../../lib/persona";
 import { supabaseRest } from "../../../lib/supabase-rest";
 
+type MessageRow = {
+  id: string;
+  conversation_id: string;
+  role: string;
+  text: string;
+  flagged: boolean;
+  flag_reason?: string | null;
+  created_at?: string;
+};
+
+type ConversationRow = {
+  id: string;
+  persona_id: string;
+  fan_user_id?: string | null;
+  paid: boolean;
+  created_at?: string;
+};
+
 export async function GET(request: NextRequest) {
   const wantsOwnPersona = request.nextUrl.searchParams.get("mine") === "true";
 
@@ -12,32 +30,66 @@ export async function GET(request: NextRequest) {
 
     try {
       const personas = await supabaseRest<PersonaRecord[]>(
-        `personas?creator_user_id=eq.${encodeURIComponent(user.id)}&select=*&order=updated_at.desc&limit=1`,
+        `personas?creator_user_id=eq.${encodeURIComponent(user.id)}&select=*&order=updated_at.desc`,
       );
       const persona = personas[0];
-      if (!persona?.id) return NextResponse.json({ persona: null, metrics: null });
+      if (!persona?.id) return NextResponse.json({ persona: null, personas: [], metrics: null, metricsByPersona: {}, reviewQueue: [] });
 
-      const conversations = await supabaseRest<{ id: string; paid: boolean }[]>(
-        `conversations?persona_id=eq.${encodeURIComponent(persona.id)}&select=id,paid`,
-      );
-      const conversationIds = conversations.map((conversation) => conversation.id);
-      const messages = conversationIds.length
-        ? await supabaseRest<{ id: string; role: string; flagged: boolean }[]>(
-            `messages?conversation_id=in.(${conversationIds.join(",")})&select=id,role,flagged`,
+      const personaIds = personas.map((item) => item.id).filter(Boolean) as string[];
+      const conversations = personaIds.length
+        ? await supabaseRest<ConversationRow[]>(
+            `conversations?persona_id=in.(${personaIds.join(",")})&select=id,persona_id,fan_user_id,paid,created_at&order=created_at.desc`,
           )
         : [];
-      const fanMessages = messages.filter((message) => message.role === "fan");
-      const flagged = messages.filter((message) => message.flagged);
+      const conversationIds = conversations.map((conversation) => conversation.id);
+      const messages = conversationIds.length
+        ? await supabaseRest<MessageRow[]>(
+            `messages?conversation_id=in.(${conversationIds.join(",")})&select=id,conversation_id,role,text,flagged,flag_reason,created_at&order=created_at.desc`,
+          )
+        : [];
+      const metricsByPersona = Object.fromEntries(
+        personas.map((item) => {
+          const personaConversations = conversations.filter((conversation) => conversation.persona_id === item.id);
+          const ids = new Set(personaConversations.map((conversation) => conversation.id));
+          const personaMessages = messages.filter((message) => ids.has(message.conversation_id));
+          const fanMessages = personaMessages.filter((message) => message.role === "fan");
+          const flagged = personaMessages.filter((message) => message.flagged);
+          return [
+            item.id,
+            {
+              conversations: personaConversations.length,
+              fanMessages: fanMessages.length,
+              flagged: flagged.length,
+              fallbackRate: fanMessages.length ? Math.round((flagged.length / fanMessages.length) * 100) : 0,
+              revenue: 0,
+            },
+          ];
+        }),
+      );
+      const activeMetrics = persona.id ? metricsByPersona[persona.id] : null;
+      const reviewQueue = messages
+        .filter((message) => message.flagged)
+        .slice(0, 25)
+        .map((message) => {
+          const conversation = conversations.find((item) => item.id === message.conversation_id);
+          const flaggedPersona = personas.find((item) => item.id === conversation?.persona_id);
+          return {
+            id: message.id,
+            conversationId: message.conversation_id,
+            personaId: conversation?.persona_id,
+            personaName: flaggedPersona?.creator_name || "Persona",
+            text: message.text,
+            reason: message.flag_reason || "Fallback",
+            createdAt: message.created_at,
+          };
+        });
 
       return NextResponse.json({
         persona,
-        metrics: {
-          conversations: conversations.length,
-          fanMessages: fanMessages.length,
-          flagged: flagged.length,
-          fallbackRate: fanMessages.length ? Math.round((flagged.length / fanMessages.length) * 100) : 0,
-          revenue: 0,
-        },
+        personas,
+        metrics: activeMetrics,
+        metricsByPersona,
+        reviewQueue,
       });
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load persona" }, { status: 500 });

@@ -63,3 +63,24 @@ export async function supabasePasswordAuth(mode: "signup" | "signin", email: str
   window.localStorage.setItem(sessionKey, JSON.stringify(session));
   return session;
 }
+
+export async function resendSignupConfirmation(email: string) {
+  const { url, anonKey } = supabaseAuthConfig();
+  const redirectTo = typeof window === "undefined" ? "" : `${window.location.origin}/creator`;
+  const response = await fetch(`${url}/auth/v1/resend`, {
+    method: "POST",
+    headers: {
+      apikey: anonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      type: "signup",
+      email,
+      options: redirectTo ? { email_redirect_to: redirectTo } : undefined,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error_description || data.msg || data.message || "Unable to resend confirmation email");
+  return data;
+}

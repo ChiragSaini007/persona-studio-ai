@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { clearStoredSession, getStoredSession, supabasePasswordAuth } from "../auth-client";
+import { clearStoredSession, getStoredSession, resendSignupConfirmation, supabasePasswordAuth } from "../auth-client";
 import { cleanHandle, guardrails, makePersonaProfile, usePersonaWorkspace } from "../persona-model";
 
 const wizardSteps = [
@@ -33,6 +33,7 @@ export default function CreatorPortal() {
   const [origin, setOrigin] = useState("");
   const [saving, setSaving] = useState(false);
   const [systemNotice, setSystemNotice] = useState("");
+  const [resendingEmail, setResendingEmail] = useState(false);
   const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,6 +56,9 @@ export default function CreatorPortal() {
   const canContinueFromAccount = Boolean(accessToken);
   const canSubmitAuth = Boolean(
     email.trim() && password.trim() && (authMode === "signin" || (hasCreatorProfile && consentGiven)),
+  );
+  const canResendConfirmation = Boolean(
+    email.trim() && !accessToken && systemNotice.toLowerCase().includes("confirm"),
   );
   const missingPublishItems = [
     !accessToken ? "Sign up or sign in as the creator" : "",
@@ -251,6 +255,24 @@ export default function CreatorPortal() {
     setSystemNotice("Signed out.");
   }
 
+  async function resendConfirmation() {
+    if (!email.trim()) {
+      setSystemNotice("Enter your email so we can resend the confirmation link.");
+      return;
+    }
+
+    setResendingEmail(true);
+    setSystemNotice("Sending a new confirmation email...");
+    try {
+      await resendSignupConfirmation(email);
+      setSystemNotice("Confirmation email sent. Check inbox, spam, and promotions, then log in after confirming.");
+    } catch (error) {
+      setSystemNotice(error instanceof Error ? error.message : "Unable to resend confirmation email.");
+    } finally {
+      setResendingEmail(false);
+    }
+  }
+
   return (
     <main className="app-page">
       <nav className="product-nav">
@@ -402,17 +424,24 @@ export default function CreatorPortal() {
 
               {systemNotice && <div className="inline-action-notice">{systemNotice}</div>}
 
-              <button
-                className="primary-action account-submit"
-                onClick={() => void continueAccountStep()}
-                disabled={saving || (!accessToken && !canSubmitAuth) || (accessToken && !canContinueFromAccount)}
-              >
-                {!accessToken
-                  ? authMode === "signup"
-                    ? "Create account and continue"
-                    : "Log in and continue"
-                  : "Continue to content"}
-              </button>
+              <div className="account-action-row">
+                <button
+                  className="primary-action account-submit"
+                  onClick={() => void continueAccountStep()}
+                  disabled={saving || (!accessToken && !canSubmitAuth) || (accessToken && !canContinueFromAccount)}
+                >
+                  {!accessToken
+                    ? authMode === "signup"
+                      ? "Create account and continue"
+                      : "Log in and continue"
+                    : "Continue to content"}
+                </button>
+                {canResendConfirmation && (
+                  <button className="secondary-action" onClick={() => void resendConfirmation()} disabled={resendingEmail}>
+                    {resendingEmail ? "Sending..." : "Resend confirmation"}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

@@ -62,7 +62,7 @@ export default function CreatorPortal() {
   );
   const missingPublishItems = [
     !accessToken ? "Sign up or sign in as the creator" : "",
-    health && !health.supabase ? "Add SUPABASE_SERVICE_ROLE_KEY and run the Supabase schema" : "",
+    health && !health.supabase ? "Publishing setup is still being finalized" : "",
     health === null ? "Waiting for backend readiness check" : "",
   ].filter(Boolean);
 
@@ -148,7 +148,7 @@ export default function CreatorPortal() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Profile generation failed");
       setWorkspace((current) => ({ ...current, profile: data.profile || makePersonaProfile(current.content) }));
-      setSystemNotice(data.usedAI ? "Profile generated with AI." : "Profile generated locally. Add OpenAI key for production AI.");
+      setSystemNotice(data.usedAI ? "Persona profile generated." : "Persona profile generated from your content.");
     } catch (error) {
       setWorkspace((current) => ({ ...current, profile: makePersonaProfile(current.content) }));
       setSystemNotice(error instanceof Error ? error.message : "Profile generated locally.");
@@ -163,7 +163,7 @@ export default function CreatorPortal() {
     }
 
     if (!health?.supabase) {
-      setSystemNotice("Production storage is not connected yet. Add SUPABASE_SERVICE_ROLE_KEY and run the schema before publishing.");
+      setSystemNotice("Publishing is not available yet. Please try again in a few minutes.");
       return;
     }
 
@@ -189,7 +189,7 @@ export default function CreatorPortal() {
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Backend save failed");
+      if (!response.ok) throw new Error(data.error || "We could not save the persona");
       setWorkspace((current) => ({ ...current, status }));
       setSystemNotice(status === "live" ? "Persona is live. Share the Instagram bio link." : "Persona saved.");
     } catch (error) {

@@ -34,7 +34,7 @@ export default function Home() {
             <Link href="/creator" className="primary-action">
               Create your persona
             </Link>
-            <Link href="/p/chirag" className="secondary-action">
+            <Link href="/demo/fan" className="secondary-action">
               See a fan link
             </Link>
           </div>

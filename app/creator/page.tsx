@@ -289,7 +289,7 @@ export default function CreatorPortal() {
             <strong>{workspace.status === "live" ? "Live" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
             <p>{workspace.status === "live" ? "Your fan link is ready to share." : "Your fan link unlocks after publishing."}</p>
           </div>
-          {systemNotice && <div className="system-notice">{systemNotice}</div>}
+          {systemNotice && step !== 1 && <div className="system-notice">{systemNotice}</div>}
         </aside>
 
         <section className="wizard-content">
@@ -393,6 +393,8 @@ export default function CreatorPortal() {
                   </div>
                 </section>
               )}
+
+              {systemNotice && <div className="inline-action-notice">{systemNotice}</div>}
 
               <button
                 className="primary-action account-submit"

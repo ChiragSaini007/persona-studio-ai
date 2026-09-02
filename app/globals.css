@@ -503,6 +503,18 @@ input:disabled {
   padding: 12px 14px;
 }
 
+.inline-action-notice {
+  background: #fff7d6;
+  border: 1px solid #ead685;
+  border-radius: 14px;
+  color: #6a5000;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+  max-width: 620px;
+  padding: 12px 14px;
+}
+
 .auth-switch {
   background: var(--canvas);
   border-radius: 999px;

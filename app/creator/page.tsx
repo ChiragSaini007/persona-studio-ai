@@ -239,12 +239,6 @@ export default function CreatorPortal() {
             <p>{workspace.status === "live" ? "Your fan link is ready to share." : "Your fan link unlocks after publishing."}</p>
           </div>
           {systemNotice && <div className="system-notice">{systemNotice}</div>}
-          <div className="readiness-card">
-            <strong>Production readiness</strong>
-            <span className={health?.supabase ? "ready" : "missing"}>Supabase storage {health?.supabase ? "ready" : "missing"}</span>
-            <span className={health?.openai ? "ready" : "missing"}>OpenAI {health?.openai ? "ready" : "missing"}</span>
-            <span className="ready">Fan access free</span>
-          </div>
         </aside>
 
         <section className="wizard-content">

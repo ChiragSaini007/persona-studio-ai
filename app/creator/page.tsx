@@ -32,6 +32,12 @@ export default function CreatorPortal() {
   const [health, setHealth] = useState<HealthState | null>(null);
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
+  const canPublish = Boolean(accessToken && health?.supabase);
+  const missingPublishItems = [
+    !accessToken ? "Sign up or sign in as the creator" : "",
+    health && !health.supabase ? "Add SUPABASE_SERVICE_ROLE_KEY and run the Supabase schema" : "",
+    health === null ? "Waiting for backend readiness check" : "",
+  ].filter(Boolean);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -181,8 +187,17 @@ export default function CreatorPortal() {
             {wizardSteps.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setStep(item.id)}
-                className={`${step === item.id ? "active" : ""} ${step > item.id || workspace.status === "live" ? "done" : ""}`}
+                onClick={() => {
+                  if (!accessToken && item.id > 1) {
+                    setStep(1);
+                    setSystemNotice("Create or sign in to a creator account before continuing.");
+                    return;
+                  }
+                  setStep(item.id);
+                }}
+                className={`${step === item.id ? "active" : ""} ${step > item.id || workspace.status === "live" ? "done" : ""} ${
+                  !accessToken && item.id > 1 ? "locked" : ""
+                }`}
               >
                 <span>{item.id}</span>
                 {item.label}
@@ -368,8 +383,8 @@ export default function CreatorPortal() {
                 <button className="secondary-action" onClick={() => setStep(3)}>
                   Back
                 </button>
-                <button className="primary-action" onClick={publish} disabled={saving}>
-                  {saving ? "Publishing..." : "Publish persona"}
+                <button className="primary-action" onClick={() => (canPublish ? publish() : setStep(5))} disabled={saving}>
+                  {canPublish ? (saving ? "Publishing..." : "Publish persona") : "Review publish checklist"}
                 </button>
               </div>
             </div>
@@ -388,9 +403,23 @@ export default function CreatorPortal() {
                   <span>Instagram bio link</span>
                   <strong>{workspace.status === "live" ? shareUrl : "Publish the persona to generate your fan link"}</strong>
                 </div>
+                {workspace.status !== "live" && (
+                  <div className="publish-checklist">
+                    <strong>Before this can go live</strong>
+                    {missingPublishItems.length === 0 ? (
+                      <p>Everything is ready. You can publish now.</p>
+                    ) : (
+                      <ul>
+                        {missingPublishItems.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
                 <div className="button-row">
                   {workspace.status !== "live" && (
-                    <button className="primary-action" onClick={publish} disabled={saving}>
+                    <button className="primary-action" onClick={publish} disabled={saving || !canPublish}>
                       {saving ? "Publishing..." : "Make persona live"}
                     </button>
                   )}

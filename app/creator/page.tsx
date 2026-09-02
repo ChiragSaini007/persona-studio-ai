@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { clearStoredSession, getStoredSession, resendSignupConfirmation, supabasePasswordAuth } from "../auth-client";
-import { cleanHandle, guardrails, makePersonaProfile, usePersonaWorkspace } from "../persona-model";
+import { cleanHandle, defaultWorkspace, guardrails, makePersonaProfile, usePersonaWorkspace } from "../persona-model";
 
 const wizardSteps = [
   { id: 1, label: "Account" },
@@ -29,6 +29,7 @@ type CreatorMetrics = {
 
 export default function CreatorPortal() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
+  const [viewMode, setViewMode] = useState<"onboarding" | "dashboard">("onboarding");
   const [step, setStep] = useState(1);
   const [origin, setOrigin] = useState("");
   const [saving, setSaving] = useState(false);
@@ -42,7 +43,9 @@ export default function CreatorPortal() {
   const [health, setHealth] = useState<HealthState | null>(null);
   const [creatorMetrics, setCreatorMetrics] = useState<CreatorMetrics | null>(null);
   const [hasSavedPersona, setHasSavedPersona] = useState(false);
+  const [creatingNewPersona, setCreatingNewPersona] = useState(false);
   const [profileInputs, setProfileInputs] = useState({ topics: "", tone: "", phrases: "" });
+  const needsCreatorProfile = authMode === "signup" || creatingNewPersona;
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
   const dashboardMetrics = creatorMetrics || {
@@ -54,7 +57,7 @@ export default function CreatorPortal() {
   };
   const canPublish = Boolean(accessToken && health?.supabase);
   const hasCreatorProfile = Boolean(workspace.creatorName.trim() && cleanHandle(workspace.creatorHandle));
-  const canContinueFromAccount = Boolean(accessToken);
+  const canContinueFromAccount = Boolean(accessToken && (!creatingNewPersona || hasCreatorProfile));
   const canSubmitAuth = Boolean(
     email.trim() && password.trim() && (authMode === "signin" || (hasCreatorProfile && consentGiven)),
   );
@@ -123,6 +126,8 @@ export default function CreatorPortal() {
       }));
       setCreatorMetrics(data.metrics);
       setHasSavedPersona(true);
+      setCreatingNewPersona(false);
+      setViewMode("dashboard");
       setSystemNotice("Welcome back. Your saved persona is loaded.");
     } catch (error) {
       setSystemNotice(error instanceof Error ? error.message : "Unable to load saved persona.");
@@ -221,6 +226,9 @@ export default function CreatorPortal() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "We could not save the persona");
       setWorkspace((current) => ({ ...current, status }));
+      setHasSavedPersona(true);
+      setCreatingNewPersona(false);
+      if (status === "live") setViewMode("dashboard");
       setSystemNotice(status === "live" ? "Persona is live. Share the Instagram bio link." : "Persona saved.");
     } catch (error) {
       setSystemNotice(
@@ -258,7 +266,7 @@ export default function CreatorPortal() {
 
   async function continueAccountStep() {
     if (!accessToken) {
-      if (authMode === "signup" && !hasCreatorProfile) {
+      if (needsCreatorProfile && !hasCreatorProfile) {
         setSystemNotice("Add your public creator name and handle before creating the account.");
         return;
       }
@@ -277,11 +285,42 @@ export default function CreatorPortal() {
     setStep(2);
   }
 
+  function startNewPersona() {
+    const base = defaultWorkspace();
+    setWorkspace((current) => ({
+      ...current,
+      creatorName: "",
+      creatorHandle: "",
+      content: "",
+      profile: makePersonaProfile(""),
+      enabledGuardrails: base.enabledGuardrails,
+      customBoundary: "",
+      fallbackText: base.fallbackText,
+      monetization: "free",
+      price: 0,
+      status: "draft",
+    }));
+    setCreatorMetrics(null);
+    setCreatingNewPersona(true);
+    setViewMode("onboarding");
+    setStep(1);
+    setSystemNotice("");
+  }
+
+  function editCurrentPersona(targetStep = 2) {
+    setCreatingNewPersona(false);
+    setViewMode("onboarding");
+    setStep(targetStep);
+    setSystemNotice("");
+  }
+
   function signOut() {
     clearStoredSession();
     setAccessToken("");
     setCreatorMetrics(null);
     setHasSavedPersona(false);
+    setCreatingNewPersona(false);
+    setViewMode("onboarding");
     setSystemNotice("Signed out.");
   }
 
@@ -318,30 +357,42 @@ export default function CreatorPortal() {
       <section className="portal-shell">
         <aside className="wizard-panel">
           <span className="section-kicker">Creator portal</span>
-          <h1>Create your AI persona</h1>
-          <p>Answer the prompts in each step. We turn your approved material into a persona you can review before fans see it.</p>
+          <h1>{viewMode === "dashboard" ? "Manage your AI personas" : "Create your AI persona"}</h1>
+          <p>
+            {viewMode === "dashboard"
+              ? "Track performance, open fan links, edit live personas, or create a new persona."
+              : "Answer the prompts in each step. We turn your approved material into a persona you can review before fans see it."}
+          </p>
 
-          <div className="wizard-steps">
-            {wizardSteps.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if (!accessToken && item.id > 1) {
-                    setStep(1);
-                    setSystemNotice("Create or sign in to a creator account before continuing.");
-                    return;
-                  }
-                  setStep(item.id);
-                }}
-                className={`${step === item.id ? "active" : ""} ${step > item.id || workspace.status === "live" ? "done" : ""} ${
-                  !accessToken && item.id > 1 ? "locked" : ""
-                }`}
-              >
-                <span>{item.id}</span>
-                {item.label}
-              </button>
-            ))}
-          </div>
+          {viewMode === "dashboard" ? (
+            <div className="dashboard-nav">
+              <button className="active">Overview</button>
+              <button onClick={() => editCurrentPersona(2)}>Edit persona</button>
+              <button onClick={startNewPersona}>New persona</button>
+            </div>
+          ) : (
+            <div className="wizard-steps">
+              {wizardSteps.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    if (!accessToken && item.id > 1) {
+                      setStep(1);
+                      setSystemNotice("Create or sign in to a creator account before continuing.");
+                      return;
+                    }
+                    setStep(item.id);
+                  }}
+                  className={`${step === item.id ? "active" : ""} ${step > item.id || workspace.status === "live" ? "done" : ""} ${
+                    !accessToken && item.id > 1 ? "locked" : ""
+                  }`}
+                >
+                  <span>{item.id}</span>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className={`publish-state ${workspace.status}`}>
             <strong>{workspace.status === "live" ? "Live" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
@@ -351,7 +402,79 @@ export default function CreatorPortal() {
         </aside>
 
         <section className="wizard-content">
-          {step === 1 && (
+          {viewMode === "dashboard" && (
+            <div className="screen-stack">
+              <section className="creator-dashboard-hero">
+                <div>
+                  <span className="section-kicker">Creator dashboard</span>
+                  <h2>{workspace.creatorName || "Your persona studio"}</h2>
+                  <p>
+                    Your live persona, fan link, conversation performance, and future revenue view live here after
+                    onboarding.
+                  </p>
+                </div>
+                <div className={`dashboard-status ${workspace.status}`}>
+                  <span>{workspace.status}</span>
+                  <strong>{workspace.status === "live" ? "Share-ready" : "Needs review"}</strong>
+                </div>
+              </section>
+
+              <section className="dashboard-grid">
+                <div className="product-card persona-management-card">
+                  <span className="section-kicker">Persona</span>
+                  <h3>{workspace.creatorName || "Untitled persona"}</h3>
+                  <p>@{cleanHandle(workspace.creatorHandle)}</p>
+                  <div className="share-url-box compact dashboard-link">
+                    <span>Fan link</span>
+                    <strong>{shareUrl}</strong>
+                  </div>
+                  <div className="button-row compact-actions">
+                    <Link className="primary-action" href={publicPath}>
+                      Open fan link
+                    </Link>
+                    <button className="secondary-action" onClick={() => editCurrentPersona(2)}>
+                      Edit persona
+                    </button>
+                    <button className="secondary-action" onClick={() => void savePersona(workspace.status === "live" ? "paused" : "live")}>
+                      {workspace.status === "live" ? "Pause" : "Publish"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="product-card persona-management-card new-persona-card">
+                  <span className="section-kicker">Create more</span>
+                  <h3>Launch another persona</h3>
+                  <p>Create a separate AI persona for another creator, brand voice, show, or character.</p>
+                  <button className="primary-action" onClick={startNewPersona}>
+                    New persona
+                  </button>
+                </div>
+              </section>
+
+              <section className="analytics-grid">
+                {[
+                  ["Conversations", dashboardMetrics.conversations],
+                  ["Fan messages", dashboardMetrics.fanMessages],
+                  ["Flagged", dashboardMetrics.flagged],
+                  ["Fallback rate", `${dashboardMetrics.fallbackRate}%`],
+                  ["Revenue", "$0.00"],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="product-card metric-card">
+                    <span>{String(label)}</span>
+                    <strong>{String(value)}</strong>
+                  </div>
+                ))}
+              </section>
+
+              <section className="product-card future-revenue-card">
+                <span className="section-kicker">Revenue</span>
+                <h3>Free access is active</h3>
+                <p>Revenue tracking will appear here when paid fan chat is switched on in a future release.</p>
+              </section>
+            </div>
+          )}
+
+          {viewMode === "onboarding" && step === 1 && (
             <div className="product-card account-card">
               <span className="section-kicker">Step 1</span>
               <div className="account-heading">
@@ -363,7 +486,7 @@ export default function CreatorPortal() {
                 </p>
               </div>
 
-              <div className={authMode === "signup" && !accessToken ? "account-layout" : "account-layout login-only"}>
+              <div className={needsCreatorProfile ? "account-layout" : "account-layout login-only"}>
                 <section className="account-panel">
                   <div className="auth-switch" aria-label="Account mode">
                     <button className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>
@@ -398,9 +521,9 @@ export default function CreatorPortal() {
                   )}
                 </section>
 
-                {authMode === "signup" && !accessToken && (
+                {needsCreatorProfile && (
                   <section className="profile-panel">
-                    <h3 className="form-section-title">Creator profile</h3>
+                    <h3 className="form-section-title">{creatingNewPersona ? "New persona profile" : "Creator profile"}</h3>
                     <div className="account-fields">
                       <label>
                         Creator name
@@ -442,10 +565,10 @@ export default function CreatorPortal() {
                     <Link className="secondary-action" href={publicPath}>
                       Open fan link
                     </Link>
-                    <button className="secondary-action" onClick={() => setStep(5)}>
+                    <button className="secondary-action" onClick={() => editCurrentPersona(5)}>
                       View metrics
                     </button>
-                    <button className="secondary-action" onClick={() => setStep(2)}>
+                    <button className="secondary-action" onClick={() => editCurrentPersona(2)}>
                       Edit persona
                     </button>
                   </div>
@@ -475,7 +598,7 @@ export default function CreatorPortal() {
             </div>
           )}
 
-          {step === 2 && (
+          {viewMode === "onboarding" && step === 2 && (
             <div className="product-card">
               <span className="section-kicker">Step 2</span>
               <h2>Add the words this AI can learn from</h2>
@@ -507,7 +630,7 @@ export default function CreatorPortal() {
             </div>
           )}
 
-          {step === 3 && (
+          {viewMode === "onboarding" && step === 3 && (
             <div className="screen-stack">
               <div className="product-card">
                 <span className="section-kicker">Step 3</span>
@@ -574,7 +697,7 @@ export default function CreatorPortal() {
             </div>
           )}
 
-          {step === 4 && (
+          {viewMode === "onboarding" && step === 4 && (
             <div className="product-card">
               <span className="section-kicker">Step 4</span>
               <h2>Define what the persona must refuse</h2>
@@ -628,7 +751,7 @@ export default function CreatorPortal() {
             </div>
           )}
 
-          {step === 5 && (
+          {viewMode === "onboarding" && step === 5 && (
             <div className="screen-stack">
               <div className="launch-card">
                 <span className="section-kicker">Step 5</span>

@@ -467,6 +467,28 @@ input:disabled {
   background: #eeeeee;
 }
 
+.dashboard-nav {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.dashboard-nav button {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--ink);
+  font-weight: 850;
+  min-height: 50px;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.dashboard-nav button.active {
+  background: var(--yellow);
+  border-color: var(--ink);
+}
+
 .publish-state {
   border-radius: 18px;
   margin-top: 22px;
@@ -726,6 +748,90 @@ input:disabled {
 .launch-card h2 {
   font-size: clamp(34px, 5vw, 62px);
   max-width: 820px;
+}
+
+.creator-dashboard-hero {
+  align-items: end;
+  background: var(--ink);
+  border-radius: 28px;
+  color: white;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: clamp(24px, 4vw, 42px);
+}
+
+.creator-dashboard-hero h2 {
+  font-size: clamp(42px, 6vw, 76px);
+  font-weight: 950;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  margin: 0;
+}
+
+.creator-dashboard-hero p {
+  color: #f2d889;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.5;
+  margin: 18px 0 0;
+  max-width: 720px;
+}
+
+.dashboard-status {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 18px;
+  min-width: 180px;
+  padding: 18px;
+}
+
+.dashboard-status span {
+  color: #f2d889;
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard-status strong {
+  display: block;
+  font-size: 24px;
+  margin-top: 8px;
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+}
+
+.persona-management-card {
+  box-shadow: none;
+}
+
+.persona-management-card h3,
+.future-revenue-card h3 {
+  font-size: 30px;
+  margin: 0;
+}
+
+.persona-management-card p,
+.future-revenue-card p {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+
+.new-persona-card {
+  background: var(--yellow-soft);
+}
+
+.future-revenue-card {
+  background: var(--blue-soft);
 }
 
 .field-grid,
@@ -1303,6 +1409,8 @@ textarea {
   .landing-hero-pro,
   .portal-shell,
   .account-layout,
+  .creator-dashboard-hero,
+  .dashboard-grid,
   .fan-hero,
   .chat-layout,
   .public-chat-layout,
@@ -1330,6 +1438,8 @@ textarea {
 
   .field-grid,
   .account-layout,
+  .creator-dashboard-hero,
+  .dashboard-grid,
   .profile-grid,
   .guardrail-grid,
   .step-cards,

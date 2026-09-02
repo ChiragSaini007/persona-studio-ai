@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 const steps = [
-  "Sign up as creator",
-  "Upload content",
-  "Review AI persona",
-  "Set guardrails",
-  "Publish fan link",
+  "Create the account",
+  "Add approved content",
+  "Shape the persona",
+  "Lock the boundaries",
+  "Share the fan link",
 ];
 
 export default function Home() {
@@ -16,26 +16,26 @@ export default function Home() {
           Persona Studio
         </Link>
         <div>
-          <Link href="#how">How it works</Link>
-          <Link href="#safety">Safety</Link>
-          <Link href="/creator">Creator signup</Link>
+          <Link href="#how">Workflow</Link>
+          <Link href="#safety">Trust</Link>
+          <Link href="/creator">Start</Link>
         </div>
       </nav>
 
       <section className="landing-hero-pro">
         <div className="hero-copy-pro">
-          <span className="section-kicker">AI fan engagement for creators and celebs</span>
-          <h1>Create an AI persona fans can chat with from your Instagram bio.</h1>
+          <span className="section-kicker">AI fan chat for creators and public figures</span>
+          <h1>Turn your voice into a fan chat link.</h1>
           <p>
-            Persona Studio gives creators a controlled way to turn approved content into a fan-facing AI chat
-            experience, with Supabase login, clear disclosure, strict guardrails, and a shareable public link.
+            Persona Studio helps creators launch an AI persona trained on approved content, reviewed in their own
+            words, and shared as a simple link for Instagram bios, stories, and fan communities.
           </p>
           <div className="cta-row">
             <Link href="/creator" className="primary-action">
-              Start creator signup
+              Create your persona
             </Link>
             <Link href="/p/chirag" className="secondary-action">
-              Preview fan chat
+              See a fan link
             </Link>
           </div>
         </div>
@@ -52,15 +52,15 @@ export default function Home() {
               <div className="creator-bio">
                 <div className="avatar-ring">CS</div>
                 <div>
-                  <strong>Chirag&apos;s AI Persona</strong>
-                  <p>Creator economy, AI products, product strategy</p>
+                  <strong>Chirag&apos;s AI</strong>
+                  <p>Approved topics, tone, and boundaries</p>
                 </div>
               </div>
-              <div className="bubble fan">How should I build a creator product?</div>
+              <div className="bubble fan">What should I focus on this week?</div>
               <div className="bubble ai">
-                Real talk, start with trust, repeat engagement, and a clear reason fans come back.
+                Keep it simple: one promise, one audience, one reason people come back.
               </div>
-              <div className="guardrail-strip">AI disclosed · Guardrails active · Creator approved</div>
+              <div className="guardrail-strip">AI disclosed · Creator approved · Guardrails active</div>
             </div>
           </div>
         </div>
@@ -68,8 +68,8 @@ export default function Home() {
 
       <section id="how" className="landing-section">
         <div className="section-head">
-          <span className="section-kicker">Workflow</span>
-          <h2>From signup to share link in five guided steps.</h2>
+          <span className="section-kicker">Creator workflow</span>
+          <h2>Launch only after the persona feels right.</h2>
         </div>
         <div className="step-cards">
           {steps.map((step, index) => (
@@ -77,11 +77,11 @@ export default function Home() {
               <span>{index + 1}</span>
               <h3>{step}</h3>
               <p>
-                {index === 0 && "Creators enter basic profile details and accept content ownership terms."}
-                {index === 1 && "They paste captions, transcripts, notes, or writing samples for V0."}
-                {index === 2 && "The system produces topics, tone, and recurring phrases for approval."}
-                {index === 3 && "Risky categories and custom off-limits topics are locked in before launch."}
-                {index === 4 && "Once live, the creator gets a fan chat URL to place in their IG bio."}
+                {index === 0 && "Sign up with the public name and handle fans will recognize."}
+                {index === 1 && "Paste captions, transcripts, interviews, notes, or writing samples you approve."}
+                {index === 2 && "Review the tone, topics, and recurring phrases before anything goes public."}
+                {index === 3 && "Set safety rules, off-limits topics, and the fallback response."}
+                {index === 4 && "Publish a clean chat URL for Instagram, Linktree, stories, or communities."}
               </p>
             </div>
           ))}
@@ -90,19 +90,19 @@ export default function Home() {
 
       <section id="safety" className="landing-section split-section">
         <div>
-          <span className="section-kicker">Creator control</span>
-          <h2>Built for real identities, not anonymous bots.</h2>
+          <span className="section-kicker">Trust layer</span>
+          <h2>Designed for reputations, not throwaway bots.</h2>
           <p>
-            The persona only uses creator-provided content, opens every chat with an AI disclosure, refuses risky
-            categories, and logs flagged interactions for review.
+            Every persona starts with clear AI disclosure, stays inside creator-approved material, refuses risky or
+            off-brand prompts, and gives creators a way to pause the experience if something needs attention.
           </p>
         </div>
         <div className="safety-list">
-          <div>Fixed AI disclosure</div>
-          <div>Creator-approved fallback</div>
-          <div>Pause / unpublish control</div>
-              <div>Logged-in fan conversations</div>
-              <div>Flagged interaction dashboard</div>
+          <div>Clear AI disclosure</div>
+          <div>Approved source content only</div>
+          <div>Creator-owned fallback response</div>
+          <div>Logged-in fan conversations</div>
+          <div>Flagged interaction review</div>
         </div>
       </section>
     </main>

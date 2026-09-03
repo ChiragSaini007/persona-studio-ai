@@ -12,9 +12,51 @@ import { supabaseRest } from "./supabase-rest";
 const openaiUrl = "https://api.openai.com/v1/responses";
 const moderationUrl = "https://api.openai.com/v1/moderations";
 const embeddingsUrl = "https://api.openai.com/v1/embeddings";
+const defaultTextModels = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-5-mini"];
 
 export function hasOpenAIConfig() {
   return Boolean(process.env.OPENAI_API_KEY);
+}
+
+function textModelCandidates() {
+  return Array.from(new Set([process.env.OPENAI_MODEL, ...defaultTextModels].filter(Boolean))) as string[];
+}
+
+function extractOutputText(data: { output_text?: string; output?: { content?: { text?: string }[] }[] }) {
+  return (
+    data.output_text ||
+    data.output?.flatMap((item) => item.content || []).find((item) => typeof item.text === "string")?.text ||
+    ""
+  );
+}
+
+async function createResponse(body: Record<string, unknown>) {
+  let lastError = "";
+
+  for (const model of textModelCandidates()) {
+    try {
+      const response = await fetch(openaiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...body, model }),
+      });
+
+      if (!response.ok) {
+        lastError = `${model}: ${response.status} ${await response.text()}`;
+        continue;
+      }
+
+      const data = await response.json();
+      return { data, model, error: "" };
+    } catch (error) {
+      lastError = `${model}: ${error instanceof Error ? error.message : "OpenAI request failed"}`;
+    }
+  }
+
+  return { data: null, model: "", error: lastError || "OpenAI request failed" };
 }
 
 export async function generateProfileWithAI(content: string): Promise<{ profile: PersonaProfile; usedAI: boolean }> {
@@ -22,15 +64,8 @@ export async function generateProfileWithAI(content: string): Promise<{ profile:
     return { profile: makeFallbackProfile(content), usedAI: false };
   }
 
-  const response = await fetch(openaiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-5-mini",
-      input: [
+  const { data } = await createResponse({
+    input: [
         {
           role: "system",
           content:
@@ -72,12 +107,10 @@ export async function generateProfileWithAI(content: string): Promise<{ profile:
           },
         },
       },
-    }),
   });
 
-  if (!response.ok) return { profile: makeFallbackProfile(content), usedAI: false };
-  const data = await response.json();
-  const text = data.output_text || data.output?.flatMap((item: { content?: { text?: string }[] }) => item.content || []).find((item: { text?: string }) => item.text)?.text;
+  if (!data) return { profile: makeFallbackProfile(content), usedAI: false };
+  const text = extractOutputText(data);
 
   try {
     return { profile: normalizeProfile(JSON.parse(text), content), usedAI: true };
@@ -126,18 +159,15 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
     return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
   }
   if (!process.env.OPENAI_API_KEY) {
-    return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
+    return {
+      reply: buildLocalReply({ ...persona, profile }, text, flagReason),
+      usedAI: false,
+      runtimeError: "OpenAI API key is not configured",
+    };
   }
 
-  const response = await fetch(openaiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-5-mini",
-      input: [
+  const { data, model, error } = await createResponse({
+    input: [
         {
           role: "system",
           content: [
@@ -172,12 +202,18 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
         { role: "user", content: text },
       ],
       max_output_tokens: 220,
-    }),
   });
 
-  if (!response.ok) return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
-  const data = await response.json();
-  return { reply: data.output_text || buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: true };
+  const reply = data ? extractOutputText(data) : "";
+  if (!reply) {
+    return {
+      reply: buildLocalReply({ ...persona, profile }, text, flagReason),
+      usedAI: false,
+      runtimeError: error || "OpenAI returned an empty answer",
+    };
+  }
+
+  return { reply, usedAI: true, model };
 }
 
 function formatChatContext(history: ChatTurn[]) {

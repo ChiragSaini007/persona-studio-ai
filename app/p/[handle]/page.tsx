@@ -39,14 +39,36 @@ export default function FanChatPage() {
   const [fanEmail, setFanEmail] = useState("");
   const [fanPassword, setFanPassword] = useState("");
   const [fanAccessToken, setFanAccessToken] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [thinkingStep, setThinkingStep] = useState(0);
   const activeConversation = workspace.conversations[workspace.conversations.length - 1];
   const activePersona = remotePersona || workspace;
   const fanPath = `/p/${handle}`;
   const paidFromStripe = useMemo(() => searchParams.get("paid") === "1", [searchParams]);
+  const creatorName = activePersona.creatorName?.trim() || "the creator";
+  const creatorFirstName = creatorName.split(" ")[0] || "the creator";
+  const thinkingPhrases = useMemo(
+    () => [
+      `${creatorFirstName} is thinking...`,
+      `Reading ${creatorFirstName}'s approved context...`,
+      `Shaping the reply in ${creatorFirstName}'s style...`,
+    ],
+    [creatorFirstName],
+  );
   const welcomeMessage = `Hey, good to see you here. Ask me anything around ${activePersona.profile.topics
     .slice(0, 3)
     .join(", ")
     .toLowerCase()}, or send me what you are thinking about.`;
+
+  useEffect(() => {
+    if (!isSending) return;
+
+    const interval = window.setInterval(() => {
+      setThinkingStep((current) => (current + 1) % thinkingPhrases.length);
+    }, 1400);
+
+    return () => window.clearInterval(interval);
+  }, [isSending, thinkingPhrases.length]);
 
   useEffect(() => {
     const session = getStoredSession();
@@ -177,6 +199,8 @@ export default function FanChatPage() {
 
     if (remotePersona && conversationId) {
       setInput("");
+      setThinkingStep(0);
+      setIsSending(true);
       setRemoteMessages((current) => [...current, { id: uid(), from: "fan", text }]);
 
       try {
@@ -194,6 +218,8 @@ export default function FanChatPage() {
         void loadFanHistory();
       } catch (error) {
         setNotice(error instanceof Error ? error.message : "Message failed");
+      } finally {
+        setIsSending(false);
       }
       return;
     }
@@ -286,10 +312,10 @@ export default function FanChatPage() {
           <div>
             <p className="section-kicker">Creator AI chat</p>
             <h1>
-              Chat with <span>{activePersona.creatorName}</span>
+              Chat with <span>{creatorName}</span>
             </h1>
             <p>
-              Ask what you would normally DM {activePersona.creatorName.split(" ")[0] || "the creator"} about. The AI
+              Ask what you would normally DM {creatorFirstName} about. The AI
               replies in their approved public style, using the content and boundaries they set.
             </p>
           </div>
@@ -302,7 +328,7 @@ export default function FanChatPage() {
         <section className="chat-layout public-chat-layout">
           <div className="chat-window">
             <div className="disclosure">
-              You are chatting with {activePersona.creatorName}&apos;s AI persona. It is built from approved creator content
+              You are chatting with {creatorName}&apos;s AI persona. It is built from approved creator content
               and stays away from private, risky, or off-topic questions.
             </div>
             <div className="chat-body">
@@ -366,15 +392,25 @@ export default function FanChatPage() {
                       {message.flagged && <div className="flag-label">Flagged: {message.flagReason}</div>}
                     </div>
                   ))}
+                {started && isSending && (
+                  <div className="message thinking" aria-live="polite">
+                    <span>{thinkingPhrases[thinkingStep]}</span>
+                    <i />
+                    <i />
+                    <i />
+                  </div>
+                )}
               </div>
               <form onSubmit={submit} className="chat-form">
                 <input
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
-                  disabled={!started}
-                  placeholder={`Ask ${activePersona.creatorName.split(" ")[0] || "the creator"}'s AI something...`}
+                  disabled={!started || isSending}
+                  placeholder={`Ask ${creatorFirstName}'s AI something...`}
                 />
-                <button className="primary-btn compact">Send</button>
+                <button className="primary-btn compact" disabled={!started || isSending}>
+                  {isSending ? "Sending" : "Send"}
+                </button>
               </form>
             </div>
           </div>

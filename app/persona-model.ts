@@ -309,7 +309,32 @@ export function detectChatIntent(text: string, flagReason = ""): ChatIntent {
   const normalized = text.toLowerCase().replace(/[^a-z0-9 ?!]/g, " ").trim();
   const words = normalized.split(/\s+/).filter(Boolean);
   const greetingWords = ["hi", "hey", "hello", "yo", "sup", "namaste"];
-  const isGreeting = words.length <= 4 && words.some((word) => greetingWords.includes(word));
+  const startsWithGreeting = words.some((word, index) => index <= 2 && greetingWords.includes(word));
+  const socialGreetingPatterns = [
+    /how are you/,
+    /big fan/,
+    /love your work/,
+    /good to see you/,
+    /nice to meet you/,
+  ];
+  const asksSubstantiveQuestion = [
+    "how do",
+    "how should",
+    "how can",
+    "what should",
+    "what is",
+    "why",
+    "when",
+    "where",
+    "which",
+    "explain",
+    "differentiate",
+    "learn",
+    "build",
+  ].some((phrase) => normalized.includes(phrase));
+  const isGreeting =
+    (words.length <= 4 && words.some((word) => greetingWords.includes(word))) ||
+    (startsWithGreeting && !asksSubstantiveQuestion && socialGreetingPatterns.some((pattern) => pattern.test(normalized)));
   if (isGreeting) return "greeting";
   if (words.length < 4 && !normalized.includes("?")) return "vague";
   return "question";
@@ -319,8 +344,8 @@ export function generatePersonaReply(workspace: PersonaWorkspace, text: string, 
   const intent = detectChatIntent(text, flagReason);
   if (flagReason) return workspace.fallbackText;
   if (intent === "greeting") {
-    const topics = workspace.profile.topics.slice(0, 3).join(", ").toLowerCase();
-    return `Hey, good to see you here. Ask me anything around ${topics}, or send me what you are thinking about.`;
+    const firstName = workspace.creatorName.split(" ")[0] || "there";
+    return `Hey, appreciate you. What do you want to talk about with ${firstName} today?`;
   }
   if (intent === "vague") {
     return "I’m not fully sure what you mean. Ask me like you would in a DM, and I’ll take it from there.";

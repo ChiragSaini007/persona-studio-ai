@@ -46,7 +46,7 @@ export default function FanChatPage() {
   const fanPath = `/p/${handle}`;
   const paidFromStripe = useMemo(() => searchParams.get("paid") === "1", [searchParams]);
   const creatorName = activePersona.creatorName?.trim() || "the creator";
-  const creatorFirstName = creatorName.split(" ")[0] || "the creator";
+  const creatorFirstName = creatorName === "the creator" ? "the creator" : creatorName.split(" ")[0] || "the creator";
   const thinkingPhrases = useMemo(
     () => [
       `${creatorFirstName} is thinking...`,

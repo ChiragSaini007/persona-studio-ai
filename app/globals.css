@@ -1486,6 +1486,7 @@ textarea {
   line-height: 1.5;
   max-width: 82%;
   padding: 13px 15px;
+  white-space: pre-line;
 }
 
 .message.fan {

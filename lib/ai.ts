@@ -30,6 +30,14 @@ function extractOutputText(data: { output_text?: string; output?: { content?: { 
   );
 }
 
+function cleanChatReply(text: string) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/([^\n])\s+(\d+\.\s)/g, "$1\n\n$2")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 async function createResponse(body: Record<string, unknown>) {
   let lastError = "";
 
@@ -178,6 +186,9 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             "If the fan is greeting you, reply with a short warm greeting and invite a real question. Do not give advice.",
             "If the fan is vague, ask one short follow-up question. Do not guess what they meant.",
             "If the fan asks a real question, answer directly using the creator profile, examples, chat context, and retrieved creator context.",
+            "Format for a chat bubble, not an article. Use 2-4 short paragraphs or a short numbered list with each point on its own line.",
+            "Do not use Markdown bold, headings, tables, or long uninterrupted blocks of text.",
+            "Keep the answer complete. Do not start a numbered list unless you can finish every item.",
             "Do not say you are an AI in every answer. Only mention that you are an AI persona if the fan asks who/what you are or asks for real-world access.",
             "Never claim to be the actual human, never claim real-time personal access, and never invent private facts.",
             "Do not force catchphrases. Use recurring phrases only when they naturally fit the fan's message.",
@@ -201,10 +212,10 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
         },
         { role: "user", content: text },
       ],
-      max_output_tokens: 220,
+      max_output_tokens: 520,
   });
 
-  const reply = data ? extractOutputText(data) : "";
+  const reply = data ? cleanChatReply(extractOutputText(data)) : "";
   if (!reply) {
     return {
       reply: buildLocalReply({ ...persona, profile }, text, flagReason),

@@ -8,7 +8,7 @@ import {
   normalizeProfile,
   PersonaRecord,
   PersonaProfile,
-  shouldUseWebSearch,
+  shouldUseWebSearchForPersona,
 } from "./persona";
 import { supabaseRest } from "./supabase-rest";
 
@@ -169,7 +169,14 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
   const intent = detectChatIntent(text, flagReason);
   const answerMode = detectAnswerMode(text, intent);
   const externalInfoNeed = detectExternalInfoNeed(text, intent, flagReason);
-  const allowWebSearch = shouldUseWebSearch(text, intent, flagReason, retrieval.context);
+  const allowWebSearch = shouldUseWebSearchForPersona(
+    text,
+    intent,
+    flagReason,
+    retrieval.context,
+    profile,
+    persona.source_content,
+  );
   const baseMetadata = {
     intent,
     answerMode,
@@ -184,6 +191,14 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
   }
   if (intent === "greeting" || intent === "vague") {
     return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false, ...baseMetadata };
+  }
+  if (externalInfoNeed !== "none" && !allowWebSearch) {
+    return {
+      reply: buildOutOfScopeLiveInfoReply(persona, profile, externalInfoNeed),
+      usedAI: false,
+      ...baseMetadata,
+      externalInfoAllowed: false,
+    };
   }
   if (!process.env.OPENAI_API_KEY) {
     return {
@@ -306,6 +321,25 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
 
   const webSourceCount = countWebSearchCalls(responseResult.data);
   return { reply, usedAI: true, model: responseResult.model, ...baseMetadata, usedWeb: webSourceCount > 0, webSourceCount };
+}
+
+function buildOutOfScopeLiveInfoReply(
+  persona: Pick<PersonaRecord, "creator_name" | "fallback_text">,
+  profile: PersonaProfile,
+  externalInfoNeed: string,
+) {
+  const firstName = persona.creator_name.split(" ")[0] || "the creator";
+  const topics = profile.topics.slice(0, 3).join(", ");
+  const liveInfoLabel =
+    externalInfoNeed === "weather"
+      ? "live weather"
+      : externalInfoNeed === "currency"
+        ? "live currency rates"
+        : externalInfoNeed === "market"
+          ? "live market data"
+          : "live public information";
+
+  return `I can’t turn this into a general ${liveInfoLabel} lookup from ${firstName}'s persona. Ask me something that connects to ${topics || "the creator's approved topics"}, and I’ll use current context where it genuinely helps.`;
 }
 
 function formatChatContext(history: ChatTurn[]) {

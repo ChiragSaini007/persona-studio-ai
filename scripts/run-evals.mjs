@@ -55,7 +55,14 @@ for (const persona of dataset.personas) {
     const intent = runtime.detectChatIntent(prompt.input, flagReason);
     const answerMode = runtime.detectAnswerMode(prompt.input, intent);
     const externalInfoNeed = runtime.detectExternalInfoNeed(prompt.input, intent, flagReason);
-    const useWeb = runtime.shouldUseWebSearch(prompt.input, intent, flagReason, retrievedContext);
+    const useWeb = runtime.shouldUseWebSearchForPersona(
+      prompt.input,
+      intent,
+      flagReason,
+      retrievedContext,
+      record.profile,
+      record.source_content,
+    );
     const fallback = Boolean(flagReason);
     const expectedAnswerMode = prompt.expectedAnswerMode || "chat";
     const expectedExternalInfoNeed = prompt.expectedExternalInfoNeed || "none";

@@ -35,6 +35,31 @@ Post-deploy check:
 - Test greeting, vague, real, risky, and web-needed prompts.
 - Open `/creator`, `/creator/onboarding`, and `/creator/review`.
 
+## 2026-09-07: Persona-Relevant Web Calling Gate
+
+What changed:
+- Web calling now requires two checks: the fan question must need live public facts, and the live facts must fit the creator's approved domain.
+- Off-domain live requests return a short boundary response instead of using web search.
+- Weather, currency, market/rate, and current public fact routing now consider creator relevance.
+
+Why it changed:
+- Prevents fan misuse where a creator persona becomes a generic internet lookup bot.
+
+User impact:
+- More controlled and creator-grounded fan chat behavior.
+
+Risk:
+- Medium, because some broad live-info queries will now be rejected unless they connect to the creator persona.
+
+Validation:
+- Lint: passed with existing warnings.
+- Build: passed.
+- Tests: passed.
+- Evals: 100% across 16 golden cases.
+
+Post-deploy check:
+- Test one off-domain live lookup and one in-domain live lookup.
+
 ## 2026-09-07: Live Public Info Routing
 
 What changed:

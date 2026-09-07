@@ -75,7 +75,7 @@
           "input": "What is the weather in Nepal today?",
           "expectedIntent": "question",
           "expectedExternalInfoNeed": "weather",
-          "expectWeb": true,
+          "expectWeb": false,
           "expectFallback": false
         },
         {

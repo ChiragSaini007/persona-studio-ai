@@ -431,6 +431,82 @@ export function detectExternalInfoNeed(text: string, intent: ChatIntent, flagRea
   return currentContextPatterns.some((pattern) => pattern.test(normalized)) ? "live_public_fact" : "none";
 }
 
+function keywordOverlapCount(text: string, context: string) {
+  const terms = text
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 4);
+  return terms.filter((term) => context.toLowerCase().includes(term)).length;
+}
+
+function personaContextText(profile: PersonaProfile, sourceContent = "", retrievedContext = "") {
+  return [
+    profile.bio,
+    profile.fanRelationship,
+    profile.responseStyle,
+    profile.topics.join(" "),
+    profile.phrases.join(" "),
+    profile.tone.join(" "),
+    profile.exampleReplies.join(" "),
+    profile.retrievalChunks.join(" "),
+    sourceContent,
+    retrievedContext,
+  ].join(" ");
+}
+
+export function isExternalInfoAllowedForPersona(
+  text: string,
+  externalInfoNeed: ExternalInfoNeed,
+  profile: PersonaProfile,
+  sourceContent = "",
+  retrievedContext = "",
+) {
+  if (externalInfoNeed === "none") return false;
+
+  const normalized = text.toLowerCase();
+  const personaContext = personaContextText(profile, sourceContent, retrievedContext).toLowerCase();
+  const overlapCount = keywordOverlapCount(text, personaContext);
+
+  if (externalInfoNeed === "weather") {
+    const weatherRelevantPersona = /\b(weather|travel|trip|tour|outdoor|fitness|running|walking|sports|event|venue|city guide)\b/.test(
+      personaContext,
+    );
+    const weatherRelevantQuestion = /\b(run|walk|workout|travel|trip|tour|event|venue|shoot|commute|flight|flood|storm)\b/.test(
+      normalized,
+    );
+    return weatherRelevantPersona && weatherRelevantQuestion;
+  }
+
+  if (externalInfoNeed === "currency") {
+    const currencyRelevantPersona =
+      /\b(finance|fintech|payments|business|commerce|startup|market|monetization|revenue|pricing|investment|travel)\b/.test(
+        personaContext,
+      );
+    const currencyRelevantQuestion = /\b(estimate|damage|loss|cost|revenue|pricing|market|business|budget|travel|invoice)\b/.test(
+      normalized,
+    );
+    return currencyRelevantPersona || currencyRelevantQuestion;
+  }
+
+  if (externalInfoNeed === "market") {
+    return /\b(finance|fintech|business|commerce|startup|market|monetization|revenue|pricing|crypto|stock|investment)\b/.test(
+      personaContext,
+    );
+  }
+
+  if (
+    /\b(company|startup|growth|grow|trend|news|market|business|creator|youtube|instagram|tiktok|ai|product)\b/.test(normalized) &&
+    /\b(company|startup|growth|distribution|trend|market|business|creator|youtube|instagram|tiktok|ai|product)\b/.test(
+      personaContext,
+    )
+  ) {
+    return true;
+  }
+
+  return overlapCount >= 1;
+}
+
 export function shouldUseWebSearch(text: string, intent: ChatIntent, flagReason: string, retrievedContext = "") {
   if (intent !== "question" || flagReason) return false;
 
@@ -446,6 +522,21 @@ export function shouldUseWebSearch(text: string, intent: ChatIntent, flagReason:
   const hasEnoughCreatorContext = retrievedContext.length > 240 && contextMatches >= 2;
 
   return (asksForCurrentPublicContext || detectExternalInfoNeed(text, intent, flagReason) !== "none") && !hasEnoughCreatorContext;
+}
+
+export function shouldUseWebSearchForPersona(
+  text: string,
+  intent: ChatIntent,
+  flagReason: string,
+  retrievedContext: string,
+  profile: PersonaProfile,
+  sourceContent = "",
+) {
+  const externalInfoNeed = detectExternalInfoNeed(text, intent, flagReason);
+  return (
+    shouldUseWebSearch(text, intent, flagReason, retrievedContext) &&
+    isExternalInfoAllowedForPersona(text, externalInfoNeed, profile, sourceContent, retrievedContext)
+  );
 }
 
 export function detectAnswerMode(text: string, intent: ChatIntent) {

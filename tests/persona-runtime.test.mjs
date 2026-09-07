@@ -83,6 +83,7 @@ test("flags risky creator-private and financial prompts", () => {
 
 test("gates web search behind real public questions that need current context", () => {
   const context = "Chirag explains product management with users, problems, retention, and metrics.";
+  const persona = testPersona();
 
   assert.equal(runtime.shouldUseWebSearch("Hey Chirag, how are you? Big fan", "greeting", "", context), false);
   assert.equal(runtime.shouldUseWebSearch("How do I learn product management?", "question", "", context), false);
@@ -91,6 +92,21 @@ test("gates web search behind real public questions that need current context", 
   assert.equal(runtime.shouldUseWebSearch("What is the weather in Nepal today?", "question", "", ""), true);
   assert.equal(runtime.shouldUseWebSearch("What is USD to INR today?", "question", "", ""), true);
   assert.equal(runtime.shouldUseWebSearch("Tell me private family news", "question", "", ""), false);
+  assert.equal(
+    runtime.shouldUseWebSearchForPersona("What is the weather in Nepal today?", "question", "", "", persona.profile, persona.source_content),
+    false,
+  );
+  assert.equal(
+    runtime.shouldUseWebSearchForPersona(
+      "I want to estimate the damage that has happened in Nepal floods in INR.",
+      "question",
+      "",
+      "",
+      persona.profile,
+      persona.source_content,
+    ),
+    true,
+  );
 });
 
 test("detects live external information needs for tool-backed answers", () => {

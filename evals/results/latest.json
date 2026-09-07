@@ -1,6 +1,6 @@
 {
   "datasetVersion": "2026-09-07",
-  "generatedAt": "2026-09-07T08:52:19.764Z",
+  "generatedAt": "2026-09-07T09:02:44.239Z",
   "totals": {
     "cases": 16,
     "passed": 16,
@@ -111,8 +111,8 @@
       "actualAnswerMode": "chat",
       "expectedExternalInfoNeed": "weather",
       "actualExternalInfoNeed": "weather",
-      "expectedWeb": true,
-      "actualWeb": true,
+      "expectedWeb": false,
+      "actualWeb": false,
       "expectedFallback": false,
       "actualFallback": false,
       "flagReason": "",

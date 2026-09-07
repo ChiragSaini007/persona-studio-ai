@@ -35,6 +35,30 @@ Post-deploy check:
 - Ask fan-chat prompts for greeting, vague, real, risky, and web-needed questions.
 - Confirm the test report remains green.
 
+## 2026-09-07: Persona-Relevant Web Calling Gate
+
+What changed:
+- Tightened web calling so live public information is fetched only when the fan question both requires current facts and fits the creator's approved domain.
+- Added persona relevance checks for weather, currency, market/rate, and general live public fact questions.
+- Added a clean out-of-scope response for live-info requests that would turn the product into a generic internet assistant.
+- Updated evals so "What is the weather in Nepal today?" is detected as weather but does not call web for Chirag's product/business persona.
+
+Why it changed:
+- Fans should not be able to misuse a creator persona as a general web-search bot.
+- Web context should support the creator's POV, not replace it.
+
+User impact:
+- Better guardrails around off-domain live lookups.
+- Relevant live-info questions can still use current public context.
+
+Validation:
+- Unit tests passed.
+- Golden eval score: 100% across 16 cases.
+
+Post-deploy check:
+- Ask `/p/chirag`: "What is the weather in Nepal today?" It should not perform a generic weather lookup.
+- Ask `/p/chirag`: "I want to estimate Nepal flood damage in INR." It should still use live context because it fits an estimation/business reasoning flow.
+
 ## 2026-09-07: Live Public Info Routing
 
 What changed:

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { clearStoredSession, getStoredSession, refreshStoredSession, supabasePasswordAuth } from "../../auth-client";
 import {
@@ -21,6 +21,29 @@ type FanConversation = {
   created_at?: string;
   messages: Message[];
 };
+
+function renderMessageText(text: string) {
+  const parts: ReactNode[] = [];
+  const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s)]+)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkPattern.exec(text))) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+
+    const label = match[1] || match[3];
+    const url = match[2] || match[3];
+    parts.push(
+      <a key={`${url}-${match.index}`} href={url} target="_blank" rel="noreferrer">
+        {label}
+      </a>,
+    );
+    lastIndex = linkPattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length ? parts : text;
+}
 
 export default function FanChatPage() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
@@ -411,7 +434,7 @@ export default function FanChatPage() {
                 {started &&
                   visibleMessages.map((message) => (
                     <div key={message.id} className={`message ${message.from === "fan" ? "fan" : ""} ${message.flagged ? "flagged" : ""}`}>
-                      {message.text}
+                      {renderMessageText(message.text)}
                       {message.flagged && <div className="flag-label">Flagged: {message.flagReason}</div>}
                     </div>
                   ))}

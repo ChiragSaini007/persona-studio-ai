@@ -35,6 +35,28 @@ Post-deploy check:
 - Ask fan-chat prompts for greeting, vague, real, risky, and web-needed questions.
 - Confirm the test report remains green.
 
+## 2026-09-07: Chat Links and Longer Web Answers
+
+What changed:
+- Chat bubbles now render Markdown links and plain URLs as clickable hyperlinks.
+- Increased output budget for web-backed, estimation, and number-heavy case-study answers.
+- Updated prompt instructions so long answers should finish cleanly instead of ending mid-sentence.
+
+Why it changed:
+- Web-backed case-study answers were showing raw URL syntax and sometimes stopped before finishing the final point.
+
+User impact:
+- Fans can open sources directly from chat.
+- Number-heavy case studies should feel more complete and readable.
+
+Validation:
+- Unit tests passed.
+- Golden eval score: 100% across 18 cases.
+
+Post-deploy check:
+- Ask for a number-heavy Walmart or Swiggy case.
+- Confirm source links are clickable and the answer ends cleanly.
+
 ## 2026-09-07: Resolved Case-Study Follow-Up Questions
 
 What changed:

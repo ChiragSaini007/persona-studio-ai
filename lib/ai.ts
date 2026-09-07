@@ -43,6 +43,12 @@ function cleanChatReply(text: string) {
     .trim();
 }
 
+function answerTokenBudget(answerMode: string, allowWebSearch: boolean, resolvedQuestion: string) {
+  const asksForFullCase = /\b(complete|full|deep|case study|business case|with numbers|numbers|metrics)\b/i.test(resolvedQuestion);
+  if (answerMode === "estimation" || allowWebSearch || asksForFullCase) return 950;
+  return 620;
+}
+
 async function createResponse(body: Record<string, unknown>) {
   let lastError = "";
 
@@ -208,6 +214,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
     };
   }
 
+  const maxOutputTokens = answerTokenBudget(answerMode, allowWebSearch, resolvedQuestion);
   let responseResult = await createResponse({
     ...(allowWebSearch
       ? {
@@ -254,8 +261,10 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
               ? "For estimation: define the scope, list 3-5 drivers, show an example calculation, give low/base/high ranges when possible, and convert currencies if the user asks."
               : "Avoid over-structuring casual answers.",
             "Format for a chat bubble, not an article. Use 2-4 short paragraphs or a short numbered list with each point on its own line.",
+            "For number-heavy case studies, give the most important 5-7 numbers, explain why each matters, and stop cleanly with a next section suggestion.",
             "Do not use Markdown bold, headings, tables, or long uninterrupted blocks of text.",
             "Keep the answer complete. Do not start a numbered list unless you can finish every item.",
+            "Do not end mid-sentence. If space is limited, summarize fewer points instead of continuing a long list.",
             "Do not say you are an AI in every answer. Only mention that you are an AI persona if the fan asks who/what you are or asks for real-world access.",
             "Never claim to be the actual human, never claim real-time personal access, and never invent private facts.",
             "Do not force catchphrases. Use recurring phrases only when they naturally fit the fan's message.",
@@ -279,7 +288,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
         },
         { role: "user", content: resolvedQuestion },
       ],
-      max_output_tokens: 520,
+      max_output_tokens: maxOutputTokens,
   });
 
   if (!responseResult.data && allowWebSearch) {
@@ -308,7 +317,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
           },
           { role: "user", content: resolvedQuestion },
         ],
-        max_output_tokens: 520,
+        max_output_tokens: maxOutputTokens,
     });
   }
 

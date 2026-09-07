@@ -1493,6 +1493,15 @@ textarea {
   white-space: pre-line;
 }
 
+.message a {
+  color: #063f86;
+  font-weight: 850;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  word-break: break-word;
+}
+
 .message.fan {
   align-self: flex-end;
   background: var(--blue-soft);

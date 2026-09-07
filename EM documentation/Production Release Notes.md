@@ -35,6 +35,31 @@ Post-deploy check:
 - Test greeting, vague, real, risky, and web-needed prompts.
 - Open `/creator`, `/creator/onboarding`, and `/creator/review`.
 
+## 2026-09-07: Clickable Chat Links and Complete Answers
+
+What changed:
+- Source URLs in persona replies now render as clickable links.
+- Web-backed and number-heavy case-study replies get more room to complete.
+- Prompt instructions now prefer fewer complete points over unfinished long lists.
+
+Why it changed:
+- Links were displayed as raw Markdown text, and some long answers were cut off.
+
+User impact:
+- Chat replies are easier to read, and sources are easier to open.
+
+Risk:
+- Low.
+
+Validation:
+- Lint: passed with existing warnings.
+- Build: passed.
+- Tests: passed.
+- Evals: 100% across 18 golden cases.
+
+Post-deploy check:
+- Ask for a number-heavy case study and verify links plus answer completion.
+
 ## 2026-09-07: Resolved Case-Study Follow-Ups
 
 What changed:

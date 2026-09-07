@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { clearStoredSession, getStoredSession, resendSignupConfirmation, supabasePasswordAuth } from "../auth-client";
 import {
   cleanHandle,
@@ -60,6 +61,7 @@ type ReviewItem = {
 
 export default function CreatorPortal() {
   const { workspace, setWorkspace, analytics } = usePersonaWorkspace();
+  const searchParams = useSearchParams();
   const [viewMode, setViewMode] = useState<"onboarding" | "dashboard">("onboarding");
   const [step, setStep] = useState(1);
   const [origin, setOrigin] = useState("");
@@ -106,6 +108,17 @@ export default function CreatorPortal() {
   ].filter(Boolean);
 
   useEffect(() => {
+    const requestedMode = searchParams.get("mode");
+    if (requestedMode === "onboarding") {
+      queueMicrotask(() => {
+        setViewMode("onboarding");
+        setStep(1);
+      });
+    }
+    if (requestedMode === "review") {
+      queueMicrotask(() => setViewMode("dashboard"));
+    }
+
     queueMicrotask(() => setOrigin(window.location.origin));
     const authError = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("error_description");
     if (authError) {
@@ -133,7 +146,7 @@ export default function CreatorPortal() {
     }
 
     void loadHealth();
-  }, []);
+  }, [searchParams]);
 
   function updateField<K extends keyof typeof workspace>(field: K, value: (typeof workspace)[K]) {
     setWorkspace((current) => ({ ...current, [field]: value }));
@@ -493,6 +506,8 @@ export default function CreatorPortal() {
         </Link>
         <div>
           <Link href="/">Landing</Link>
+          <Link href="/creator/onboarding">Onboarding</Link>
+          <Link href="/creator/review">Review</Link>
           <Link href={publicPath}>Fan page</Link>
         </div>
       </nav>
@@ -511,6 +526,7 @@ export default function CreatorPortal() {
             <div className="dashboard-nav">
               <button className="active">Overview</button>
               <button onClick={() => editCurrentPersona(2)}>Edit persona</button>
+              <Link href="/creator/review">Review queue</Link>
               <button onClick={startNewPersona}>New persona</button>
             </div>
           ) : (

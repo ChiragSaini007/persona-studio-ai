@@ -77,10 +77,11 @@ Fans can sign up, open the creator's public chat URL, and ask questions. The AI 
 
    Purpose: Generate safe, grounded answers and give creators visibility.
 
-   Runtime responsibilities:
+Runtime responsibilities:
    - Classify fan message intent.
    - Apply moderation and guardrails.
    - Retrieve relevant creator-approved content.
+   - Use web search only for real public questions when creator context is insufficient or current facts are needed.
    - Send real questions to OpenAI.
    - Save messages and metadata.
    - Mark flagged/fallback conversations for creator review.
@@ -107,7 +108,10 @@ flowchart LR
   O -->|Vague| Q["Ask one follow-up question"]
   O -->|Risky| R["Boundary/fallback response"]
   O -->|Real question| S["Retrieve relevant creator content"]
-  S --> T["OpenAI response with persona prompt"]
+  S --> W{"Needs current public context?"}
+  W -->|Yes| X["OpenAI web search tool"]
+  W -->|No| T["OpenAI response with persona prompt"]
+  X --> T
   T --> U["Save answer and conversation"]
   P --> U
   Q --> U
@@ -125,7 +129,8 @@ When a fan sends a message, the backend follows this flow:
 4. Run OpenAI moderation.
 5. Classify message intent.
 6. Retrieve relevant creator-approved content.
-7. If the message is a real question, send it to OpenAI with:
+7. Decide whether web search is allowed for the turn.
+8. If the message is a real question, send it to OpenAI with:
    - Creator profile
    - Creator topics
    - Creator tone
@@ -135,8 +140,9 @@ When a fan sends a message, the backend follows this flow:
    - Fallback response
    - Recent chat history
    - Retrieved source context
-8. Save fan message and persona reply.
-9. Update history, metrics, and review state.
+   - Web search tool access only when needed
+9. Save fan message and persona reply.
+10. Update history, metrics, and review state.
 
 ## Message Intent Classification
 
@@ -176,6 +182,7 @@ The product currently uses four intent types:
    Behavior:
    - Retrieve relevant creator content.
    - Send the message to OpenAI with the persona system prompt and chat context.
+   - Allow web search only if current public context is needed and creator-approved content is insufficient.
 
 4. Risky
 
@@ -208,6 +215,7 @@ The prompt tells the model:
 - Do not use Markdown bold, headings, tables, or long uninterrupted blocks.
 - If outside approved topics, use the creator's fallback response.
 - If source content is insufficient, answer only what can be supported and ask one useful follow-up.
+- Use web search only when enabled for a real public question, and keep the final answer grounded in the creator's persona.
 
 The prompt includes:
 
@@ -223,6 +231,7 @@ The prompt includes:
 - Recurring phrases
 - Recent chat context
 - Retrieved creator context
+- Optional public web context when web search is enabled
 
 ## Tech Choices
 

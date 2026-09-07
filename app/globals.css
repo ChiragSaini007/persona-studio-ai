@@ -473,18 +473,22 @@ input:disabled {
   margin-top: 28px;
 }
 
-.dashboard-nav button {
+.dashboard-nav button,
+.dashboard-nav a {
   background: white;
   border: 1px solid var(--line);
   border-radius: 16px;
   color: var(--ink);
+  display: block;
   font-weight: 850;
   min-height: 50px;
   padding: 10px 14px;
   text-align: left;
+  text-decoration: none;
 }
 
-.dashboard-nav button.active {
+.dashboard-nav button.active,
+.dashboard-nav a.active {
   background: var(--yellow);
   border-color: var(--ink);
 }

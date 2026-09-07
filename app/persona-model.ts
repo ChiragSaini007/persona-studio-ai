@@ -104,7 +104,7 @@ export const guardrails: Guardrail[] = [
     key: "personal",
     title: "Private personal life",
     description: "Family, relationships, private addresses, or unauthenticated gossip.",
-    keywords: ["girlfriend", "boyfriend", "address", "family drama", "rumor"],
+    keywords: ["girlfriend", "boyfriend", "address", "family drama", "rumor", "private", "privately"],
   },
 ];
 
@@ -304,6 +304,34 @@ export function findFlag(workspace: PersonaWorkspace, text: string) {
 
 export type ChatIntent = "greeting" | "vague" | "question" | "risky";
 
+const currentContextPatterns = [
+  /\blatest\b/,
+  /\brecent\b/,
+  /\btoday\b/,
+  /\bnow\b/,
+  /\bthis week\b/,
+  /\bthis month\b/,
+  /\bthis year\b/,
+  /\b202[4-9]\b/,
+  /\bnews\b/,
+  /\btrend/,
+  /\bgrow/,
+  /\bmarket\b/,
+  /\bgrowth\b/,
+  /\bcompany\b/,
+];
+
+const creatorPrivatePatterns = [
+  /\bprivate\b/,
+  /\bpersonal\b/,
+  /\bphone number\b/,
+  /\baddress\b/,
+  /\bwhere do you live\b/,
+  /\brelationship\b/,
+  /\bfamily\b/,
+  /\bsecret\b/,
+];
+
 export function detectChatIntent(text: string, flagReason = ""): ChatIntent {
   if (flagReason) return "risky";
   const normalized = text.toLowerCase().replace(/[^a-z0-9 ?!]/g, " ").trim();
@@ -334,10 +362,29 @@ export function detectChatIntent(text: string, flagReason = ""): ChatIntent {
   ].some((phrase) => normalized.includes(phrase));
   const isGreeting =
     (words.length <= 4 && words.some((word) => greetingWords.includes(word))) ||
-    (startsWithGreeting && !asksSubstantiveQuestion && socialGreetingPatterns.some((pattern) => pattern.test(normalized)));
+    ((startsWithGreeting || words.length <= 5) &&
+      !asksSubstantiveQuestion &&
+      socialGreetingPatterns.some((pattern) => pattern.test(normalized)));
   if (isGreeting) return "greeting";
   if (words.length < 4 && !normalized.includes("?")) return "vague";
   return "question";
+}
+
+export function shouldUseWebSearch(text: string, intent: ChatIntent, flagReason: string, retrievedContext = "") {
+  if (intent !== "question" || flagReason) return false;
+
+  const normalized = text.toLowerCase();
+  if (creatorPrivatePatterns.some((pattern) => pattern.test(normalized))) return false;
+
+  const asksForCurrentPublicContext = currentContextPatterns.some((pattern) => pattern.test(normalized));
+  const contextTerms = normalized
+    .replace(/[^a-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 4);
+  const contextMatches = contextTerms.filter((term) => retrievedContext.toLowerCase().includes(term)).length;
+  const hasEnoughCreatorContext = retrievedContext.length > 240 && contextMatches >= 2;
+
+  return asksForCurrentPublicContext && !hasEnoughCreatorContext;
 }
 
 export function generatePersonaReply(workspace: PersonaWorkspace, text: string, flagReason: string) {

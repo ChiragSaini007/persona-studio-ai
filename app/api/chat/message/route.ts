@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
     const history = await supabaseRest<MessageRow[]>(
       `messages?conversation_id=eq.${encodeURIComponent(conversation.id)}&select=role,text,created_at&order=created_at.asc&limit=12`,
     );
-    const { reply, usedAI, runtimeError } = await generateChatReply(persona, message, flagReason, history);
+    const { reply, usedAI, runtimeError, intent, usedRAG, usedWeb, retrievedChunkCount, webSourceCount } =
+      await generateChatReply(persona, message, flagReason, history);
     if (runtimeError) console.error("Persona chat runtime failed", runtimeError);
 
     const savedMessages = await supabaseRest("messages", {
@@ -66,7 +67,18 @@ export async function POST(request: NextRequest) {
       prefer: "return=representation",
     });
 
-    return NextResponse.json({ reply, flagReason, usedAI, runtimeError, messages: savedMessages });
+    return NextResponse.json({
+      reply,
+      flagReason,
+      usedAI,
+      usedRAG,
+      usedWeb,
+      retrievedChunkCount,
+      webSourceCount,
+      intent,
+      runtimeError,
+      messages: savedMessages,
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to send message" }, { status: 500 });
   }

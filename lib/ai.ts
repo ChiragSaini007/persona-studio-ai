@@ -6,6 +6,7 @@ import {
   normalizeProfile,
   PersonaRecord,
   PersonaProfile,
+  shouldUseWebSearch,
 } from "./persona";
 import { supabaseRest } from "./supabase-rest";
 
@@ -65,6 +66,10 @@ async function createResponse(body: Record<string, unknown>) {
   }
 
   return { data: null, model: "", error: lastError || "OpenAI request failed" };
+}
+
+function countWebSearchCalls(data: { output?: { type?: string }[] } | null) {
+  return data?.output?.filter((item) => item.type === "web_search_call").length || 0;
 }
 
 export async function generateProfileWithAI(content: string): Promise<{ profile: PersonaProfile; usedAI: boolean }> {
@@ -158,23 +163,33 @@ type ChatTurn = {
 
 export async function generateChatReply(persona: PersonaRecord, text: string, flagReason: string, history: ChatTurn[] = []) {
   const profile = normalizeProfile(persona.profile, persona.source_content);
-  const relevantContext = await retrieveRelevantContext(profile, persona.source_content, text, persona.id);
+  const retrieval = await retrieveRelevantContext(profile, persona.source_content, text, persona.id);
   const intent = detectChatIntent(text, flagReason);
+  const allowWebSearch = shouldUseWebSearch(text, intent, flagReason, retrieval.context);
+  const baseMetadata = {
+    intent,
+    usedRAG: retrieval.chunkCount > 0,
+    retrievedChunkCount: retrieval.chunkCount,
+    usedWeb: false,
+    webSourceCount: 0,
+  };
   if (flagReason) {
-    return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
+    return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false, ...baseMetadata };
   }
   if (intent === "greeting" || intent === "vague") {
-    return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false };
+    return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false, ...baseMetadata };
   }
   if (!process.env.OPENAI_API_KEY) {
     return {
       reply: buildLocalReply({ ...persona, profile }, text, flagReason),
       usedAI: false,
+      ...baseMetadata,
       runtimeError: "OpenAI API key is not configured",
     };
   }
 
-  const { data, model, error } = await createResponse({
+  let responseResult = await createResponse({
+    ...(allowWebSearch ? { tools: [{ type: "web_search", search_context_size: "low" }] } : {}),
     input: [
         {
           role: "system",
@@ -186,6 +201,9 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             "If the fan is greeting you, reply with a short warm greeting and invite a real question. Do not give advice.",
             "If the fan is vague, ask one short follow-up question. Do not guess what they meant.",
             "If the fan asks a real question, answer directly using the creator profile, examples, chat context, and retrieved creator context.",
+            allowWebSearch
+              ? "Web search is enabled for this turn because creator context may be insufficient for current public facts. Use it only for public external context, then answer through the creator's lens."
+              : "Web search is disabled for this turn. Do not pretend to know current facts that are not in the provided context.",
             "Format for a chat bubble, not an article. Use 2-4 short paragraphs or a short numbered list with each point on its own line.",
             "Do not use Markdown bold, headings, tables, or long uninterrupted blocks of text.",
             "Keep the answer complete. Do not start a numbered list unless you can finish every item.",
@@ -207,7 +225,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             `Tone: ${profile.tone.join(", ")}`,
             `Recurring phrases: ${profile.phrases.join(", ")}`,
             `Recent chat context:\n${formatChatContext(history)}`,
-            `Retrieved creator context:\n${relevantContext}`,
+            `Retrieved creator context:\n${retrieval.context}`,
           ].join("\n"),
         },
         { role: "user", content: text },
@@ -215,16 +233,46 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
       max_output_tokens: 520,
   });
 
-  const reply = data ? cleanChatReply(extractOutputText(data)) : "";
+  if (!responseResult.data && allowWebSearch) {
+    responseResult = await createResponse({
+      input: [
+          {
+            role: "system",
+            content: [
+              `You are ${persona.creator_name}'s AI persona for fan conversations.`,
+              "The page already discloses that this is AI. In the conversation, write naturally in the creator's first-person voice when appropriate.",
+              "Web search was attempted but unavailable. Answer only from the creator profile, chat context, and retrieved creator context.",
+              "If current public facts are required and not available, say that the approved context does not contain the latest details and answer the durable part only.",
+              "Do not use Markdown bold, headings, tables, or long uninterrupted blocks of text.",
+              "Never claim to be the actual human, never claim real-time personal access, and never invent private facts.",
+              `Fallback: ${persona.fallback_text}`,
+              `Creator bio: ${profile.bio}`,
+              `Fan relationship: ${profile.fanRelationship}`,
+              `Response style: ${profile.responseStyle}`,
+              `Ideal example replies:\n${profile.exampleReplies.map((item) => `- ${item}`).join("\n")}`,
+              `Approved topics: ${profile.topics.join(", ")}`,
+              `Recent chat context:\n${formatChatContext(history)}`,
+              `Retrieved creator context:\n${retrieval.context}`,
+            ].join("\n"),
+          },
+          { role: "user", content: text },
+        ],
+        max_output_tokens: 520,
+    });
+  }
+
+  const reply = responseResult.data ? cleanChatReply(extractOutputText(responseResult.data)) : "";
   if (!reply) {
     return {
       reply: buildLocalReply({ ...persona, profile }, text, flagReason),
       usedAI: false,
-      runtimeError: error || "OpenAI returned an empty answer",
+      ...baseMetadata,
+      runtimeError: responseResult.error || "OpenAI returned an empty answer",
     };
   }
 
-  return { reply, usedAI: true, model };
+  const webSourceCount = countWebSearchCalls(responseResult.data);
+  return { reply, usedAI: true, model: responseResult.model, ...baseMetadata, usedWeb: webSourceCount > 0, webSourceCount };
 }
 
 function formatChatContext(history: ChatTurn[]) {
@@ -235,13 +283,13 @@ function formatChatContext(history: ChatTurn[]) {
 
 async function retrieveRelevantContext(profile: PersonaProfile, sourceContent: string, query: string, personaId?: string) {
   const storedContext = await retrieveStoredContext(query, personaId);
-  if (storedContext) return storedContext;
+  if (storedContext) return { context: storedContext, chunkCount: storedContext.split("\n\n---\n\n").filter(Boolean).length };
 
   const chunks = (profile.retrievalChunks.length ? profile.retrievalChunks : makeFallbackProfile(sourceContent).retrievalChunks)
     .filter(Boolean)
     .slice(0, 24);
 
-  if (!chunks.length) return sourceContent.slice(0, 4000);
+  if (!chunks.length) return { context: sourceContent.slice(0, 4000), chunkCount: sourceContent ? 1 : 0 };
 
   if (process.env.OPENAI_API_KEY) {
     try {
@@ -266,12 +314,13 @@ async function retrieveRelevantContext(profile: PersonaProfile, sourceContent: s
           score: cosineSimilarity(queryVector, vectors[index + 1]),
         }));
 
-        return scored
+        const context = scored
           .sort((a, b) => b.score - a.score)
           .slice(0, 4)
           .map((item) => item.chunk)
           .join("\n\n---\n\n")
           .slice(0, 5000);
+        return { context, chunkCount: context ? context.split("\n\n---\n\n").filter(Boolean).length : 0 };
       }
     } catch {
       // Fall back to keyword scoring below.
@@ -279,7 +328,7 @@ async function retrieveRelevantContext(profile: PersonaProfile, sourceContent: s
   }
 
   const terms = query.toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length > 3);
-  return chunks
+  const context = chunks
     .map((chunk) => ({
       chunk,
       score: terms.reduce((count, term) => count + (chunk.toLowerCase().includes(term) ? 1 : 0), 0),
@@ -289,6 +338,7 @@ async function retrieveRelevantContext(profile: PersonaProfile, sourceContent: s
     .map((item) => item.chunk)
     .join("\n\n---\n\n")
     .slice(0, 5000);
+  return { context, chunkCount: context ? context.split("\n\n---\n\n").filter(Boolean).length : 0 };
 }
 
 async function retrieveStoredContext(query: string, personaId?: string) {

@@ -2,6 +2,39 @@
 
 Use this file to track what changes are pushed to production and why they matter.
 
+## 2026-09-07: MVP Quality Layer, Web-Aware Runtime, and App Structure
+
+What changed:
+- Added PM, EM, and Test documentation areas.
+- Added a golden dataset with 3 personas and 12 fan-prompt eval cases.
+- Added automated runtime unit tests for intent, guardrails, fallback behavior, and web-search gating.
+- Added `npm run quality` as the release gate for lint, build, tests, evals, and test report generation.
+- Added runtime metadata for fan chat decisions: intent, RAG usage, web usage, retrieved chunks, web source count, and runtime errors.
+- Added gated OpenAI web search support for real public questions that need current/external context.
+- Added clean creator route entry points for onboarding and review.
+
+Why it changed:
+- The MVP needs measurable quality before deeper product expansion.
+- PMs need visibility into what changed and whether the app is production-test ready.
+- Fan answers should stay creator-grounded but still support public/current questions when creator content is insufficient.
+
+User impact:
+- Safer runtime behavior.
+- More reliable releases.
+- Better reporting for future improvements.
+- Cleaner creator navigation.
+
+Validation:
+- Quality command passed.
+- Unit tests passed.
+- Render tests passed.
+- Golden eval score: 100% across 12 cases.
+
+Post-deploy check:
+- Test `/creator`, `/creator/onboarding`, `/creator/review`, and `/p/chirag`.
+- Ask fan-chat prompts for greeting, vague, real, risky, and web-needed questions.
+- Confirm the test report remains green.
+
 ## 2026-09-06: Fan Chat Answer Quality and Formatting
 
 What changed:

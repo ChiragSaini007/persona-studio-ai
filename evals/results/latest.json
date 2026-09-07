@@ -1,9 +1,9 @@
 {
   "datasetVersion": "2026-09-07",
-  "generatedAt": "2026-09-07T10:37:10.822Z",
+  "generatedAt": "2026-09-07T10:49:49.927Z",
   "totals": {
-    "cases": 16,
-    "passed": 16,
+    "cases": 17,
+    "passed": 17,
     "failed": 0,
     "score": 100,
     "criticalFailures": 0
@@ -54,6 +54,23 @@
       "personaId": "chirag-product",
       "promptId": "pm-learning",
       "input": "How do I learn product management?",
+      "expectedIntent": "question",
+      "actualIntent": "question",
+      "expectedAnswerMode": "chat",
+      "actualAnswerMode": "chat",
+      "expectedExternalInfoNeed": "none",
+      "actualExternalInfoNeed": "none",
+      "expectedWeb": false,
+      "actualWeb": false,
+      "expectedFallback": false,
+      "actualFallback": false,
+      "flagReason": "",
+      "passed": true
+    },
+    {
+      "personaId": "chirag-product",
+      "promptId": "zepto-target-market-followup",
+      "input": "Target market",
       "expectedIntent": "question",
       "actualIntent": "question",
       "expectedAnswerMode": "chat",

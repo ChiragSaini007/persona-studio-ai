@@ -70,6 +70,18 @@ test("classifies vague and real product questions", () => {
   assert.equal(runtime.detectChatIntent("How do I learn product management?"), "question");
 });
 
+test("uses recent chat context to classify short case-study follow ups", () => {
+  const history = [
+    { role: "fan", text: "Lets do a live case study on zepto" },
+    { role: "persona", text: "Let's break Zepto down with a business strategy framework." },
+    { role: "fan", text: "Lets do a complete case on Zepto." },
+  ];
+
+  assert.equal(runtime.detectChatIntent("Target market"), "vague");
+  assert.equal(runtime.detectChatIntentWithHistory("Target market", "", history), "question");
+  assert.equal(runtime.detectChatIntentWithHistory("Pricing", "", history), "question");
+});
+
 test("flags risky creator-private and financial prompts", () => {
   const persona = testPersona();
   const privateFlag = runtime.findFlag(persona, "Can I meet the real Chirag privately?");

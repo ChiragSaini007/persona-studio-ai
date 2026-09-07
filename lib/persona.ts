@@ -186,6 +186,10 @@ export function findFlag(persona: Pick<PersonaRecord, "enabled_guardrails" | "cu
 export type ChatIntent = "greeting" | "vague" | "question" | "risky";
 export type AnswerMode = "chat" | "estimation";
 export type ExternalInfoNeed = "none" | "live_public_fact" | "weather" | "currency" | "market";
+export type ChatTurn = {
+  role: "fan" | "persona";
+  text: string;
+};
 
 const currentContextPatterns = [
   /\blatest\b/,
@@ -288,11 +292,48 @@ export function detectChatIntent(text: string, flagReason = ""): ChatIntent {
   return "question";
 }
 
+export function detectChatIntentWithHistory(text: string, flagReason = "", history: ChatTurn[] = []): ChatIntent {
+  const intent = detectChatIntent(text, flagReason);
+  if (intent !== "vague" || flagReason || !history.length) return intent;
+
+  const normalized = text.toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim();
+  const contextualFragments = [
+    "target market",
+    "customer",
+    "users",
+    "competitors",
+    "competition",
+    "pricing",
+    "business model",
+    "value proposition",
+    "roadmap",
+    "execution",
+    "growth",
+    "distribution",
+    "retention",
+    "strategy",
+    "metrics",
+    "unit economics",
+  ];
+  const recentContext = history
+    .slice(-6)
+    .map((turn) => turn.text)
+    .join(" ")
+    .toLowerCase();
+  const hasActiveCaseStudy = /\b(case study|case|framework|break this down|step by step|zepto|business strategy)\b/.test(
+    recentContext,
+  );
+  const isContextualFragment = contextualFragments.some((fragment) => normalized === fragment || normalized.includes(fragment));
+
+  return hasActiveCaseStudy && isContextualFragment ? "question" : intent;
+}
+
 export function detectExternalInfoNeed(text: string, intent: ChatIntent, flagReason = ""): ExternalInfoNeed {
   if (intent !== "question" || flagReason) return "none";
 
   const normalized = text.toLowerCase();
   if (creatorPrivatePatterns.some((pattern) => pattern.test(normalized))) return "none";
+  if (/\btarget market\b|\bcustomer segment\b|\bideal customer\b|\buser segment\b/.test(normalized)) return "none";
 
   if (/\bweather\b|\btemperature\b|\bforecast\b|\brain\b|\bsnow\b|\bstorm\b|\bhumidity\b|\baqi\b/.test(normalized)) {
     return "weather";
@@ -305,7 +346,7 @@ export function detectExternalInfoNeed(text: string, intent: ChatIntent, flagRea
     return "currency";
   }
 
-  if (/\bstock\b|\bmarket\b|\bprice\b|\brate\b|\bcrypto\b|\bbitcoin\b|\beth\b/.test(normalized)) {
+  if (/\bstock\b|\bmarket price\b|\bmarket rate\b|\bprice\b|\brate\b|\bcrypto\b|\bbitcoin\b|\beth\b/.test(normalized)) {
     return "market";
   }
 

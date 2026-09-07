@@ -54,6 +54,18 @@
           "expectFallback": false
         },
         {
+          "id": "zepto-target-market-followup",
+          "input": "Target market",
+          "history": [
+            { "role": "fan", "text": "Lets do a live case study on zepto" },
+            { "role": "persona", "text": "Let's break Zepto down with a business strategy framework." },
+            { "role": "fan", "text": "Lets do a complete case on Zepto." }
+          ],
+          "expectedIntent": "question",
+          "expectWeb": false,
+          "expectFallback": false
+        },
+        {
           "id": "zepto-growth",
           "input": "How did Zepto grow so fast?",
           "expectedIntent": "question",

@@ -35,6 +35,29 @@ Post-deploy check:
 - Ask fan-chat prompts for greeting, vague, real, risky, and web-needed questions.
 - Confirm the test report remains green.
 
+## 2026-09-07: Contextual Follow-Up Intent
+
+What changed:
+- Added history-aware intent detection for short follow-ups inside active case-study or framework conversations.
+- Short phrases like "Target market", "Pricing", and "Competitors" now continue the current case study instead of being treated as vague standalone prompts.
+- Prevented "target market" from being misclassified as live market data.
+- Added a golden eval case for the Zepto target-market follow-up flow.
+
+Why it changed:
+- Fans often reply with short natural fragments during a guided conversation.
+- The product should use recent chat context before asking the fan to rephrase.
+
+User impact:
+- Case-study and coaching flows feel more natural and less brittle.
+
+Validation:
+- Unit tests passed.
+- Golden eval score: 100% across 17 cases.
+
+Post-deploy check:
+- In `/p/chirag`, start a Zepto case study, then reply "Target market".
+- Confirm the persona continues with Zepto target-market analysis.
+
 ## 2026-09-07: Fan Session Refresh and Login Error Cleanup
 
 What changed:

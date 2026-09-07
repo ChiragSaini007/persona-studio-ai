@@ -35,6 +35,31 @@ Post-deploy check:
 - Test greeting, vague, real, risky, and web-needed prompts.
 - Open `/creator`, `/creator/onboarding`, and `/creator/review`.
 
+## 2026-09-07: Contextual Follow-Up Intent
+
+What changed:
+- Fan chat now uses recent conversation history before deciding a short message is vague.
+- Short case-study follow-ups like "Target market" continue the active discussion.
+- "Target market" no longer triggers live market-data routing.
+
+Why it changed:
+- Natural conversations often use fragments after context has already been established.
+
+User impact:
+- Guided case studies and coaching conversations feel smoother.
+
+Risk:
+- Low.
+
+Validation:
+- Lint: passed with existing warnings.
+- Build: passed.
+- Tests: passed.
+- Evals: 100% across 17 golden cases.
+
+Post-deploy check:
+- Run the Zepto case-study flow and send "Target market".
+
 ## 2026-09-07: Fan Session Refresh
 
 What changed:

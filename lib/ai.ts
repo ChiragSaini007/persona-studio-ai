@@ -2,10 +2,11 @@ import {
   buildLocalReply,
   buildRetrievalChunks,
   detectAnswerMode,
-  detectChatIntent,
+  detectChatIntentWithHistory,
   detectExternalInfoNeed,
   makeFallbackProfile,
   normalizeProfile,
+  ChatTurn,
   PersonaRecord,
   PersonaProfile,
   shouldUseWebSearchForPersona,
@@ -158,15 +159,10 @@ export async function moderateText(text: string) {
   return category ? `Moderation: ${category}` : "Moderation";
 }
 
-type ChatTurn = {
-  role: "fan" | "persona";
-  text: string;
-};
-
 export async function generateChatReply(persona: PersonaRecord, text: string, flagReason: string, history: ChatTurn[] = []) {
   const profile = normalizeProfile(persona.profile, persona.source_content);
   const retrieval = await retrieveRelevantContext(profile, persona.source_content, text, persona.id);
-  const intent = detectChatIntent(text, flagReason);
+  const intent = detectChatIntentWithHistory(text, flagReason, history);
   const answerMode = detectAnswerMode(text, intent);
   const externalInfoNeed = detectExternalInfoNeed(text, intent, flagReason);
   const allowWebSearch = shouldUseWebSearchForPersona(

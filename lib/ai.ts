@@ -17,7 +17,7 @@ import { supabaseRest } from "./supabase-rest";
 const openaiUrl = "https://api.openai.com/v1/responses";
 const moderationUrl = "https://api.openai.com/v1/moderations";
 const embeddingsUrl = "https://api.openai.com/v1/embeddings";
-const defaultTextModels = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-5-mini"];
+const defaultTextModels = ["gpt-5-mini", "gpt-4.1-mini", "gpt-4o-mini"];
 
 export function hasOpenAIConfig() {
   return Boolean(process.env.OPENAI_API_KEY);

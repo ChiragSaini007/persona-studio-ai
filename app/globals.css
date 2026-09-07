@@ -1010,6 +1010,128 @@ textarea {
   margin-top: 24px;
 }
 
+.interview-layout {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+  margin-top: 26px;
+}
+
+.interview-card,
+.live-preview-card,
+.source-builder {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 20px;
+}
+
+.interview-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.interview-progress button {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 9px 12px;
+}
+
+.interview-progress button.active {
+  background: var(--yellow);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.interview-card h3,
+.source-builder h3 {
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin: 0;
+}
+
+.interview-card p,
+.source-builder p {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.55;
+  margin: 12px 0 0;
+}
+
+.interview-answer {
+  min-height: 190px;
+}
+
+.preview-phone {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  display: grid;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 16px;
+}
+
+.preview-header {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  margin: -2px 0 4px;
+  padding-bottom: 12px;
+}
+
+.preview-header span {
+  background: var(--mint);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+  padding: 6px 9px;
+  text-transform: uppercase;
+}
+
+.preview-bubble {
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.45;
+  padding: 12px 14px;
+}
+
+.preview-bubble.ai {
+  background: var(--mint);
+  justify-self: start;
+  max-width: 88%;
+}
+
+.preview-bubble.fan {
+  background: var(--blue-soft);
+  justify-self: end;
+  max-width: 78%;
+}
+
+.source-builder {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(220px, 0.45fr) minmax(0, 1fr);
+  margin-top: 18px;
+}
+
+.source-builder textarea {
+  margin-top: 0;
+  min-height: 210px;
+}
+
 .compact-textarea {
   margin-top: 0;
   min-height: 132px;
@@ -1369,7 +1491,7 @@ textarea {
 }
 
 .fan-stage {
-  max-width: 1180px;
+  max-width: 1120px;
 }
 
 .fan-hero {
@@ -1380,8 +1502,12 @@ textarea {
   padding: 48px 0 28px;
 }
 
+.dm-hero {
+  padding: 36px 0 22px;
+}
+
 .fan-hero h1 {
-  font-size: clamp(44px, 7vw, 86px);
+  font-size: clamp(42px, 6vw, 78px);
 }
 
 .fan-hero h1 span {
@@ -1437,7 +1563,8 @@ textarea {
 .chat-body {
   display: flex;
   flex-direction: column;
-  height: 560px;
+  height: min(680px, 68vh);
+  min-height: 560px;
 }
 
 .messages {
@@ -1454,7 +1581,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 12px 16px 0;
+  padding: 12px 16px;
 }
 
 .suggested-prompts button {
@@ -1465,6 +1592,11 @@ textarea {
   font-size: 12px;
   font-weight: 850;
   padding: 8px 11px;
+}
+
+.suggested-prompts button:hover {
+  border-color: var(--ink);
+  transform: translateY(-1px);
 }
 
 .empty-chat {
@@ -1488,9 +1620,35 @@ textarea {
   border-radius: 18px;
   font-weight: 620;
   line-height: 1.5;
-  max-width: 82%;
+  max-width: min(82%, 720px);
   padding: 13px 15px;
-  white-space: pre-line;
+}
+
+.message-line {
+  margin: 0 0 10px;
+}
+
+.message-line:last-child {
+  margin-bottom: 0;
+}
+
+.message-line.numbered {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 26px 1fr;
+}
+
+.message-line.numbered > span:first-child {
+  align-items: center;
+  background: rgba(17, 17, 17, 0.1);
+  border-radius: 50%;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 950;
+  height: 24px;
+  justify-content: center;
+  margin-top: 1px;
+  width: 24px;
 }
 
 .message a {
@@ -1538,6 +1696,17 @@ textarea {
 
 .message.thinking i:nth-of-type(3) {
   animation-delay: 0.3s;
+}
+
+.source-strip {
+  border-top: 1px solid rgba(17, 17, 17, 0.12);
+  color: #315d51;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  margin-top: 11px;
+  padding-top: 9px;
+  text-transform: uppercase;
 }
 
 @keyframes typing-dot {
@@ -1662,6 +1831,8 @@ textarea {
   .fan-hero,
   .chat-layout,
   .public-chat-layout,
+  .interview-layout,
+  .source-builder,
   .split-section {
     grid-template-columns: 1fr;
   }

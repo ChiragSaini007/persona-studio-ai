@@ -15,11 +15,42 @@ import {
 
 const wizardSteps = [
   { id: 1, label: "Account" },
-  { id: 2, label: "Content" },
-  { id: 3, label: "Persona" },
-  { id: 4, label: "Safety" },
+  { id: 2, label: "Voice" },
+  { id: 3, label: "Review" },
+  { id: 4, label: "Limits" },
   { id: 5, label: "Publish" },
 ];
+
+const interviewQuestions = [
+  {
+    key: "bio",
+    label: "Creator identity",
+    title: "What should fans know about you?",
+    helper: "Keep this public. Mention what you do, who you help, and what you are known for.",
+    placeholder: "I am a product and business builder focused on AI workflows, creator economy, and practical startup strategy.",
+  },
+  {
+    key: "fanRelationship",
+    label: "Fan relationship",
+    title: "Why do fans usually come to you?",
+    helper: "Think about the real DMs you get: advice, motivation, analysis, entertainment, coaching, or behind-the-scenes.",
+    placeholder: "Fans come to me when they want direct advice on product thinking, business models, and building with AI.",
+  },
+  {
+    key: "responseStyle",
+    label: "Reply style",
+    title: "How should your AI answer?",
+    helper: "Describe the feel of the reply. Short, warm, sharp, detailed, funny, tactical, opinionated.",
+    placeholder: "Answer like a thoughtful DM: direct, practical, slightly opinionated, and easy to act on.",
+  },
+  {
+    key: "greetingStyle",
+    label: "Greeting",
+    title: "How should your AI greet fans?",
+    helper: "This becomes the first message fans see when they open your link.",
+    placeholder: "Hey, good to see you here. Ask me anything about product, AI, startups, or career decisions.",
+  },
+] as const;
 
 type HealthState = {
   supabase: boolean;
@@ -81,6 +112,7 @@ export default function CreatorPortal() {
   const [hasSavedPersona, setHasSavedPersona] = useState(false);
   const [creatingNewPersona, setCreatingNewPersona] = useState(false);
   const [profileInputs, setProfileInputs] = useState({ topics: "", tone: "", phrases: "" });
+  const [interviewIndex, setInterviewIndex] = useState(0);
   const needsCreatorProfile = authMode === "signup" || creatingNewPersona;
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
@@ -106,6 +138,15 @@ export default function CreatorPortal() {
     health && !health.supabase ? "Publishing setup is still being finalized" : "",
     health === null ? "Waiting for backend readiness check" : "",
   ].filter(Boolean);
+  const currentInterviewQuestion = interviewQuestions[interviewIndex];
+  const creatorFirstName = workspace.creatorName.trim().split(" ")[0] || "the creator";
+  const livePreviewQuestion = workspace.profile.topics[0]
+    ? `How should I think about ${workspace.profile.topics[0].toLowerCase()}?`
+    : "What should I focus on first?";
+  const livePreviewAnswer =
+    workspace.profile.exampleReplies[0] ||
+    workspace.profile.responseStyle ||
+    `I would keep it simple. Start with the real problem, make one useful move, and build from what fans already trust ${creatorFirstName} for.`;
 
   useEffect(() => {
     const requestedMode = searchParams.get("mode");
@@ -228,6 +269,11 @@ export default function CreatorPortal() {
         [field]: value,
       },
     }));
+  }
+
+  function canMoveInterviewForward() {
+    const value = workspace.profile[currentInterviewQuestion.key].trim();
+    return value.length > 12;
   }
 
   function updateProfileList(field: "exampleReplies" | "neverSay", value: string) {
@@ -824,80 +870,92 @@ export default function CreatorPortal() {
           {viewMode === "onboarding" && step === 2 && (
             <div className="product-card">
               <span className="section-kicker">Step 2</span>
-              <h2>Teach the persona</h2>
-              <p>Answer these like a short quiz. The fan chat will use this as its voice and context.</p>
-              <div className="prompt-list">
-                <span>Who is this creator?</span>
-                <span>Why do fans follow them?</span>
-                <span>What should the AI sound like?</span>
+              <h2>Shape your AI like a quick interview</h2>
+              <p>Answer one thing at a time. The preview updates as your persona gets sharper.</p>
+
+              <div className="interview-layout">
+                <section className="interview-card">
+                  <div className="interview-progress">
+                    {interviewQuestions.map((question, index) => (
+                      <button
+                        key={question.key}
+                        className={index === interviewIndex ? "active" : ""}
+                        onClick={() => setInterviewIndex(index)}
+                      >
+                        {question.label}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="section-kicker">Question {interviewIndex + 1} of {interviewQuestions.length}</span>
+                  <h3>{currentInterviewQuestion.title}</h3>
+                  <p>{currentInterviewQuestion.helper}</p>
+                  <textarea
+                    className="interview-answer"
+                    value={workspace.profile[currentInterviewQuestion.key]}
+                    onChange={(event) => updateProfileText(currentInterviewQuestion.key, event.target.value)}
+                    placeholder={currentInterviewQuestion.placeholder}
+                  />
+                  <div className="button-row compact-actions">
+                    <button
+                      className="secondary-action"
+                      onClick={() => setInterviewIndex((current) => Math.max(0, current - 1))}
+                      disabled={interviewIndex === 0}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      className="primary-action"
+                      onClick={() => setInterviewIndex((current) => Math.min(interviewQuestions.length - 1, current + 1))}
+                      disabled={interviewIndex === interviewQuestions.length - 1 || !canMoveInterviewForward()}
+                    >
+                      Next question
+                    </button>
+                  </div>
+                </section>
+
+                <aside className="live-preview-card">
+                  <span className="section-kicker">Live fan preview</span>
+                  <div className="preview-phone">
+                    <div className="preview-header">
+                      <strong>{workspace.creatorName || "Creator"}&apos;s AI</strong>
+                      <span>Preview</span>
+                    </div>
+                    <div className="preview-bubble ai">
+                      {workspace.profile.greetingStyle || `Hey, I am ${creatorFirstName}'s AI. Ask me anything they usually talk about.`}
+                    </div>
+                    <div className="preview-bubble fan">{livePreviewQuestion}</div>
+                    <div className="preview-bubble ai">{livePreviewAnswer}</div>
+                  </div>
+                </aside>
               </div>
-              <div className="field-grid persona-detail-fields">
-                <label>
-                  Who is this creator?
-                  <textarea
-                    className="compact-textarea"
-                    value={workspace.profile.bio}
-                    onChange={(event) => updateProfileText("bio", event.target.value)}
-                    placeholder="Role, work, audience, and what they are known for."
-                  />
-                </label>
-                <label>
-                  Why do fans come to them?
-                  <textarea
-                    className="compact-textarea"
-                    value={workspace.profile.fanRelationship}
-                    onChange={(event) => updateProfileText("fanRelationship", event.target.value)}
-                    placeholder="Advice, entertainment, inspiration, behind-the-scenes, opinions, coaching."
-                  />
-                </label>
-                <label>
-                  How should replies sound?
-                  <textarea
-                    className="compact-textarea"
-                    value={workspace.profile.responseStyle}
-                    onChange={(event) => updateProfileText("responseStyle", event.target.value)}
-                    placeholder="Casual, sharp, funny, warm, direct, detailed, short, practical."
-                  />
-                </label>
-                <label>
-                  How should it greet fans?
-                  <textarea
-                    className="compact-textarea"
-                    value={workspace.profile.greetingStyle}
-                    onChange={(event) => updateProfileText("greetingStyle", event.target.value)}
-                    placeholder="A natural first message or greeting style."
-                  />
-                </label>
-              </div>
+
+              <section className="source-builder">
+                <div>
+                  <span className="section-kicker">Knowledge</span>
+                  <h3>Add approved source material</h3>
+                  <p>Paste captions, transcripts, posts, FAQs, notes, or links with the relevant text. This is what grounds answers.</p>
+                </div>
+                <textarea
+                  value={workspace.content}
+                  onChange={(event) => updateField("content", event.target.value)}
+                  aria-label="Creator content"
+                  placeholder="Paste approved content here. More specific examples create better fan replies."
+                />
+              </section>
+
               <label className="example-replies-field">
-                Write 3-5 ideal replies
+                Add 3-5 ideal replies
                 <textarea
                   className="compact-textarea"
                   value={workspace.profile.exampleReplies.join("\n")}
                   onChange={(event) => updateProfileList("exampleReplies", event.target.value)}
                   placeholder={[
-                    "One reply per line.",
-                    "Example: Love that. Start with one real product and break down who it serves, what problem it solves, and why people come back.",
-                    "Example: I would keep it simple. Pick one skill, practice it daily, and ship something small every week.",
+                    "Question: How do I become a better PM? Answer: Start by getting sharper at problem discovery...",
+                    "Question: How should I evaluate a startup idea? Answer: I would first ask who feels the pain...",
+                    "Question: Can you explain this with numbers? Answer: Yes. I would break it into users, frequency, conversion, and revenue...",
                   ].join("\n")}
                 />
               </label>
-              <label className="content-source-label">
-                Source material
-              </label>
-              <textarea
-                value={workspace.content}
-                onChange={(event) => updateField("content", event.target.value)}
-                aria-label="Creator content"
-                placeholder={[
-                  "Paste anything approved for the AI to learn from:",
-                  "- Writing samples or doc excerpts",
-                  "- Video transcripts",
-                  "- IG captions or post copy",
-                  "- FAQs, interviews, newsletters, notes",
-                  "- Links plus the relevant caption/transcript text",
-                ].join("\n")}
-              />
               <div className="button-row">
                 <button className="secondary-action" onClick={() => setStep(1)}>
                   Back

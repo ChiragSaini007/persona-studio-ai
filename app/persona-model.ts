@@ -24,6 +24,8 @@ export type Message = {
   text: string;
   flagged?: boolean;
   flagReason?: string;
+  usedWeb?: boolean;
+  sourceCount?: number;
 };
 
 export type Conversation = {

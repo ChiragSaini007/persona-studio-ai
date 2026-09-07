@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { clearStoredSession, getStoredSession, refreshStoredSession, supabasePasswordAuth } from "../../auth-client";
 import {
@@ -23,8 +23,48 @@ type FanConversation = {
 };
 
 function renderMessageText(text: string) {
-  const parts: ReactNode[] = [];
+  const renderLinkedText = (value: string, keyPrefix: string) => {
+    const parts: ReactNode[] = [];
+    const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s)]+)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = linkPattern.exec(value))) {
+      if (match.index > lastIndex) parts.push(value.slice(lastIndex, match.index));
+
+      const label = match[1] || match[3];
+      const url = match[2] || match[3];
+      parts.push(
+        <a key={`${keyPrefix}-${url}-${match.index}`} href={url} target="_blank" rel="noreferrer">
+          {label}
+        </a>,
+      );
+      lastIndex = linkPattern.lastIndex;
+    }
+
+    if (lastIndex < value.length) parts.push(value.slice(lastIndex));
+    return parts.length ? parts : value;
+  };
+
+  const lines = text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length > 1) {
+    return lines.map((line, index) => {
+      const listMatch = line.match(/^(\d+)\.\s+(.*)$/);
+      return (
+        <p key={`${line}-${index}`} className={listMatch ? "message-line numbered" : "message-line"}>
+          {listMatch && <span>{listMatch[1]}</span>}
+          <span>{renderLinkedText(listMatch ? listMatch[2] : line, `line-${index}`)}</span>
+        </p>
+      );
+    });
+  }
+
   const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s)]+)/g;
+  const parts: ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -82,6 +122,48 @@ export default function FanChatPage() {
     .slice(0, 3)
     .join(", ")
     .toLowerCase()}, or send me what you are thinking about.`;
+  const suggestedPrompts = useMemo(() => {
+    const topic = activePersona.profile.topics[0]?.toLowerCase() || "this";
+    return [
+      `Explain ${topic} simply`,
+      "Give me an example",
+      "Explain with numbers",
+      "What should I do next?",
+    ];
+  }, [activePersona.profile.topics]);
+
+  const loadFanHistory = useCallback(async (token = fanAccessToken) => {
+    if (!token) return;
+    try {
+      const response = await fetch(`/api/chat/history?handle=${encodeURIComponent(handle)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to load chat history");
+      setFanHistory(data.conversations || []);
+    } catch {
+      setFanHistory([]);
+    }
+  }, [fanAccessToken, handle]);
+
+  const restoreFanSession = useCallback(async () => {
+    const session = getStoredSession();
+    if (!session?.access_token) return;
+
+    setFanAccessToken(session.access_token || "");
+    setFanEmail(session.user?.email || "");
+
+    const refreshed = await refreshStoredSession();
+    if (!refreshed?.access_token) {
+      setFanAccessToken("");
+      setNotice("Your session expired. Please sign in again to start chatting.");
+      return;
+    }
+
+    setFanAccessToken(refreshed.access_token || "");
+    setFanEmail(refreshed.user?.email || session.user?.email || "");
+    await loadFanHistory(refreshed.access_token);
+  }, [loadFanHistory]);
 
   useEffect(() => {
     if (!isSending) return;
@@ -94,7 +176,7 @@ export default function FanChatPage() {
   }, [isSending, thinkingPhrases.length]);
 
   useEffect(() => {
-    void restoreFanSession();
+    queueMicrotask(() => void restoreFanSession());
 
     async function loadPersona() {
       try {
@@ -123,40 +205,7 @@ export default function FanChatPage() {
     }
 
     void loadPersona();
-  }, [handle]);
-
-  async function restoreFanSession() {
-    const session = getStoredSession();
-    if (!session?.access_token) return;
-
-    setFanAccessToken(session.access_token || "");
-    setFanEmail(session.user?.email || "");
-
-    const refreshed = await refreshStoredSession();
-    if (!refreshed?.access_token) {
-      setFanAccessToken("");
-      setNotice("Your session expired. Please sign in again to start chatting.");
-      return;
-    }
-
-    setFanAccessToken(refreshed.access_token || "");
-    setFanEmail(refreshed.user?.email || session.user?.email || "");
-    await loadFanHistory(refreshed.access_token);
-  }
-
-  async function loadFanHistory(token = fanAccessToken) {
-    if (!token) return;
-    try {
-      const response = await fetch(`/api/chat/history?handle=${encodeURIComponent(handle)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Unable to load chat history");
-      setFanHistory(data.conversations || []);
-    } catch {
-      setFanHistory([]);
-    }
-  }
+  }, [handle, restoreFanSession, workspace]);
 
   function resumeConversation(conversation: FanConversation) {
     setConversationId(conversation.id);
@@ -238,9 +287,7 @@ export default function FanChatPage() {
     }));
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const text = input.trim();
+  async function sendFanMessage(text: string) {
     if (!text) return;
 
     if (remotePersona && conversationId) {
@@ -259,7 +306,15 @@ export default function FanChatPage() {
         if (!response.ok) throw new Error(data.error || "Unable to send message");
         setRemoteMessages((current) => [
           ...current,
-          { id: uid(), from: "persona", text: data.reply, flagged: Boolean(data.flagReason), flagReason: data.flagReason },
+          {
+            id: uid(),
+            from: "persona",
+            text: data.reply,
+            flagged: Boolean(data.flagReason),
+            flagReason: data.flagReason,
+            usedWeb: Boolean(data.usedWeb),
+            sourceCount: Number(data.webSourceCount || 0),
+          },
         ]);
         void loadFanHistory();
       } catch (error) {
@@ -290,6 +345,19 @@ export default function FanChatPage() {
     setInput("");
   }
 
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await sendFanMessage(input.trim());
+  }
+
+  async function askSuggested(prompt: string) {
+    if (!started || isSending) {
+      setInput(prompt);
+      return;
+    }
+    await sendFanMessage(prompt);
+  }
+
   async function openCheckout() {
     if (!remotePersona) {
       setPaywall(true);
@@ -304,7 +372,7 @@ export default function FanChatPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to open checkout");
-      window.location.href = data.url;
+      window.location.assign(data.url);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Stripe is not configured");
       setPaywall(true);
@@ -354,15 +422,14 @@ export default function FanChatPage() {
           <span className="status-chip live">AI chat</span>
         </nav>
 
-        <header className="fan-hero">
+        <header className="fan-hero dm-hero">
           <div>
             <p className="section-kicker">Creator AI chat</p>
             <h1>
               Chat with <span>{creatorName}</span>
             </h1>
             <p>
-              Ask what you would normally DM {creatorFirstName} about. The AI
-              replies in their approved public style, using the content and boundaries they set.
+              Send a DM-style question. The persona answers in {creatorFirstName}&apos;s approved public voice and uses live public context only when it genuinely helps.
             </p>
           </div>
           <div className="fan-stats">
@@ -374,8 +441,7 @@ export default function FanChatPage() {
         <section className="chat-layout public-chat-layout">
           <div className="chat-window">
             <div className="disclosure">
-              You are chatting with {creatorName}&apos;s AI persona. It is built from approved creator content
-              and stays away from private, risky, or off-topic questions.
+              You are chatting with {creatorName}&apos;s AI persona. It is built from approved creator content and may use current public sources when the question needs them.
             </div>
             <div className="chat-body">
               <div className="messages">
@@ -435,6 +501,11 @@ export default function FanChatPage() {
                   visibleMessages.map((message) => (
                     <div key={message.id} className={`message ${message.from === "fan" ? "fan" : ""} ${message.flagged ? "flagged" : ""}`}>
                       {renderMessageText(message.text)}
+                      {message.from === "persona" && message.usedWeb && (
+                        <div className="source-strip">
+                          Used current public sources{message.sourceCount ? ` · ${message.sourceCount} lookup${message.sourceCount === 1 ? "" : "s"}` : ""}
+                        </div>
+                      )}
                       {message.flagged && <div className="flag-label">Flagged: {message.flagReason}</div>}
                     </div>
                   ))}
@@ -447,6 +518,15 @@ export default function FanChatPage() {
                   </div>
                 )}
               </div>
+              {started && (
+                <div className="suggested-prompts">
+                  {suggestedPrompts.map((prompt) => (
+                    <button key={prompt} type="button" onClick={() => void askSuggested(prompt)} disabled={isSending}>
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              )}
               <form onSubmit={submit} className="chat-form">
                 <input
                   value={input}
@@ -475,8 +555,7 @@ export default function FanChatPage() {
             <div className="dark-card">
               <span className="tiny-label">Good to know</span>
               <p>
-                Ask about the creator&apos;s approved topics, perspective, and style. For anything private or sensitive, the
-                persona will politely step back.
+                Ask about {creatorFirstName}&apos;s public topics, perspective, and style. Private or sensitive questions are blocked.
               </p>
               {notice && <p className="runtime-note">{notice}</p>}
             </div>

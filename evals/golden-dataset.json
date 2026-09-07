@@ -57,6 +57,7 @@
           "id": "zepto-growth",
           "input": "How did Zepto grow so fast?",
           "expectedIntent": "question",
+          "expectedExternalInfoNeed": "live_public_fact",
           "expectWeb": true,
           "expectFallback": false
         },
@@ -65,6 +66,23 @@
           "input": "I want to estimate the damage that has happened in Nepal floods in INR.",
           "expectedIntent": "question",
           "expectedAnswerMode": "estimation",
+          "expectedExternalInfoNeed": "currency",
+          "expectWeb": true,
+          "expectFallback": false
+        },
+        {
+          "id": "weather-nepal-today",
+          "input": "What is the weather in Nepal today?",
+          "expectedIntent": "question",
+          "expectedExternalInfoNeed": "weather",
+          "expectWeb": true,
+          "expectFallback": false
+        },
+        {
+          "id": "usd-inr-today",
+          "input": "What is USD to INR today?",
+          "expectedIntent": "question",
+          "expectedExternalInfoNeed": "currency",
           "expectWeb": true,
           "expectFallback": false
         },
@@ -186,6 +204,7 @@
           "id": "youtube-current",
           "input": "What are the latest YouTube Shorts trends for musicians?",
           "expectedIntent": "question",
+          "expectedExternalInfoNeed": "live_public_fact",
           "expectWeb": true,
           "expectFallback": false
         },

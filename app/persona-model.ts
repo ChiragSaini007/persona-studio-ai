@@ -304,6 +304,7 @@ export function findFlag(workspace: PersonaWorkspace, text: string) {
 
 export type ChatIntent = "greeting" | "vague" | "question" | "risky";
 export type AnswerMode = "chat" | "estimation";
+export type ExternalInfoNeed = "none" | "live_public_fact" | "weather" | "currency" | "market";
 
 const currentContextPatterns = [
   /\blatest\b/,
@@ -326,6 +327,23 @@ const currentContextPatterns = [
   /\bdamage\b/,
   /\bloss\b/,
   /\bimpact\b/,
+  /\bweather\b/,
+  /\btemperature\b/,
+  /\bforecast\b/,
+  /\brain\b/,
+  /\bsnow\b/,
+  /\bstorm\b/,
+  /\bhumidity\b/,
+  /\baqi\b/,
+  /\bexchange rate\b/,
+  /\bconversion rate\b/,
+  /\bcurrency\b/,
+  /\busd\b/,
+  /\binr\b/,
+  /\bnpr\b/,
+  /\bconvert\b/,
+  /\bprice\b/,
+  /\brate\b/,
 ];
 
 const creatorPrivatePatterns = [
@@ -345,9 +363,6 @@ const estimationPatterns = [
   /\bhow much\b/,
   /\bdamage\b/,
   /\bloss\b/,
-  /\binr\b/,
-  /\bnpr\b/,
-  /\busd\b/,
   /\bcost\b/,
   /\bmarket size\b/,
   /\brough number\b/,
@@ -392,6 +407,30 @@ export function detectChatIntent(text: string, flagReason = ""): ChatIntent {
   return "question";
 }
 
+export function detectExternalInfoNeed(text: string, intent: ChatIntent, flagReason = ""): ExternalInfoNeed {
+  if (intent !== "question" || flagReason) return "none";
+
+  const normalized = text.toLowerCase();
+  if (creatorPrivatePatterns.some((pattern) => pattern.test(normalized))) return "none";
+
+  if (/\bweather\b|\btemperature\b|\bforecast\b|\brain\b|\bsnow\b|\bstorm\b|\bhumidity\b|\baqi\b/.test(normalized)) {
+    return "weather";
+  }
+
+  if (
+    /\bexchange rate\b|\bconversion rate\b|\bcurrency\b|\bconvert\b/.test(normalized) ||
+    (/\b(usd|inr|npr|eur|gbp|aed|sgd)\b/.test(normalized) && /\b(rate|price|worth|to|in)\b/.test(normalized))
+  ) {
+    return "currency";
+  }
+
+  if (/\bstock\b|\bmarket\b|\bprice\b|\brate\b|\bcrypto\b|\bbitcoin\b|\beth\b/.test(normalized)) {
+    return "market";
+  }
+
+  return currentContextPatterns.some((pattern) => pattern.test(normalized)) ? "live_public_fact" : "none";
+}
+
 export function shouldUseWebSearch(text: string, intent: ChatIntent, flagReason: string, retrievedContext = "") {
   if (intent !== "question" || flagReason) return false;
 
@@ -406,7 +445,7 @@ export function shouldUseWebSearch(text: string, intent: ChatIntent, flagReason:
   const contextMatches = contextTerms.filter((term) => retrievedContext.toLowerCase().includes(term)).length;
   const hasEnoughCreatorContext = retrievedContext.length > 240 && contextMatches >= 2;
 
-  return asksForCurrentPublicContext && !hasEnoughCreatorContext;
+  return (asksForCurrentPublicContext || detectExternalInfoNeed(text, intent, flagReason) !== "none") && !hasEnoughCreatorContext;
 }
 
 export function detectAnswerMode(text: string, intent: ChatIntent) {

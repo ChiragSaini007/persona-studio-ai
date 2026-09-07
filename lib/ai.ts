@@ -3,6 +3,7 @@ import {
   buildRetrievalChunks,
   detectAnswerMode,
   detectChatIntent,
+  detectExternalInfoNeed,
   makeFallbackProfile,
   normalizeProfile,
   PersonaRecord,
@@ -167,10 +168,12 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
   const retrieval = await retrieveRelevantContext(profile, persona.source_content, text, persona.id);
   const intent = detectChatIntent(text, flagReason);
   const answerMode = detectAnswerMode(text, intent);
+  const externalInfoNeed = detectExternalInfoNeed(text, intent, flagReason);
   const allowWebSearch = shouldUseWebSearch(text, intent, flagReason, retrieval.context);
   const baseMetadata = {
     intent,
     answerMode,
+    externalInfoNeed,
     usedRAG: retrieval.chunkCount > 0,
     retrievedChunkCount: retrieval.chunkCount,
     usedWeb: false,
@@ -212,8 +215,20 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             "If the fan is vague, ask one short follow-up question. Do not guess what they meant.",
             "If the fan asks a real question, answer directly using the creator profile, examples, chat context, and retrieved creator context.",
             allowWebSearch
-              ? "Web search is enabled for this turn because creator context may be insufficient for current public facts. Use it only for public external context, then answer through the creator's lens."
+              ? `Web search is enabled for this turn because the fan needs live public information. External info type: ${externalInfoNeed}. Use web results for the factual part, then answer through the creator's lens. Do not say you lack real-time data if web results are available.`
               : "Web search is disabled for this turn. Do not pretend to know current facts that are not in the provided context.",
+            externalInfoNeed === "weather"
+              ? "For weather: answer with current public weather for the clearest location in the fan's message. If the location is broad, say it varies by city and give the best representative location or ask one short follow-up if no useful location exists."
+              : "",
+            externalInfoNeed === "currency"
+              ? "For currency or exchange rates: use current public exchange-rate context, state the approximate rate, show the conversion math if an amount is present, and keep it concise."
+              : "",
+            externalInfoNeed === "market"
+              ? "For market prices or rates: use current public context for factual price/rate information, but do not give investment advice or tell the fan what to buy."
+              : "",
+            externalInfoNeed === "live_public_fact"
+              ? "For live public facts: use current public sources for the changing facts, then explain the implication in the creator's normal style."
+              : "",
             answerMode === "estimation"
               ? "The fan is asking for an estimate or calculation. Give a useful rough range with explicit assumptions, simple math, and confidence level. Do not answer with only 'look up reports' or generic research advice."
               : "The fan is asking for a normal chat answer. Be direct and useful.",

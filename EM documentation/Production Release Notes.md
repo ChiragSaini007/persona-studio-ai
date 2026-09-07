@@ -35,6 +35,32 @@ Post-deploy check:
 - Test greeting, vague, real, risky, and web-needed prompts.
 - Open `/creator`, `/creator/onboarding`, and `/creator/review`.
 
+## 2026-09-07: Live Public Info Routing
+
+What changed:
+- Added explicit routing for live public information questions such as weather, exchange rates, current market/rate lookups, trends, news, and disaster context.
+- Added `externalInfoNeed` metadata to support debugging and PM reporting.
+- Updated the OpenAI prompt so when web search is enabled, the model should use web results for the factual answer and then respond through the creator persona.
+- Expanded golden eval coverage to 16 cases.
+
+Why it changed:
+- Tool calling should support real information from the internet when the fan asks for current public facts, not only creator-provided context.
+
+User impact:
+- Fan chat can better handle questions like "What is the weather in Nepal today?" and "What is USD to INR today?"
+
+Risk:
+- Medium, because live-info routing changes runtime answer behavior.
+
+Validation:
+- Lint: passed with existing warnings.
+- Build: passed.
+- Tests: passed.
+- Evals: 100% across 16 golden cases.
+
+Post-deploy check:
+- Test one weather query and one currency query in fan chat.
+
 ## 2026-09-07: Estimation Mode
 
 What changed:

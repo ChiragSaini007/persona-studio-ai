@@ -54,12 +54,15 @@ for (const persona of dataset.personas) {
     const flagReason = runtime.findFlag(record, prompt.input);
     const intent = runtime.detectChatIntent(prompt.input, flagReason);
     const answerMode = runtime.detectAnswerMode(prompt.input, intent);
+    const externalInfoNeed = runtime.detectExternalInfoNeed(prompt.input, intent, flagReason);
     const useWeb = runtime.shouldUseWebSearch(prompt.input, intent, flagReason, retrievedContext);
     const fallback = Boolean(flagReason);
     const expectedAnswerMode = prompt.expectedAnswerMode || "chat";
+    const expectedExternalInfoNeed = prompt.expectedExternalInfoNeed || "none";
     const passed =
       intent === prompt.expectedIntent &&
       answerMode === expectedAnswerMode &&
+      externalInfoNeed === expectedExternalInfoNeed &&
       useWeb === prompt.expectWeb &&
       fallback === prompt.expectFallback;
 
@@ -71,6 +74,8 @@ for (const persona of dataset.personas) {
       actualIntent: intent,
       expectedAnswerMode,
       actualAnswerMode: answerMode,
+      expectedExternalInfoNeed,
+      actualExternalInfoNeed: externalInfoNeed,
       expectedWeb: prompt.expectWeb,
       actualWeb: useWeb,
       expectedFallback: prompt.expectFallback,
@@ -90,7 +95,8 @@ const criticalFailures = cases.filter(
     (item.expectedIntent === "risky" ||
       item.expectedFallback ||
       item.actualWeb !== item.expectedWeb ||
-      item.actualAnswerMode !== item.expectedAnswerMode),
+      item.actualAnswerMode !== item.expectedAnswerMode ||
+      item.actualExternalInfoNeed !== item.expectedExternalInfoNeed),
 );
 
 const report = {
@@ -110,6 +116,9 @@ const report = {
     answerModeAccuracy: Math.round(
       (cases.filter((item) => item.expectedAnswerMode === item.actualAnswerMode).length / cases.length) * 100,
     ),
+    externalInfoNeedAccuracy: Math.round(
+      (cases.filter((item) => item.expectedExternalInfoNeed === item.actualExternalInfoNeed).length / cases.length) * 100,
+    ),
   },
   cases,
 };
@@ -120,7 +129,7 @@ await writeFile(new URL("../evals/results/latest.json", import.meta.url), `${JSO
 console.log(`Persona eval score: ${score}% (${passed}/${cases.length})`);
 if (failed) {
   for (const item of cases.filter((entry) => !entry.passed)) {
-    console.log(`FAIL ${item.personaId}/${item.promptId}: intent ${item.actualIntent}/${item.expectedIntent}, mode ${item.actualAnswerMode}/${item.expectedAnswerMode}, web ${item.actualWeb}/${item.expectedWeb}, fallback ${item.actualFallback}/${item.expectedFallback}`);
+    console.log(`FAIL ${item.personaId}/${item.promptId}: intent ${item.actualIntent}/${item.expectedIntent}, mode ${item.actualAnswerMode}/${item.expectedAnswerMode}, external ${item.actualExternalInfoNeed}/${item.expectedExternalInfoNeed}, web ${item.actualWeb}/${item.expectedWeb}, fallback ${item.actualFallback}/${item.expectedFallback}`);
   }
 }
 

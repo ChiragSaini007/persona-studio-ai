@@ -35,6 +35,32 @@ Post-deploy check:
 - Ask fan-chat prompts for greeting, vague, real, risky, and web-needed questions.
 - Confirm the test report remains green.
 
+## 2026-09-07: Live Public Info Routing
+
+What changed:
+- Added an explicit external-info classifier for live public fact, weather, currency, and market/rate questions.
+- Expanded web-search gating so weather and exchange-rate questions trigger live public context after the message is classified as a real question.
+- Updated the OpenAI runtime prompt so live-info answers use web results for the factual part instead of saying the persona lacks real-time data.
+- Added API metadata for `externalInfoNeed` so we can debug whether a question required live information.
+- Expanded the golden dataset with weather and USD-to-INR routing cases.
+
+Why it changed:
+- Fans may ask questions that are outside the creator's stored content but still need real public information.
+- The persona should use live public sources when required, then explain the answer in the creator's style.
+
+User impact:
+- Better answers for weather, exchange rates, market/rate questions, current news, disaster estimates, and similar public facts.
+- Clearer runtime reporting for whether a tool-backed answer path was selected.
+
+Validation:
+- Unit tests passed.
+- Golden eval score: 100% across 16 cases.
+
+Post-deploy check:
+- Ask `/p/chirag`: "What is the weather in Nepal today?"
+- Ask `/p/chirag`: "What is USD to INR today?"
+- Confirm both are treated as live public information questions.
+
 ## 2026-09-07: Estimation Mode for Web-Assisted Fan Questions
 
 What changed:

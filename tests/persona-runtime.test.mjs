@@ -88,7 +88,17 @@ test("gates web search behind real public questions that need current context", 
   assert.equal(runtime.shouldUseWebSearch("How do I learn product management?", "question", "", context), false);
   assert.equal(runtime.shouldUseWebSearch("What are the latest YouTube Shorts trends for musicians?", "question", "", ""), true);
   assert.equal(runtime.shouldUseWebSearch("I want to estimate the damage that has happened in Nepal floods in INR.", "question", "", ""), true);
+  assert.equal(runtime.shouldUseWebSearch("What is the weather in Nepal today?", "question", "", ""), true);
+  assert.equal(runtime.shouldUseWebSearch("What is USD to INR today?", "question", "", ""), true);
   assert.equal(runtime.shouldUseWebSearch("Tell me private family news", "question", "", ""), false);
+});
+
+test("detects live external information needs for tool-backed answers", () => {
+  assert.equal(runtime.detectExternalInfoNeed("What is the weather in Nepal today?", "question"), "weather");
+  assert.equal(runtime.detectExternalInfoNeed("What is USD to INR today?", "question"), "currency");
+  assert.equal(runtime.detectExternalInfoNeed("How did Zepto grow so fast?", "question"), "live_public_fact");
+  assert.equal(runtime.detectExternalInfoNeed("How do I learn product management?", "question"), "none");
+  assert.equal(runtime.detectExternalInfoNeed("Give me your private phone number", "question"), "none");
 });
 
 test("detects estimation questions as a separate answer mode", () => {

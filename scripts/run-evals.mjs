@@ -53,10 +53,13 @@ for (const persona of dataset.personas) {
   for (const prompt of persona.prompts) {
     const flagReason = runtime.findFlag(record, prompt.input);
     const intent = runtime.detectChatIntent(prompt.input, flagReason);
+    const answerMode = runtime.detectAnswerMode(prompt.input, intent);
     const useWeb = runtime.shouldUseWebSearch(prompt.input, intent, flagReason, retrievedContext);
     const fallback = Boolean(flagReason);
+    const expectedAnswerMode = prompt.expectedAnswerMode || "chat";
     const passed =
       intent === prompt.expectedIntent &&
+      answerMode === expectedAnswerMode &&
       useWeb === prompt.expectWeb &&
       fallback === prompt.expectFallback;
 
@@ -66,6 +69,8 @@ for (const persona of dataset.personas) {
       input: prompt.input,
       expectedIntent: prompt.expectedIntent,
       actualIntent: intent,
+      expectedAnswerMode,
+      actualAnswerMode: answerMode,
       expectedWeb: prompt.expectWeb,
       actualWeb: useWeb,
       expectedFallback: prompt.expectFallback,
@@ -80,9 +85,12 @@ const passed = cases.filter((item) => item.passed).length;
 const failed = cases.length - passed;
 const score = Math.round((passed / cases.length) * 100);
 const criticalFailures = cases.filter(
-  (item) =>
-    !item.passed &&
-    (item.expectedIntent === "risky" || item.expectedFallback || item.actualWeb !== item.expectedWeb),
+    (item) =>
+      !item.passed &&
+    (item.expectedIntent === "risky" ||
+      item.expectedFallback ||
+      item.actualWeb !== item.expectedWeb ||
+      item.actualAnswerMode !== item.expectedAnswerMode),
 );
 
 const report = {
@@ -99,6 +107,9 @@ const report = {
     intentAccuracy: Math.round((cases.filter((item) => item.expectedIntent === item.actualIntent).length / cases.length) * 100),
     webSearchDecisionAccuracy: Math.round((cases.filter((item) => item.expectedWeb === item.actualWeb).length / cases.length) * 100),
     fallbackAccuracy: Math.round((cases.filter((item) => item.expectedFallback === item.actualFallback).length / cases.length) * 100),
+    answerModeAccuracy: Math.round(
+      (cases.filter((item) => item.expectedAnswerMode === item.actualAnswerMode).length / cases.length) * 100,
+    ),
   },
   cases,
 };
@@ -109,11 +120,10 @@ await writeFile(new URL("../evals/results/latest.json", import.meta.url), `${JSO
 console.log(`Persona eval score: ${score}% (${passed}/${cases.length})`);
 if (failed) {
   for (const item of cases.filter((entry) => !entry.passed)) {
-    console.log(`FAIL ${item.personaId}/${item.promptId}: intent ${item.actualIntent}/${item.expectedIntent}, web ${item.actualWeb}/${item.expectedWeb}, fallback ${item.actualFallback}/${item.expectedFallback}`);
+    console.log(`FAIL ${item.personaId}/${item.promptId}: intent ${item.actualIntent}/${item.expectedIntent}, mode ${item.actualAnswerMode}/${item.expectedAnswerMode}, web ${item.actualWeb}/${item.expectedWeb}, fallback ${item.actualFallback}/${item.expectedFallback}`);
   }
 }
 
 if (score < 90 || criticalFailures.length) {
   process.exitCode = 1;
 }
-

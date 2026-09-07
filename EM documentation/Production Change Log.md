@@ -35,6 +35,32 @@ Post-deploy check:
 - Ask fan-chat prompts for greeting, vague, real, risky, and web-needed questions.
 - Confirm the test report remains green.
 
+## 2026-09-07: Estimation Mode for Web-Assisted Fan Questions
+
+What changed:
+- Added estimation mode for questions involving estimates, calculations, damage, loss, cost, currency, ranges, or market size.
+- Updated web-search gating so estimation questions only use web when they also need public/current facts.
+- Updated OpenAI prompt instructions so estimation answers give assumptions, simple math, ranges, and confidence instead of generic research advice.
+- Switched OpenAI web tool configuration to the official `web_search_preview` tool shape.
+- Expanded the golden dataset with Nepal-flood-style INR estimation coverage.
+
+Why it changed:
+- Fans asking "help me estimate this" need an actual model/example, not a generic list of places to research.
+- Creator persona answers should remain useful and grounded even when web context is needed.
+
+User impact:
+- Better answers for estimation and current-event analysis questions.
+- Lower chance of unnecessary web lookups.
+- Better reporting through answer-mode and web-search eval metrics.
+
+Validation:
+- Unit tests passed.
+- Golden eval score: 100% across 14 cases.
+
+Post-deploy check:
+- Ask `/p/chirag`: "I want to estimate the damage that has happened in Nepal floods in INR."
+- Confirm the answer gives assumptions, rough ranges, and simple calculation logic.
+
 ## 2026-09-06: Fan Chat Answer Quality and Formatting
 
 What changed:

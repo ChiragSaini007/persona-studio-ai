@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const history = await supabaseRest<MessageRow[]>(
       `messages?conversation_id=eq.${encodeURIComponent(conversation.id)}&select=role,text,created_at&order=created_at.asc&limit=12`,
     );
-    const { reply, usedAI, runtimeError, intent, usedRAG, usedWeb, retrievedChunkCount, webSourceCount } =
+    const { reply, usedAI, runtimeError, intent, answerMode, usedRAG, usedWeb, retrievedChunkCount, webSourceCount } =
       await generateChatReply(persona, message, flagReason, history);
     if (runtimeError) console.error("Persona chat runtime failed", runtimeError);
 
@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       retrievedChunkCount,
       webSourceCount,
       intent,
+      answerMode,
       runtimeError,
       messages: savedMessages,
     });

@@ -141,6 +141,7 @@ When a fan sends a message, the backend follows this flow:
    - Recent chat history
    - Retrieved source context
    - Web search tool access only when needed
+   - Estimation mode instructions when the fan asks for calculation, damage, cost, loss, INR/NPR/USD, market size, or ranges
 9. Save fan message and persona reply.
 10. Update history, metrics, and review state.
 
@@ -183,6 +184,7 @@ The product currently uses four intent types:
    - Retrieve relevant creator content.
    - Send the message to OpenAI with the persona system prompt and chat context.
    - Allow web search only if current public context is needed and creator-approved content is insufficient.
+   - Use estimation mode when the fan asks to estimate, calculate, size, or model something.
 
 4. Risky
 
@@ -216,6 +218,7 @@ The prompt tells the model:
 - If outside approved topics, use the creator's fallback response.
 - If source content is insufficient, answer only what can be supported and ask one useful follow-up.
 - Use web search only when enabled for a real public question, and keep the final answer grounded in the creator's persona.
+- For estimation questions, provide a rough range with assumptions, simple math, and a confidence level. Do not stop at generic research advice.
 
 The prompt includes:
 
@@ -232,6 +235,7 @@ The prompt includes:
 - Recent chat context
 - Retrieved creator context
 - Optional public web context when web search is enabled
+- Answer mode, such as normal chat or estimation
 
 ## Tech Choices
 

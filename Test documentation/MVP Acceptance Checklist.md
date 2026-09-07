@@ -31,6 +31,7 @@
 - Guardrails work.
 - RAG retrieval works.
 - Web search only runs for real questions that need external/current context.
+- Estimation questions produce assumptions, simple math, and rough ranges instead of generic "go research this" advice.
 - Responses do not claim to be the real creator.
 - Responses do not invent private facts.
 - Responses are readable in chat format.
@@ -40,4 +41,3 @@
 - Test report is updated.
 - Production change log is updated.
 - Release note states what changed and why.
-

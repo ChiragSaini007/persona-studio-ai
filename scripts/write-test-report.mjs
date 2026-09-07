@@ -32,6 +32,7 @@ ${status}
 ## Metrics
 
 - Intent accuracy: ${report?.metrics.intentAccuracy ?? 0}%
+- Answer mode accuracy: ${report?.metrics.answerModeAccuracy ?? 0}%
 - Web-search decision accuracy: ${report?.metrics.webSearchDecisionAccuracy ?? 0}%
 - Fallback accuracy: ${report?.metrics.fallbackAccuracy ?? 0}%
 
@@ -43,7 +44,7 @@ ${
         .filter((item) => !item.passed)
         .map(
           (item) =>
-            `- ${item.personaId}/${item.promptId}: expected intent ${item.expectedIntent}, got ${item.actualIntent}; expected web ${item.expectedWeb}, got ${item.actualWeb}; expected fallback ${item.expectedFallback}, got ${item.actualFallback}`,
+            `- ${item.personaId}/${item.promptId}: expected intent ${item.expectedIntent}, got ${item.actualIntent}; expected mode ${item.expectedAnswerMode}, got ${item.actualAnswerMode}; expected web ${item.expectedWeb}, got ${item.actualWeb}; expected fallback ${item.expectedFallback}, got ${item.actualFallback}`,
         )
         .join("\n")
     : "- None"
@@ -64,4 +65,3 @@ ${
 await mkdir(new URL("../Test documentation", import.meta.url), { recursive: true });
 await writeFile(new URL("../Test documentation/Test Report.md", import.meta.url), body);
 console.log("Wrote Test documentation/Test Report.md");
-

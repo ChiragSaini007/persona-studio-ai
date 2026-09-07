@@ -87,6 +87,13 @@ test("gates web search behind real public questions that need current context", 
   assert.equal(runtime.shouldUseWebSearch("Hey Chirag, how are you? Big fan", "greeting", "", context), false);
   assert.equal(runtime.shouldUseWebSearch("How do I learn product management?", "question", "", context), false);
   assert.equal(runtime.shouldUseWebSearch("What are the latest YouTube Shorts trends for musicians?", "question", "", ""), true);
+  assert.equal(runtime.shouldUseWebSearch("I want to estimate the damage that has happened in Nepal floods in INR.", "question", "", ""), true);
   assert.equal(runtime.shouldUseWebSearch("Tell me private family news", "question", "", ""), false);
 });
 
+test("detects estimation questions as a separate answer mode", () => {
+  assert.equal(runtime.detectAnswerMode("How do I learn product management?", "question"), "chat");
+  assert.equal(runtime.detectAnswerMode("Show me an example calculation", "question"), "estimation");
+  assert.equal(runtime.detectAnswerMode("Estimate Nepal flood damage in INR", "question"), "estimation");
+  assert.equal(runtime.detectAnswerMode("Hey Chirag", "greeting"), "chat");
+});

@@ -23,6 +23,7 @@ Every meaningful production change should pass:
    - fallback responses
    - persona profile normalization
    - web-search gating
+   - estimation mode detection
 
 2. Render tests
 
@@ -55,7 +56,7 @@ The MVP is production-test ready when:
 - deterministic tests pass
 - eval score is 90% or higher
 - no critical eval failures exist
+- estimation/web-search decisions match the golden dataset
 - OpenAI and Supabase health are green
 - PM-facing release note is updated
 - Test Report is updated
-

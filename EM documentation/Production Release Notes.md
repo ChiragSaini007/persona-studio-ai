@@ -35,6 +35,30 @@ Post-deploy check:
 - Test greeting, vague, real, risky, and web-needed prompts.
 - Open `/creator`, `/creator/onboarding`, and `/creator/review`.
 
+## 2026-09-07: Estimation Mode
+
+What changed:
+- Added estimation answer mode.
+- Improved web-search gating for damage/cost/loss/current public questions.
+- Added Nepal-flood-style estimation case to golden evals.
+- Updated runtime prompt to avoid generic research advice for estimation questions.
+
+Why it changed:
+- Fans need useful estimation frameworks with assumptions and rough ranges.
+
+User impact:
+- Estimation answers should feel more like creator-guided reasoning.
+
+Risk:
+- Medium, because web tool behavior and answer style changed.
+
+Validation:
+- Unit tests: passed.
+- Evals: 100% across 14 golden cases.
+
+Post-deploy check:
+- Ask a current-event estimation question in fan chat.
+
 ## Template
 
 ```text

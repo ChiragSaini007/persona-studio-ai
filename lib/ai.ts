@@ -1,6 +1,7 @@
 import {
   buildLocalReply,
   buildRetrievalChunks,
+  detectAnswerMode,
   detectChatIntent,
   makeFallbackProfile,
   normalizeProfile,
@@ -165,9 +166,11 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
   const profile = normalizeProfile(persona.profile, persona.source_content);
   const retrieval = await retrieveRelevantContext(profile, persona.source_content, text, persona.id);
   const intent = detectChatIntent(text, flagReason);
+  const answerMode = detectAnswerMode(text, intent);
   const allowWebSearch = shouldUseWebSearch(text, intent, flagReason, retrieval.context);
   const baseMetadata = {
     intent,
+    answerMode,
     usedRAG: retrieval.chunkCount > 0,
     retrievedChunkCount: retrieval.chunkCount,
     usedWeb: false,
@@ -189,7 +192,13 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
   }
 
   let responseResult = await createResponse({
-    ...(allowWebSearch ? { tools: [{ type: "web_search", search_context_size: "low" }] } : {}),
+    ...(allowWebSearch
+      ? {
+          tools: [{ type: "web_search_preview", search_context_size: "low" }],
+          tool_choice: "required",
+          include: ["web_search_call.action.sources"],
+        }
+      : {}),
     input: [
         {
           role: "system",
@@ -198,12 +207,19 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             "The page already discloses that this is AI. In the conversation, write naturally in the creator's first-person voice when appropriate.",
             "Sound like the creator's public persona: warm, direct, familiar, and conversational.",
             `Detected fan intent: ${intent}.`,
+            `Answer mode: ${answerMode}.`,
             "If the fan is greeting you, reply with a short warm greeting and invite a real question. Do not give advice.",
             "If the fan is vague, ask one short follow-up question. Do not guess what they meant.",
             "If the fan asks a real question, answer directly using the creator profile, examples, chat context, and retrieved creator context.",
             allowWebSearch
               ? "Web search is enabled for this turn because creator context may be insufficient for current public facts. Use it only for public external context, then answer through the creator's lens."
               : "Web search is disabled for this turn. Do not pretend to know current facts that are not in the provided context.",
+            answerMode === "estimation"
+              ? "The fan is asking for an estimate or calculation. Give a useful rough range with explicit assumptions, simple math, and confidence level. Do not answer with only 'look up reports' or generic research advice."
+              : "The fan is asking for a normal chat answer. Be direct and useful.",
+            answerMode === "estimation"
+              ? "For estimation: define the scope, list 3-5 drivers, show an example calculation, give low/base/high ranges when possible, and convert currencies if the user asks."
+              : "Avoid over-structuring casual answers.",
             "Format for a chat bubble, not an article. Use 2-4 short paragraphs or a short numbered list with each point on its own line.",
             "Do not use Markdown bold, headings, tables, or long uninterrupted blocks of text.",
             "Keep the answer complete. Do not start a numbered list unless you can finish every item.",
@@ -242,7 +258,9 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
               `You are ${persona.creator_name}'s AI persona for fan conversations.`,
               "The page already discloses that this is AI. In the conversation, write naturally in the creator's first-person voice when appropriate.",
               "Web search was attempted but unavailable. Answer only from the creator profile, chat context, and retrieved creator context.",
-              "If current public facts are required and not available, say that the approved context does not contain the latest details and answer the durable part only.",
+              answerMode === "estimation"
+                ? "The fan is asking for an estimate. Build a rough model with assumptions from the available context, state that current public facts are not available, and show how to estimate rather than sending the fan away."
+                : "If current public facts are required and not available, say that the approved context does not contain the latest details and answer the durable part only.",
               "Do not use Markdown bold, headings, tables, or long uninterrupted blocks of text.",
               "Never claim to be the actual human, never claim real-time personal access, and never invent private facts.",
               `Fallback: ${persona.fallback_text}`,

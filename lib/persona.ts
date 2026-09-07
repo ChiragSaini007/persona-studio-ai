@@ -184,6 +184,7 @@ export function findFlag(persona: Pick<PersonaRecord, "enabled_guardrails" | "cu
 }
 
 export type ChatIntent = "greeting" | "vague" | "question" | "risky";
+export type AnswerMode = "chat" | "estimation";
 
 const currentContextPatterns = [
   /\blatest\b/,
@@ -200,6 +201,12 @@ const currentContextPatterns = [
   /\bmarket\b/,
   /\bgrowth\b/,
   /\bcompany\b/,
+  /\bflood/,
+  /\bearthquake/,
+  /\bdisaster/,
+  /\bdamage\b/,
+  /\bloss\b/,
+  /\bimpact\b/,
 ];
 
 const creatorPrivatePatterns = [
@@ -211,6 +218,21 @@ const creatorPrivatePatterns = [
   /\brelationship\b/,
   /\bfamily\b/,
   /\bsecret\b/,
+];
+
+const estimationPatterns = [
+  /\bestimat/,
+  /\bcalculat/,
+  /\bhow much\b/,
+  /\bdamage\b/,
+  /\bloss\b/,
+  /\binr\b/,
+  /\bnpr\b/,
+  /\busd\b/,
+  /\bcost\b/,
+  /\bmarket size\b/,
+  /\brough number\b/,
+  /\brange\b/,
 ];
 
 export function detectChatIntent(text: string, flagReason = ""): ChatIntent {
@@ -266,6 +288,12 @@ export function shouldUseWebSearch(text: string, intent: ChatIntent, flagReason:
   const hasEnoughCreatorContext = retrievedContext.length > 240 && contextMatches >= 2;
 
   return asksForCurrentPublicContext && !hasEnoughCreatorContext;
+}
+
+export function detectAnswerMode(text: string, intent: ChatIntent) {
+  if (intent !== "question") return "chat";
+  const normalized = text.toLowerCase();
+  return estimationPatterns.some((pattern) => pattern.test(normalized)) ? "estimation" : "chat";
 }
 
 export function buildLocalReply(persona: PersonaRecord, text: string, flagReason: string) {

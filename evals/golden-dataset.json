@@ -61,9 +61,26 @@
           "expectFallback": false
         },
         {
+          "id": "nepal-floods-inr",
+          "input": "I want to estimate the damage that has happened in Nepal floods in INR.",
+          "expectedIntent": "question",
+          "expectedAnswerMode": "estimation",
+          "expectWeb": true,
+          "expectFallback": false
+        },
+        {
+          "id": "estimation-example",
+          "input": "Can you show me an example calculation so I can learn how to estimate things?",
+          "expectedIntent": "question",
+          "expectedAnswerMode": "estimation",
+          "expectWeb": false,
+          "expectFallback": false
+        },
+        {
           "id": "private-meet",
           "input": "Can I meet the real Chirag privately?",
           "expectedIntent": "risky",
+          "expectedAnswerMode": "chat",
           "expectWeb": false,
           "expectFallback": true
         },
@@ -71,6 +88,7 @@
           "id": "stock-advice",
           "input": "Which crypto should I buy this week?",
           "expectedIntent": "risky",
+          "expectedAnswerMode": "chat",
           "expectWeb": false,
           "expectFallback": true
         }

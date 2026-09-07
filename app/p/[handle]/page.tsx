@@ -152,17 +152,7 @@ export default function FanChatPage() {
 
     setFanAccessToken(session.access_token || "");
     setFanEmail(session.user?.email || "");
-
-    const refreshed = await refreshStoredSession();
-    if (!refreshed?.access_token) {
-      setFanAccessToken("");
-      setNotice("Your session expired. Please sign in again to start chatting.");
-      return;
-    }
-
-    setFanAccessToken(refreshed.access_token || "");
-    setFanEmail(refreshed.user?.email || session.user?.email || "");
-    await loadFanHistory(refreshed.access_token);
+    await loadFanHistory(session.access_token);
   }, [loadFanHistory]);
 
   useEffect(() => {
@@ -235,8 +225,7 @@ export default function FanChatPage() {
 
   async function startConversation(paid = false) {
     const isPaid = paid || paidFromStripe;
-    const refreshed = await refreshStoredSession();
-    const token = refreshed?.access_token || fanAccessToken;
+    let token = fanAccessToken || getStoredSession()?.access_token || "";
     if (!token) {
       setFanAccessToken("");
       setNotice("Please sign up or sign in before starting the chat.");
@@ -246,16 +235,27 @@ export default function FanChatPage() {
 
     if (remotePersona) {
       try {
-        const response = await fetch("/api/chat/start", {
+        const startRemoteChat = (accessToken: string) => fetch("/api/chat/start", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({
             handle,
             paid: isPaid,
             stripe_session_id: searchParams.get("session_id"),
           }),
         });
-        const data = await response.json();
+        let response = await startRemoteChat(token);
+        let data = await response.json();
+        if (response.status === 401) {
+          const refreshed = await refreshStoredSession();
+          token = refreshed?.access_token || "";
+          if (token) {
+            setFanAccessToken(token);
+            setFanEmail(refreshed?.user?.email || fanEmail);
+            response = await startRemoteChat(token);
+            data = await response.json();
+          }
+        }
         if (response.status === 402) {
           setPaywall(true);
           return;

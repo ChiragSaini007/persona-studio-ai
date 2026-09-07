@@ -53,10 +53,11 @@ for (const persona of dataset.personas) {
   for (const prompt of persona.prompts) {
     const flagReason = runtime.findFlag(record, prompt.input);
     const intent = runtime.detectChatIntentWithHistory(prompt.input, flagReason, prompt.history || []);
-    const answerMode = runtime.detectAnswerMode(prompt.input, intent);
-    const externalInfoNeed = runtime.detectExternalInfoNeed(prompt.input, intent, flagReason);
+    const resolvedQuestion = runtime.resolveQuestionWithHistory(prompt.input, intent, prompt.history || []);
+    const answerMode = runtime.detectAnswerMode(resolvedQuestion, intent);
+    const externalInfoNeed = runtime.detectExternalInfoNeed(resolvedQuestion, intent, flagReason);
     const useWeb = runtime.shouldUseWebSearchForPersona(
-      prompt.input,
+      resolvedQuestion,
       intent,
       flagReason,
       retrievedContext,
@@ -77,6 +78,7 @@ for (const persona of dataset.personas) {
       personaId: persona.id,
       promptId: prompt.id,
       input: prompt.input,
+      resolvedQuestion,
       expectedIntent: prompt.expectedIntent,
       actualIntent: intent,
       expectedAnswerMode,

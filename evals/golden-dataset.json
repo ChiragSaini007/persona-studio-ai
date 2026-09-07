@@ -74,6 +74,19 @@
           "expectFallback": false
         },
         {
+          "id": "swiggy-user-growth-numbers-followup",
+          "input": "user growth",
+          "history": [
+            { "role": "fan", "text": "Lets do a business case on Swiggy" },
+            { "role": "persona", "text": "Swiggy is a fascinating case. We can break down user base, business model, competition, expansion strategy, and tech infrastructure." },
+            { "role": "fan", "text": "Explain me with some numbers" }
+          ],
+          "expectedIntent": "question",
+          "expectedExternalInfoNeed": "live_public_fact",
+          "expectWeb": true,
+          "expectFallback": false
+        },
+        {
           "id": "nepal-floods-inr",
           "input": "I want to estimate the damage that has happened in Nepal floods in INR.",
           "expectedIntent": "question",

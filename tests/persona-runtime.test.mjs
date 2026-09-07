@@ -82,6 +82,21 @@ test("uses recent chat context to classify short case-study follow ups", () => {
   assert.equal(runtime.detectChatIntentWithHistory("Pricing", "", history), "question");
 });
 
+test("resolves short metric follow ups into the active business case", () => {
+  const history = [
+    { role: "fan", text: "Lets do a business case on Swiggy" },
+    { role: "persona", text: "Swiggy is a fascinating case. We can break down user base, model, competition, and expansion." },
+    { role: "fan", text: "Explain me with some numbers" },
+  ];
+  const intent = runtime.detectChatIntentWithHistory("user growth", "", history);
+  const resolved = runtime.resolveQuestionWithHistory("user growth", intent, history);
+
+  assert.equal(intent, "question");
+  assert.match(resolved, /Swiggy/);
+  assert.match(resolved, /numbers|concrete/i);
+  assert.equal(runtime.detectExternalInfoNeed(resolved, intent), "live_public_fact");
+});
+
 test("flags risky creator-private and financial prompts", () => {
   const persona = testPersona();
   const privateFlag = runtime.findFlag(persona, "Can I meet the real Chirag privately?");

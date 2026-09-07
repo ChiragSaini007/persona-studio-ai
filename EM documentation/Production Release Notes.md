@@ -35,6 +35,30 @@ Post-deploy check:
 - Test greeting, vague, real, risky, and web-needed prompts.
 - Open `/creator`, `/creator/onboarding`, and `/creator/review`.
 
+## 2026-09-07: Resolved Case-Study Follow-Ups
+
+What changed:
+- Short follow-ups in case-study conversations are expanded internally with the active company/context before AI generation.
+- Swiggy-style prompts like "Explain me with some numbers" followed by "user growth" now route as a Swiggy numeric case-study question.
+
+Why it changed:
+- The AI was answering generic growth advice because the latest fan message was too short for web search and OpenAI to understand by itself.
+
+User impact:
+- Case-study coaching feels more continuous and gives numbers when the fan asks for numbers.
+
+Risk:
+- Low.
+
+Validation:
+- Lint: passed with existing warnings.
+- Build: passed.
+- Tests: passed.
+- Evals: 100% across 18 golden cases.
+
+Post-deploy check:
+- Test the Swiggy business case flow and ask "user growth".
+
 ## 2026-09-07: Contextual Follow-Up Intent
 
 What changed:

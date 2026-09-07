@@ -9,6 +9,7 @@ import {
   ChatTurn,
   PersonaRecord,
   PersonaProfile,
+  resolveQuestionWithHistory,
   shouldUseWebSearchForPersona,
 } from "./persona";
 import { supabaseRest } from "./supabase-rest";
@@ -161,12 +162,13 @@ export async function moderateText(text: string) {
 
 export async function generateChatReply(persona: PersonaRecord, text: string, flagReason: string, history: ChatTurn[] = []) {
   const profile = normalizeProfile(persona.profile, persona.source_content);
-  const retrieval = await retrieveRelevantContext(profile, persona.source_content, text, persona.id);
   const intent = detectChatIntentWithHistory(text, flagReason, history);
-  const answerMode = detectAnswerMode(text, intent);
-  const externalInfoNeed = detectExternalInfoNeed(text, intent, flagReason);
+  const resolvedQuestion = resolveQuestionWithHistory(text, intent, history);
+  const retrieval = await retrieveRelevantContext(profile, persona.source_content, resolvedQuestion, persona.id);
+  const answerMode = detectAnswerMode(resolvedQuestion, intent);
+  const externalInfoNeed = detectExternalInfoNeed(resolvedQuestion, intent, flagReason);
   const allowWebSearch = shouldUseWebSearchForPersona(
-    text,
+    resolvedQuestion,
     intent,
     flagReason,
     retrieval.context,
@@ -177,6 +179,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
     intent,
     answerMode,
     externalInfoNeed,
+    resolvedQuestion,
     usedRAG: retrieval.chunkCount > 0,
     retrievedChunkCount: retrieval.chunkCount,
     usedWeb: false,
@@ -222,6 +225,10 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             "Sound like the creator's public persona: warm, direct, familiar, and conversational.",
             `Detected fan intent: ${intent}.`,
             `Answer mode: ${answerMode}.`,
+            `Resolved fan question: ${resolvedQuestion}`,
+            resolvedQuestion !== text
+              ? "The latest fan message is a short follow-up. Answer the resolved fan question, but keep the wording natural and conversational."
+              : "",
             "If the fan is greeting you, reply with a short warm greeting and invite a real question. Do not give advice.",
             "If the fan is vague, ask one short follow-up question. Do not guess what they meant.",
             "If the fan asks a real question, answer directly using the creator profile, examples, chat context, and retrieved creator context.",
@@ -270,7 +277,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             `Retrieved creator context:\n${retrieval.context}`,
           ].join("\n"),
         },
-        { role: "user", content: text },
+        { role: "user", content: resolvedQuestion },
       ],
       max_output_tokens: 520,
   });
@@ -299,7 +306,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
               `Retrieved creator context:\n${retrieval.context}`,
             ].join("\n"),
           },
-          { role: "user", content: text },
+          { role: "user", content: resolvedQuestion },
         ],
         max_output_tokens: 520,
     });

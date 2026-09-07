@@ -35,6 +35,28 @@ Post-deploy check:
 - Ask fan-chat prompts for greeting, vague, real, risky, and web-needed questions.
 - Confirm the test report remains green.
 
+## 2026-09-07: Resolved Case-Study Follow-Up Questions
+
+What changed:
+- Added question resolution for short follow-ups inside business case conversations.
+- Follow-ups like "Explain me with some numbers" and "user growth" are now expanded internally into the active case context before retrieval, web gating, and OpenAI generation.
+- Added Swiggy numeric follow-up coverage to the golden dataset.
+
+Why it changed:
+- Web search was seeing "user growth" too literally and returning generic growth advice instead of Swiggy-specific numbers.
+
+User impact:
+- Case-study conversations should stay anchored to the company and section the fan is discussing.
+- Numeric follow-ups should request concrete figures when current public data is needed and persona relevance allows it.
+
+Validation:
+- Unit tests passed.
+- Golden eval score: 100% across 18 cases.
+
+Post-deploy check:
+- In `/p/chirag`, ask for a Swiggy business case, ask for numbers, then say "user growth".
+- Confirm the answer stays about Swiggy and uses numbers.
+
 ## 2026-09-07: Contextual Follow-Up Intent
 
 What changed:

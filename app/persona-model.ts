@@ -348,6 +348,15 @@ const currentContextPatterns = [
   /\bconvert\b/,
   /\bprice\b/,
   /\brate\b/,
+  /\bnumber/,
+  /\bmetric/,
+  /\buser growth\b/,
+  /\brevenue\b/,
+  /\bgmv\b/,
+  /\border volume\b/,
+  /\bmarket share\b/,
+  /\bvaluation\b/,
+  /\bfunding\b/,
 ];
 
 const creatorPrivatePatterns = [
@@ -445,6 +454,44 @@ export function detectChatIntentWithHistory(text: string, flagReason = "", histo
   const isContextualFragment = contextualFragments.some((fragment) => normalized === fragment || normalized.includes(fragment));
 
   return hasActiveCaseStudy && isContextualFragment ? "question" : intent;
+}
+
+function activeCaseSubject(history: ChatTurn[]) {
+  const recent = history
+    .slice(-8)
+    .map((turn) => turn.text)
+    .join("\n");
+  const patterns = [
+    /\b(?:case study|business case|case)\s+(?:on|of|for|about)\s+([A-Z][A-Za-z0-9&.-]{1,30})/i,
+    /\b(?:let'?s|lets)\s+(?:do|discuss)\s+(?:a\s+)?(?:live\s+)?(?:business\s+)?case(?:\s+study)?\s+(?:on|of|for|about)\s+([A-Z][A-Za-z0-9&.-]{1,30})/i,
+  ];
+
+  for (let index = patterns.length - 1; index >= 0; index -= 1) {
+    const match = recent.match(patterns[index]);
+    if (match?.[1]) return match[1].replace(/[?.!,]+$/, "");
+  }
+
+  return "";
+}
+
+export function resolveQuestionWithHistory(text: string, intent: ChatIntent, history: ChatTurn[] = []) {
+  if (intent !== "question" || !history.length) return text;
+
+  const subject = activeCaseSubject(history);
+  if (!subject) return text;
+
+  const normalized = text.toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim();
+  const shortFollowUp = normalized.split(/\s+/).filter(Boolean).length <= 7;
+
+  if (/\bnumber|\bmetric|\bdata|\bfigure|\bstat/.test(normalized)) {
+    return `In the ${subject} business case, explain this with concrete recent numbers and what those numbers mean: ${text}`;
+  }
+
+  if (shortFollowUp) {
+    return `In the ${subject} business case, explain ${text} with concrete examples, relevant numbers if available, and product/business implications.`;
+  }
+
+  return text;
 }
 
 export function detectExternalInfoNeed(text: string, intent: ChatIntent, flagReason = ""): ExternalInfoNeed {
@@ -555,12 +602,16 @@ export function shouldUseWebSearch(text: string, intent: ChatIntent, flagReason:
   if (creatorPrivatePatterns.some((pattern) => pattern.test(normalized))) return false;
 
   const asksForCurrentPublicContext = currentContextPatterns.some((pattern) => pattern.test(normalized));
+  const asksForSpecificExternalData =
+    /\b(number|numbers|metric|metrics|data|figure|figures|stat|stats|user growth|revenue|gmv|orders|order volume|market share|valuation|funding)\b/.test(
+      normalized,
+    );
   const contextTerms = normalized
     .replace(/[^a-z0-9 ]/g, " ")
     .split(/\s+/)
     .filter((word) => word.length > 4);
   const contextMatches = contextTerms.filter((term) => retrievedContext.toLowerCase().includes(term)).length;
-  const hasEnoughCreatorContext = retrievedContext.length > 240 && contextMatches >= 2;
+  const hasEnoughCreatorContext = retrievedContext.length > 240 && contextMatches >= 2 && !asksForSpecificExternalData;
 
   return (asksForCurrentPublicContext || detectExternalInfoNeed(text, intent, flagReason) !== "none") && !hasEnoughCreatorContext;
 }

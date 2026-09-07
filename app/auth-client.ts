@@ -59,6 +59,36 @@ export function clearStoredSession() {
   window.localStorage.removeItem(sessionKey);
 }
 
+export async function refreshStoredSession() {
+  const saved = getStoredSession();
+  if (!saved?.refresh_token) return saved;
+
+  const { url, anonKey } = supabaseAuthConfig();
+  const response = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: {
+      apikey: anonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ refresh_token: saved.refresh_token }),
+  });
+
+  if (!response.ok) {
+    clearStoredSession();
+    return null;
+  }
+
+  const data = await response.json();
+  const session: AuthSession = {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || saved.refresh_token,
+    user: data.user || saved.user,
+  };
+
+  window.localStorage.setItem(sessionKey, JSON.stringify(session));
+  return session;
+}
+
 export async function supabasePasswordAuth(mode: "signup" | "signin", email: string, password: string) {
   const { url, anonKey } = supabaseAuthConfig();
   const endpoint = mode === "signup" ? "signup" : "token?grant_type=password";

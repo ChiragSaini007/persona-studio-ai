@@ -35,6 +35,31 @@ Post-deploy check:
 - Test greeting, vague, real, risky, and web-needed prompts.
 - Open `/creator`, `/creator/onboarding`, and `/creator/review`.
 
+## 2026-09-07: Fan Session Refresh
+
+What changed:
+- Fan sessions are refreshed before chat history and conversation start calls.
+- Expired saved sessions now reset to a clear sign-in state.
+- Removed confusing backend-facing auth wording from the fan start flow.
+
+Why it changed:
+- Fans could appear signed in locally while the backend rejected an expired token.
+
+User impact:
+- Cleaner login recovery and fewer confusing blocked chat starts.
+
+Risk:
+- Low.
+
+Validation:
+- Lint: passed with existing warnings.
+- Build: passed.
+- Tests: passed.
+- Evals: 100% across 16 golden cases.
+
+Post-deploy check:
+- Sign in as a fan and start a conversation from `/p/chirag`.
+
 ## 2026-09-07: Persona-Relevant Web Calling Gate
 
 What changed:

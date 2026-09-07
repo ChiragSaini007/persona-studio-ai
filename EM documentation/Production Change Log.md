@@ -35,6 +35,27 @@ Post-deploy check:
 - Ask fan-chat prompts for greeting, vague, real, risky, and web-needed questions.
 - Confirm the test report remains green.
 
+## 2026-09-07: Fan Session Refresh and Login Error Cleanup
+
+What changed:
+- Added fan session refresh before loading chat history or starting a conversation.
+- If a saved session is expired, the fan page clears it and asks the user to sign in again.
+- Replaced backend-facing "Fan login required" behavior with a cleaner fan-facing sign-in message.
+
+Why it changed:
+- The fan page could trust an old browser token, hide the login form, then fail when the backend rejected the token.
+
+User impact:
+- Fans get a clear path to sign in again instead of seeing confusing auth copy.
+
+Validation:
+- Unit tests passed.
+- Golden eval score: 100% across 16 cases.
+
+Post-deploy check:
+- Open `/p/chirag`, sign in, and start a conversation.
+- If an old token exists, confirm the page asks the fan to sign in again cleanly.
+
 ## 2026-09-07: Persona-Relevant Web Calling Gate
 
 What changed:

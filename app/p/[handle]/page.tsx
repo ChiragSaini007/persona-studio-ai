@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { clearStoredSession, getStoredSession, supabasePasswordAuth } from "../../auth-client";
+import { clearStoredSession, getStoredSession, refreshStoredSession, supabasePasswordAuth } from "../../auth-client";
 import {
   cleanHandle,
   findFlag,
@@ -71,14 +71,7 @@ export default function FanChatPage() {
   }, [isSending, thinkingPhrases.length]);
 
   useEffect(() => {
-    const session = getStoredSession();
-    if (session?.access_token) {
-      queueMicrotask(() => {
-        setFanAccessToken(session.access_token || "");
-        setFanEmail(session.user?.email || "");
-      });
-      void loadFanHistory(session.access_token);
-    }
+    void restoreFanSession();
 
     async function loadPersona() {
       try {
@@ -108,6 +101,25 @@ export default function FanChatPage() {
 
     void loadPersona();
   }, [handle]);
+
+  async function restoreFanSession() {
+    const session = getStoredSession();
+    if (!session?.access_token) return;
+
+    setFanAccessToken(session.access_token || "");
+    setFanEmail(session.user?.email || "");
+
+    const refreshed = await refreshStoredSession();
+    if (!refreshed?.access_token) {
+      setFanAccessToken("");
+      setNotice("Your session expired. Please sign in again to start chatting.");
+      return;
+    }
+
+    setFanAccessToken(refreshed.access_token || "");
+    setFanEmail(refreshed.user?.email || session.user?.email || "");
+    await loadFanHistory(refreshed.access_token);
+  }
 
   async function loadFanHistory(token = fanAccessToken) {
     if (!token) return;
@@ -151,16 +163,20 @@ export default function FanChatPage() {
 
   async function startConversation(paid = false) {
     const isPaid = paid || paidFromStripe;
-    if (!fanAccessToken) {
+    const refreshed = await refreshStoredSession();
+    const token = refreshed?.access_token || fanAccessToken;
+    if (!token) {
+      setFanAccessToken("");
       setNotice("Please sign up or sign in before starting the chat.");
       return;
     }
+    setFanAccessToken(token);
 
     if (remotePersona) {
       try {
         const response = await fetch("/api/chat/start", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${fanAccessToken}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             handle,
             paid: isPaid,
@@ -172,10 +188,17 @@ export default function FanChatPage() {
           setPaywall(true);
           return;
         }
+        if (response.status === 401) {
+          clearStoredSession();
+          setFanAccessToken("");
+          setStarted(false);
+          setNotice("Please sign in again to start chatting.");
+          return;
+        }
         if (!response.ok) throw new Error(data.error || "Unable to start chat");
         setConversationId(data.conversation.id);
         setRemoteMessages([{ id: uid(), from: "persona", text: welcomeMessage }]);
-        await loadFanHistory();
+        await loadFanHistory(token);
         setStarted(true);
         setPaywall(false);
         return;

@@ -52,7 +52,13 @@ for (const persona of dataset.personas) {
 
   for (const prompt of persona.prompts) {
     const flagReason = runtime.findFlag(record, prompt.input);
-    const intent = runtime.detectChatIntentWithHistory(prompt.input, flagReason, prompt.history || []);
+    const intent = runtime.classifyPersonaMessage(
+      prompt.input,
+      record.profile,
+      record.source_content,
+      flagReason,
+      prompt.history || [],
+    );
     const resolvedQuestion = runtime.resolveQuestionWithHistory(prompt.input, intent, prompt.history || []);
     const answerMode = runtime.detectAnswerMode(resolvedQuestion, intent);
     const externalInfoNeed = runtime.detectExternalInfoNeed(resolvedQuestion, intent, flagReason);

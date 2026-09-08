@@ -183,7 +183,7 @@ export function findFlag(persona: Pick<PersonaRecord, "enabled_guardrails" | "cu
   return "";
 }
 
-export type ChatIntent = "greeting" | "vague" | "question" | "risky";
+export type ChatIntent = "greeting" | "vague" | "question" | "off_topic" | "identity_confusion" | "risky";
 export type AnswerMode = "chat" | "estimation";
 export type ExternalInfoNeed = "none" | "live_public_fact" | "weather" | "currency" | "market";
 export type ChatTurn = {
@@ -263,6 +263,117 @@ const estimationPatterns = [
   /\brange\b/,
 ];
 
+const genericStopwords = new Set([
+  "about",
+  "after",
+  "again",
+  "anything",
+  "around",
+  "because",
+  "before",
+  "being",
+  "better",
+  "could",
+  "discuss",
+  "explain",
+  "first",
+  "from",
+  "have",
+  "learn",
+  "like",
+  "more",
+  "should",
+  "something",
+  "that",
+  "their",
+  "there",
+  "these",
+  "thing",
+  "think",
+  "this",
+  "want",
+  "what",
+  "when",
+  "where",
+  "which",
+  "with",
+  "would",
+]);
+
+const celebrityCreditPatterns = [
+  /\b(loved|love|liked|watched|saw)\s+(your|ur)\s+(movie|film|show|series|song|album|concert|match|game|podcast|book)\b/,
+  /\b(your|ur)\s+(movie|film|show|series|song|album|concert|match|game|podcast|book)\b/,
+  /\b(are you|is this)\s+(the\s+)?(actor|actress|singer|musician|cricketer|footballer|celebrity)\b/,
+];
+
+function normalizedWords(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 3 && !genericStopwords.has(word));
+}
+
+function significantTerms(text: string) {
+  return Array.from(new Set(normalizedWords(text)));
+}
+
+function profileDomainText(profile: PersonaProfile, sourceContent = "", retrievedContext = "") {
+  return [
+    profile.bio,
+    profile.fanRelationship,
+    profile.responseStyle,
+    profile.greetingStyle,
+    profile.topics.join(" "),
+    profile.phrases.join(" "),
+    profile.tone.join(" "),
+    profile.exampleReplies.join(" "),
+    profile.retrievalChunks.join(" "),
+    sourceContent,
+    retrievedContext,
+  ].join(" ");
+}
+
+export function detectIdentityConfusion(text: string, profile: PersonaProfile, sourceContent = "") {
+  const normalized = text.toLowerCase();
+  if (!celebrityCreditPatterns.some((pattern) => pattern.test(normalized))) return false;
+
+  const domain = profileDomainText(profile, sourceContent).toLowerCase();
+  const creditedTerms = ["movie", "film", "show", "series", "song", "album", "concert", "match", "game", "podcast", "book"];
+  return !creditedTerms.some((term) => normalized.includes(term) && domain.includes(term));
+}
+
+export function isQuestionInPersonaDomain(
+  text: string,
+  profile: PersonaProfile,
+  sourceContent = "",
+  retrievedContext = "",
+  history: ChatTurn[] = [],
+) {
+  const normalized = text.toLowerCase();
+  const domain = profileDomainText(profile, sourceContent, retrievedContext).toLowerCase();
+  const terms = significantTerms(text);
+  const overlapCount = terms.filter((term) => domain.includes(term)).length;
+  const hasBusinessPersona = /\b(product|business|startup|growth|market|strategy|revenue|distribution|metrics|commerce|fintech|payments)\b/.test(
+    domain,
+  );
+  const externalInfoNeed = detectExternalInfoNeed(text, "question");
+
+  if (overlapCount >= 1) return true;
+  if (externalInfoNeed !== "none" && isExternalInfoAllowedForPersona(text, externalInfoNeed, profile, sourceContent, retrievedContext)) {
+    return true;
+  }
+  if (estimationPatterns.some((pattern) => pattern.test(normalized)) && hasBusinessPersona) return true;
+  if (/\b(case study|business case|strategy|growth|market|pricing|revenue|users|metrics|product|startup)\b/.test(normalized)) {
+    return hasBusinessPersona;
+  }
+  if (history.length && /\b(target market|pricing|user growth|competition|business model|value proposition|roadmap)\b/.test(normalized)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function detectChatIntent(text: string, flagReason = ""): ChatIntent {
   if (flagReason) return "risky";
   const normalized = text.toLowerCase().replace(/[^a-z0-9 ?!]/g, " ").trim();
@@ -335,6 +446,20 @@ export function detectChatIntentWithHistory(text: string, flagReason = "", histo
   const isContextualFragment = contextualFragments.some((fragment) => normalized === fragment || normalized.includes(fragment));
 
   return hasActiveCaseStudy && isContextualFragment ? "question" : intent;
+}
+
+export function classifyPersonaMessage(
+  text: string,
+  profile: PersonaProfile,
+  sourceContent = "",
+  flagReason = "",
+  history: ChatTurn[] = [],
+) {
+  const intent = detectChatIntentWithHistory(text, flagReason, history);
+  if (intent === "risky" || intent === "vague") return intent;
+  if (detectIdentityConfusion(text, profile, sourceContent)) return "identity_confusion";
+  if (intent === "question" && !isQuestionInPersonaDomain(text, profile, sourceContent, "", history)) return "off_topic";
+  return intent;
 }
 
 function activeCaseSubject(history: ChatTurn[]) {
@@ -519,8 +644,19 @@ export function detectAnswerMode(text: string, intent: ChatIntent) {
 }
 
 export function buildLocalReply(persona: PersonaRecord, text: string, flagReason: string) {
-  const intent = detectChatIntent(text, flagReason);
+  const profile = normalizeProfile(persona.profile, persona.source_content);
+  const intent = classifyPersonaMessage(text, profile, persona.source_content, flagReason);
   if (flagReason) return persona.fallback_text;
+  if (intent === "identity_confusion") {
+    const firstName = persona.creator_name.split(" ")[0] || "the creator";
+    const topics = profile.topics.slice(0, 3).join(", ").toLowerCase();
+    return `Appreciate the love, but I may not be the person you meant. I’m ${firstName}'s AI persona, built around their public work on ${topics}. Want to ask me something in that lane?`;
+  }
+  if (intent === "off_topic") {
+    const firstName = persona.creator_name.split(" ")[0] || "the creator";
+    const topics = profile.topics.slice(0, 4).join(", ").toLowerCase();
+    return `That is not really ${firstName}'s lane. I can help with ${topics}, or anything that connects back to their approved public work.`;
+  }
   if (intent === "greeting") {
     const firstName = persona.creator_name.split(" ")[0] || "there";
     return `Hey, appreciate you. What do you want to talk about with ${firstName} today?`;

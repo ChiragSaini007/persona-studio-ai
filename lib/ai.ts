@@ -2,7 +2,7 @@ import {
   buildLocalReply,
   buildRetrievalChunks,
   detectAnswerMode,
-  detectChatIntentWithHistory,
+  classifyPersonaMessage,
   detectExternalInfoNeed,
   makeFallbackProfile,
   normalizeProfile,
@@ -168,7 +168,7 @@ export async function moderateText(text: string) {
 
 export async function generateChatReply(persona: PersonaRecord, text: string, flagReason: string, history: ChatTurn[] = []) {
   const profile = normalizeProfile(persona.profile, persona.source_content);
-  const intent = detectChatIntentWithHistory(text, flagReason, history);
+  const intent = classifyPersonaMessage(text, profile, persona.source_content, flagReason, history);
   const resolvedQuestion = resolveQuestionWithHistory(text, intent, history);
   const retrieval = await retrieveRelevantContext(profile, persona.source_content, resolvedQuestion, persona.id);
   const answerMode = detectAnswerMode(resolvedQuestion, intent);
@@ -194,7 +194,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
   if (flagReason) {
     return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false, ...baseMetadata };
   }
-  if (intent === "greeting" || intent === "vague") {
+  if (intent === "greeting" || intent === "vague" || intent === "off_topic" || intent === "identity_confusion") {
     return { reply: buildLocalReply({ ...persona, profile }, text, flagReason), usedAI: false, ...baseMetadata };
   }
   if (externalInfoNeed !== "none" && !allowWebSearch) {

@@ -150,3 +150,22 @@ test("detects estimation questions as a separate answer mode", () => {
   assert.equal(runtime.detectAnswerMode("Estimate Nepal flood damage in INR", "question"), "estimation");
   assert.equal(runtime.detectAnswerMode("Hey Chirag", "greeting"), "chat");
 });
+
+test("keeps random fan topics outside the creator domain", () => {
+  const persona = testPersona();
+  const dinosaurIntent = runtime.classifyPersonaMessage(
+    "Lets discuss about Dinosaur",
+    persona.profile,
+    persona.source_content,
+  );
+  const movieIntent = runtime.classifyPersonaMessage(
+    "Loved your Movie sir",
+    persona.profile,
+    persona.source_content,
+  );
+
+  assert.equal(dinosaurIntent, "off_topic");
+  assert.equal(movieIntent, "identity_confusion");
+  assert.match(runtime.buildLocalReply(persona, "Lets discuss about Dinosaur", ""), /not really Chirag's lane/i);
+  assert.match(runtime.buildLocalReply(persona, "Loved your Movie sir", ""), /may not be the person you meant/i);
+});

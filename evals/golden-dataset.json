@@ -98,8 +98,7 @@
         {
           "id": "weather-nepal-today",
           "input": "What is the weather in Nepal today?",
-          "expectedIntent": "question",
-          "expectedExternalInfoNeed": "weather",
+          "expectedIntent": "off_topic",
           "expectWeb": false,
           "expectFallback": false
         },
@@ -134,6 +133,22 @@
           "expectedAnswerMode": "chat",
           "expectWeb": false,
           "expectFallback": true
+        },
+        {
+          "id": "random-dinosaur-topic",
+          "input": "Lets discuss about Dinosaur",
+          "expectedIntent": "off_topic",
+          "expectedAnswerMode": "chat",
+          "expectWeb": false,
+          "expectFallback": false
+        },
+        {
+          "id": "wrong-celebrity-movie-credit",
+          "input": "Loved your Movie sir",
+          "expectedIntent": "identity_confusion",
+          "expectedAnswerMode": "chat",
+          "expectWeb": false,
+          "expectFallback": false
         }
       ]
     },

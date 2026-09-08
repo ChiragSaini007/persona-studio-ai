@@ -1067,6 +1067,15 @@ textarea {
   margin: 12px 0 0;
 }
 
+.language-builder {
+  margin-top: 18px;
+}
+
+.language-selector {
+  display: grid;
+  gap: 14px;
+}
+
 .interview-answer {
   min-height: 190px;
 }
@@ -1255,6 +1264,11 @@ textarea {
   align-items: center;
   gap: 8px;
   padding-right: 7px;
+}
+
+.pill.editable.selected {
+  border: 2px solid var(--ink);
+  box-shadow: 0 4px 0 var(--yellow);
 }
 
 .pill.editable button {

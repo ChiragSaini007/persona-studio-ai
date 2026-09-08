@@ -52,6 +52,8 @@ const interviewQuestions = [
   },
 ] as const;
 
+const languageOptions = ["English", "Hinglish", "Hindi", "Tamil", "Telugu", "Kannada", "Bengali", "Marathi", "Spanish"];
+
 type HealthState = {
   supabase: boolean;
   openai: boolean;
@@ -112,6 +114,7 @@ export default function CreatorPortal() {
   const [hasSavedPersona, setHasSavedPersona] = useState(false);
   const [creatingNewPersona, setCreatingNewPersona] = useState(false);
   const [profileInputs, setProfileInputs] = useState({ topics: "", tone: "", phrases: "" });
+  const [customLanguage, setCustomLanguage] = useState("");
   const [interviewIndex, setInterviewIndex] = useState(0);
   const needsCreatorProfile = authMode === "signup" || creatingNewPersona;
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
@@ -290,6 +293,30 @@ export default function CreatorPortal() {
     }));
   }
 
+  function toggleLanguage(language: string) {
+    setWorkspace((current) => {
+      const exists = current.profile.supportedLanguages.some((item) => item.toLowerCase() === language.toLowerCase());
+      const nextLanguages = exists
+        ? current.profile.supportedLanguages.filter((item) => item.toLowerCase() !== language.toLowerCase())
+        : [...current.profile.supportedLanguages, language];
+
+      return {
+        ...current,
+        profile: {
+          ...current.profile,
+          supportedLanguages: nextLanguages.length ? nextLanguages : ["English"],
+        },
+      };
+    });
+  }
+
+  function addCustomLanguage() {
+    const language = customLanguage.trim();
+    if (!language) return;
+    toggleLanguage(language);
+    setCustomLanguage("");
+  }
+
   function selectPersona(persona: CreatorPersona) {
     setWorkspace((current) => ({
       ...current,
@@ -328,6 +355,7 @@ export default function CreatorPortal() {
         `How fans relate to them: ${workspace.profile.fanRelationship}`,
         `How the AI should talk: ${workspace.profile.responseStyle}`,
         `How the AI should greet fans: ${workspace.profile.greetingStyle}`,
+        `Languages the creator is comfortable chatting in: ${workspace.profile.supportedLanguages.join(", ")}`,
         `Ideal example replies:\n${workspace.profile.exampleReplies.map((item) => `- ${item}`).join("\n")}`,
         `Never say or imply:\n${workspace.profile.neverSay.map((item) => `- ${item}`).join("\n")}`,
         "Approved creator content:",
@@ -350,6 +378,9 @@ export default function CreatorPortal() {
             fanRelationship: current.profile.fanRelationship || generated.fanRelationship,
             responseStyle: current.profile.responseStyle || generated.responseStyle,
             greetingStyle: current.profile.greetingStyle || generated.greetingStyle,
+            supportedLanguages: current.profile.supportedLanguages.length
+              ? current.profile.supportedLanguages
+              : generated.supportedLanguages,
           },
         };
       });
@@ -365,6 +396,9 @@ export default function CreatorPortal() {
             fanRelationship: current.profile.fanRelationship || generated.fanRelationship,
             responseStyle: current.profile.responseStyle || generated.responseStyle,
             greetingStyle: current.profile.greetingStyle || generated.greetingStyle,
+            supportedLanguages: current.profile.supportedLanguages.length
+              ? current.profile.supportedLanguages
+              : generated.supportedLanguages,
           },
         };
       });
@@ -490,6 +524,7 @@ export default function CreatorPortal() {
         fanRelationship: "",
         responseStyle: "",
         greetingStyle: "",
+        supportedLanguages: ["English", "Hinglish"],
         exampleReplies: [],
         neverSay: [],
         retrievalChunks: [],
@@ -929,6 +964,47 @@ export default function CreatorPortal() {
                 </aside>
               </div>
 
+              <section className="source-builder language-builder">
+                <div>
+                  <span className="section-kicker">Languages</span>
+                  <h3>Which languages can this persona chat in?</h3>
+                  <p>Pick the languages or mixed styles the creator is comfortable answering fans in.</p>
+                </div>
+                <div className="language-selector">
+                  <div className="chip-wrap">
+                    {languageOptions.map((language) => {
+                      const selected = workspace.profile.supportedLanguages.some(
+                        (item) => item.toLowerCase() === language.toLowerCase(),
+                      );
+                      return (
+                        <button
+                          key={language}
+                          type="button"
+                          className={`pill editable tone ${selected ? "selected" : ""}`}
+                          onClick={() => toggleLanguage(language)}
+                        >
+                          {language}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <form
+                    className="chip-editor"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      addCustomLanguage();
+                    }}
+                  >
+                    <input
+                      value={customLanguage}
+                      placeholder="Add another language"
+                      onChange={(event) => setCustomLanguage(event.target.value)}
+                    />
+                    <button type="submit">Add</button>
+                  </form>
+                </div>
+              </section>
+
               <section className="source-builder">
                 <div>
                   <span className="section-kicker">Knowledge</span>
@@ -1002,6 +1078,10 @@ export default function CreatorPortal() {
                 <div>
                   <strong>Greeting style</strong>
                   <p>{workspace.profile.greetingStyle || "Add how the persona should handle greetings in Step 2."}</p>
+                </div>
+                <div>
+                  <strong>Supported languages</strong>
+                  <p>{workspace.profile.supportedLanguages.join(", ") || "English"}</p>
                 </div>
                 <div>
                   <strong>Example replies</strong>

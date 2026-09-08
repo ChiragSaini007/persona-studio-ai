@@ -34,6 +34,7 @@ Fans can sign up, open the creator's public chat URL, and ask questions. The AI 
    - Fan relationship
    - Response style
    - Greeting style
+   - Supported fan chat languages
    - Source material
    - Example Q&A replies
    - Topics
@@ -135,6 +136,7 @@ When a fan sends a message, the backend follows this flow:
    - Creator topics
    - Creator tone
    - Creator phrases
+   - Supported languages
    - Example replies
    - Never-say rules
    - Fallback response
@@ -147,7 +149,7 @@ When a fan sends a message, the backend follows this flow:
 
 ## Message Intent Classification
 
-The product currently uses four intent types:
+The product currently uses six intent types:
 
 1. Greeting
 
@@ -198,6 +200,26 @@ The product currently uses four intent types:
    - Use fallback or boundary response.
    - Log the interaction as flagged for review.
 
+5. Off Topic
+
+   Examples:
+   - "Let's discuss dinosaurs" for a product/business creator
+   - Generic web lookup questions that do not connect to the creator's domain
+
+   Behavior:
+   - Do not call OpenAI.
+   - Explain the creator's lane and invite a relevant question.
+
+6. Identity Confusion
+
+   Examples:
+   - "Loved your movie sir" for a creator who is not an actor
+   - "Are you the singer?" when the persona content does not support that identity
+
+   Behavior:
+   - Do not pretend to be the wrong person.
+   - Clarify that this is the creator's AI persona and route the fan back to approved topics.
+
 ## Current System Prompt Strategy
 
 The OpenAI prompt is dynamic. It is built for each persona and each fan message.
@@ -209,6 +231,7 @@ The prompt tells the model:
 - Write naturally in the creator's first-person voice when appropriate.
 - Sound warm, direct, familiar, and conversational.
 - Answer real questions using creator profile, examples, chat context, and retrieved content.
+- Detect the fan's language and answer in that same supported language or mixed-language style when the creator has allowed it.
 - Do not claim to be the actual human.
 - Do not invent private facts.
 - Do not force catchphrases.

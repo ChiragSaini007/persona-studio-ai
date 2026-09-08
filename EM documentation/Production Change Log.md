@@ -2,6 +2,29 @@
 
 Use this file to track what changes are pushed to production and why they matter.
 
+## 2026-09-08: Creator Language Preferences for Fan Chat
+
+What changed:
+- Added supported fan chat languages to the persona profile.
+- Added a creator onboarding control for choosing languages or mixed-language styles such as English, Hindi, and Hinglish.
+- Updated profile generation so supported languages are saved with the persona and included in the runtime prompt.
+- Added language-aware greeting classification so "bhai kaise ho" is treated as a greeting when Hinglish or Hindi is enabled.
+- Added golden dataset and unit-test coverage for Hinglish greeting behavior.
+
+Why it changed:
+- Fans may naturally DM creators in Hindi, Hinglish, or other languages.
+- The runtime should respect what the creator is comfortable answering in instead of treating supported languages as vague or random.
+
+User impact:
+- Creators can define the languages their AI persona can use.
+- Fans get more natural replies in creator-approved languages.
+- Unsupported language usage still does not bypass topic and safety guardrails.
+
+Validation:
+- Unit tests passed.
+- Golden eval score: 100% across 21 cases.
+- Production build passed.
+
 ## 2026-09-07: MVP Quality Layer, Web-Aware Runtime, and App Structure
 
 What changed:

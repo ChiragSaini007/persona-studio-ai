@@ -2,6 +2,7 @@ export type PersonaProfile = {
   topics: string[];
   phrases: string[];
   tone: string[];
+  supportedLanguages: string[];
   bio: string;
   fanRelationship: string;
   responseStyle: string;
@@ -99,6 +100,7 @@ export function makeFallbackProfile(content: string): PersonaProfile {
     topics: topics.length ? topics : ["Creator economy", "AI products", "Product strategy"],
     phrases: ["Real talk", "My honest view", "Who feels the pain?", "What keeps this defensible?"],
     tone: ["Direct", "Strategic", "Commercially minded", "Warm but controlled"],
+    supportedLanguages: ["English", "Hinglish"],
     bio:
       "Product and business builder focused on AI products, creator economy infrastructure, growth, and practical startup strategy.",
     fanRelationship:
@@ -127,6 +129,7 @@ export function normalizeProfile(profile?: Partial<PersonaProfile> | null, conte
     topics: profile?.topics?.length ? profile.topics : fallback.topics,
     phrases: profile?.phrases?.length ? profile.phrases : fallback.phrases,
     tone: profile?.tone?.length ? profile.tone : fallback.tone,
+    supportedLanguages: profile?.supportedLanguages?.length ? profile.supportedLanguages : fallback.supportedLanguages,
     bio: profile?.bio || fallback.bio,
     fanRelationship: profile?.fanRelationship || fallback.fanRelationship,
     responseStyle: profile?.responseStyle || fallback.responseStyle,
@@ -327,6 +330,7 @@ function profileDomainText(profile: PersonaProfile, sourceContent = "", retrieve
     profile.topics.join(" "),
     profile.phrases.join(" "),
     profile.tone.join(" "),
+    profile.supportedLanguages.join(" "),
     profile.exampleReplies.join(" "),
     profile.retrievalChunks.join(" "),
     sourceContent,
@@ -448,6 +452,40 @@ export function detectChatIntentWithHistory(text: string, flagReason = "", histo
   return hasActiveCaseStudy && isContextualFragment ? "question" : intent;
 }
 
+function supportsLanguage(profile: PersonaProfile, language: string) {
+  return profile.supportedLanguages.some((item) => item.toLowerCase() === language.toLowerCase());
+}
+
+export function detectSupportedLanguage(text: string, profile: PersonaProfile) {
+  const normalized = text.toLowerCase();
+  const hasDevanagari = /[\u0900-\u097F]/.test(text);
+  const hasHinglish =
+    /\b(bhai|kaise|kaisa|kya|hai|ho|haan|nahi|acha|accha|theek|thik|namaste|namaskar|sirji|yaar|batao|samjhao|seekhna|karna|chahiye)\b/.test(
+      normalized,
+    );
+
+  if ((hasDevanagari || hasHinglish) && supportsLanguage(profile, "Hindi")) return "Hindi";
+  if ((hasDevanagari || hasHinglish) && supportsLanguage(profile, "Hinglish")) return "Hinglish";
+  return "English";
+}
+
+function detectSupportedLanguageIntent(text: string, profile: PersonaProfile): ChatIntent | "" {
+  const language = detectSupportedLanguage(text, profile);
+  const normalized = text.toLowerCase();
+  const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+
+  if (language === "English") return "";
+  if (
+    /\b(kaise ho|kaisa hai|kya haal|kya scene|namaste|namaskar|hey bhai|hi bhai|hello bhai)\b/.test(normalized) ||
+    /[\u0900-\u097F]/.test(text)
+  ) {
+    return wordCount <= 8 ? "greeting" : "";
+  }
+  if (/\b(kaise|kya|kyu|kab|kahan|samjhao|batao|seekhna|karna|chahiye)\b/.test(normalized)) return "question";
+
+  return "";
+}
+
 export function classifyPersonaMessage(
   text: string,
   profile: PersonaProfile,
@@ -455,7 +493,8 @@ export function classifyPersonaMessage(
   flagReason = "",
   history: ChatTurn[] = [],
 ) {
-  const intent = detectChatIntentWithHistory(text, flagReason, history);
+  const languageIntent = flagReason ? "" : detectSupportedLanguageIntent(text, profile);
+  const intent = languageIntent || detectChatIntentWithHistory(text, flagReason, history);
   if (intent === "risky" || intent === "vague") return intent;
   if (detectIdentityConfusion(text, profile, sourceContent)) return "identity_confusion";
   if (intent === "question" && !isQuestionInPersonaDomain(text, profile, sourceContent, "", history)) return "off_topic";
@@ -542,6 +581,7 @@ function personaContextText(profile: PersonaProfile, sourceContent = "", retriev
     profile.topics.join(" "),
     profile.phrases.join(" "),
     profile.tone.join(" "),
+    profile.supportedLanguages.join(" "),
     profile.exampleReplies.join(" "),
     profile.retrievalChunks.join(" "),
     sourceContent,
@@ -659,6 +699,9 @@ export function buildLocalReply(persona: PersonaRecord, text: string, flagReason
   }
   if (intent === "greeting") {
     const firstName = persona.creator_name.split(" ")[0] || "there";
+    const language = detectSupportedLanguage(text, profile);
+    if (language === "Hindi") return `Arre, appreciate you. ${firstName} se kya baat karni hai aaj?`;
+    if (language === "Hinglish") return `Arre bhai, appreciate you. ${firstName} se kya baat karni hai aaj?`;
     return `Hey, appreciate you. What do you want to talk about with ${firstName} today?`;
   }
   if (intent === "vague") {

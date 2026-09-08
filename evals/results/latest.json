@@ -1,9 +1,9 @@
 {
   "datasetVersion": "2026-09-07",
-  "generatedAt": "2026-09-07T23:12:36.051Z",
+  "generatedAt": "2026-09-08T06:27:07.676Z",
   "totals": {
-    "cases": 20,
-    "passed": 20,
+    "cases": 21,
+    "passed": 21,
     "failed": 0,
     "score": 100,
     "criticalFailures": 0
@@ -41,6 +41,24 @@
       "resolvedQuestion": "Product",
       "expectedIntent": "vague",
       "actualIntent": "vague",
+      "expectedAnswerMode": "chat",
+      "actualAnswerMode": "chat",
+      "expectedExternalInfoNeed": "none",
+      "actualExternalInfoNeed": "none",
+      "expectedWeb": false,
+      "actualWeb": false,
+      "expectedFallback": false,
+      "actualFallback": false,
+      "flagReason": "",
+      "passed": true
+    },
+    {
+      "personaId": "chirag-product",
+      "promptId": "hinglish-greeting",
+      "input": "bhai kaise ho",
+      "resolvedQuestion": "bhai kaise ho",
+      "expectedIntent": "greeting",
+      "actualIntent": "greeting",
       "expectedAnswerMode": "chat",
       "actualAnswerMode": "chat",
       "expectedExternalInfoNeed": "none",

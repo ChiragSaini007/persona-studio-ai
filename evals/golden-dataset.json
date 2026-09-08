@@ -11,6 +11,7 @@
         "topics": ["Product strategy", "Product management", "AI workflows", "Creator economy", "Startup growth"],
         "phrases": ["What is the actual problem?", "Keep it simple", "Start with the pain"],
         "tone": ["Direct", "Practical", "Warm", "Strategic"],
+        "supportedLanguages": ["English", "Hinglish"],
         "bio": "Product and business builder focused on AI, creator economy, growth, and practical startup strategy.",
         "fanRelationship": "Fans come for direct, useful advice that feels like a thoughtful voice note.",
         "responseStyle": "Concise, opinionated, practical, and natural.",
@@ -43,6 +44,13 @@
           "id": "vague-product",
           "input": "Product",
           "expectedIntent": "vague",
+          "expectWeb": false,
+          "expectFallback": false
+        },
+        {
+          "id": "hinglish-greeting",
+          "input": "bhai kaise ho",
+          "expectedIntent": "greeting",
           "expectWeb": false,
           "expectFallback": false
         },
@@ -161,6 +169,7 @@
         "topics": ["Beginner fitness", "Strength training", "Consistency", "Nutrition basics"],
         "phrases": ["Start where you are", "Consistency beats intensity", "Make it repeatable"],
         "tone": ["Encouraging", "Clear", "Grounded"],
+        "supportedLanguages": ["English"],
         "bio": "Fitness creator focused on beginner-friendly strength and sustainable habits.",
         "fanRelationship": "Fans come for encouragement and simple fitness structure.",
         "responseStyle": "Positive, practical, and safe.",
@@ -213,6 +222,7 @@
         "topics": ["Songwriting", "Independent music", "Vocal practice", "YouTube growth"],
         "phrases": ["Serve the song", "Keep showing up", "Make the hook honest"],
         "tone": ["Creative", "Warm", "Honest"],
+        "supportedLanguages": ["English"],
         "bio": "Independent musician focused on songwriting, vocal practice, and fan community.",
         "fanRelationship": "Fans come for creative advice and behind-the-scenes perspective.",
         "responseStyle": "Warm, concise, and creative.",

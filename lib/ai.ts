@@ -92,7 +92,7 @@ export async function generateProfileWithAI(content: string): Promise<{ profile:
         {
           role: "system",
           content:
-            "Extract an AI persona profile from creator-provided content. Return only JSON with keys topics, phrases, tone, bio, fanRelationship, responseStyle, greetingStyle, exampleReplies, neverSay, retrievalChunks. topics, phrases, tone, exampleReplies, neverSay, and retrievalChunks must be arrays of 3-8 short strings. bio, fanRelationship, responseStyle, and greetingStyle must be concise strings that help the AI sound like the creator while still respecting safety boundaries. exampleReplies should capture ideal fan-facing answers in the creator's style, including short/casual answers. neverSay should capture claims the persona must avoid. retrievalChunks should be the most useful source passages for answering fan questions.",
+            "Extract an AI persona profile from creator-provided content. Return only JSON with keys topics, phrases, tone, supportedLanguages, bio, fanRelationship, responseStyle, greetingStyle, exampleReplies, neverSay, retrievalChunks. topics, phrases, tone, supportedLanguages, exampleReplies, neverSay, and retrievalChunks must be arrays of 3-8 short strings. bio, fanRelationship, responseStyle, and greetingStyle must be concise strings that help the AI sound like the creator while still respecting safety boundaries. supportedLanguages should list languages or mixed-language styles the creator is comfortable using in fan chat, for example English, Hindi, Hinglish, Spanish. exampleReplies should capture ideal fan-facing answers in the creator's style, including short/casual answers. neverSay should capture claims the persona must avoid. retrievalChunks should be the most useful source passages for answering fan questions.",
         },
         { role: "user", content },
       ],
@@ -107,6 +107,7 @@ export async function generateProfileWithAI(content: string): Promise<{ profile:
               "topics",
               "phrases",
               "tone",
+              "supportedLanguages",
               "bio",
               "fanRelationship",
               "responseStyle",
@@ -119,6 +120,7 @@ export async function generateProfileWithAI(content: string): Promise<{ profile:
               topics: { type: "array", items: { type: "string" } },
               phrases: { type: "array", items: { type: "string" } },
               tone: { type: "array", items: { type: "string" } },
+              supportedLanguages: { type: "array", items: { type: "string" } },
               bio: { type: "string" },
               fanRelationship: { type: "string" },
               responseStyle: { type: "string" },
@@ -239,6 +241,8 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             "If the fan is greeting you, reply with a short warm greeting and invite a real question. Do not give advice.",
             "If the fan is vague, ask one short follow-up question. Do not guess what they meant.",
             "If the fan asks a real question, answer directly using the creator profile, examples, chat context, and retrieved creator context.",
+            `Supported fan chat languages: ${profile.supportedLanguages.join(", ")}.`,
+            "Detect the fan's language. If it is in the supported language list, reply naturally in that same language or same mixed-language style. If not supported, reply in the creator's first supported language and briefly ask them to use one of the supported languages.",
             allowWebSearch
               ? `Web search is enabled for this turn because the fan needs live public information. External info type: ${externalInfoNeed}. Use web results for the factual part, then answer through the creator's lens. Do not say you lack real-time data if web results are available.`
               : "Web search is disabled for this turn. Do not pretend to know current facts that are not in the provided context.",
@@ -281,6 +285,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             `Never say or imply:\n${profile.neverSay.map((item) => `- ${item}`).join("\n")}`,
             `Approved topics: ${profile.topics.join(", ")}`,
             `Tone: ${profile.tone.join(", ")}`,
+            `Supported languages: ${profile.supportedLanguages.join(", ")}`,
             `Recurring phrases: ${profile.phrases.join(", ")}`,
             `Recent chat context:\n${formatChatContext(history)}`,
             `Retrieved creator context:\n${retrieval.context}`,
@@ -309,6 +314,7 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
               `Creator bio: ${profile.bio}`,
               `Fan relationship: ${profile.fanRelationship}`,
               `Response style: ${profile.responseStyle}`,
+              `Supported languages: ${profile.supportedLanguages.join(", ")}`,
               `Ideal example replies:\n${profile.exampleReplies.map((item) => `- ${item}`).join("\n")}`,
               `Approved topics: ${profile.topics.join(", ")}`,
               `Recent chat context:\n${formatChatContext(history)}`,

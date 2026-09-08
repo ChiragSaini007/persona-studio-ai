@@ -27,6 +27,7 @@ function testPersona() {
     topics: ["Product strategy", "Product management", "AI workflows"],
     phrases: ["What is the actual problem?", "Keep it simple"],
     tone: ["Direct", "Practical"],
+    supportedLanguages: ["English", "Hinglish"],
     bio: "Product builder focused on AI and product strategy.",
     fanRelationship: "Fans come for practical advice.",
     responseStyle: "Concise and useful.",
@@ -63,6 +64,15 @@ function testPersona() {
 test("classifies social greetings without sending them through real-question flow", () => {
   assert.equal(runtime.detectChatIntent("Hey Chirag, how are you? Big fan"), "greeting");
   assert.equal(runtime.detectChatIntent("Love your work"), "greeting");
+});
+
+test("supports creator-approved Hinglish greetings", () => {
+  const persona = testPersona();
+  const intent = runtime.classifyPersonaMessage("bhai kaise ho", persona.profile, persona.source_content);
+
+  assert.equal(intent, "greeting");
+  assert.equal(runtime.detectSupportedLanguage("bhai kaise ho", persona.profile), "Hinglish");
+  assert.match(runtime.buildLocalReply(persona, "bhai kaise ho", ""), /Arre bhai/i);
 });
 
 test("classifies vague and real product questions", () => {

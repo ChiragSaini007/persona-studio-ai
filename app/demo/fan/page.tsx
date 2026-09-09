@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 
 const starterMessages = [
   {
@@ -49,7 +49,6 @@ function simulatedReply(input: string) {
 export default function SimulatedFanPage() {
   const [messages, setMessages] = useState(starterMessages);
   const [input, setInput] = useState("");
-  const fanMessages = useMemo(() => messages.filter((message) => message.from === "fan").length, [messages]);
 
   function sendMessage(text: string) {
     const trimmed = text.trim();
@@ -76,40 +75,39 @@ export default function SimulatedFanPage() {
             Persona Studio
           </Link>
           <div className="nav-tabs">
-            <span className="active">/demo/fan</span>
             <Link href="/creator">Create yours</Link>
           </div>
-          <span className="status-chip live">Demo</span>
         </nav>
 
         <header className="fan-hero">
           <div>
-            <p className="section-kicker">Simulated fan link</p>
+            <p className="section-kicker">AI persona</p>
             <h1>
-              Chat with <span>Chirag&apos;s AI</span>
+              Chat with <span>Chirag</span>
             </h1>
-            <p>
-              This preview shows what a fan sees after a creator publishes their persona link. It uses sample content,
-              clear AI disclosure, and creator-approved boundaries.
-            </p>
-          </div>
-          <div className="fan-stats">
-            <strong>{fanMessages}</strong>
-            <span>sample fan prompts</span>
+            <p>Ask a DM-style question. The AI answers from Chirag&apos;s approved public voice and shows when creator context shaped the reply.</p>
           </div>
         </header>
 
         <section className="chat-layout public-chat-layout">
           <div className="chat-window">
+            <div className="dm-thread-header">
+              <div className="dm-avatar photo">CS</div>
+              <div>
+                <strong>Chirag</strong>
+                <span>AI persona · approved public context</span>
+              </div>
+              <em>AI</em>
+            </div>
             <div className="disclosure">
-              You are chatting with a simulated AI persona. This is not the real creator. Responses are based on approved
-              example content and may refuse private, risky, or off-topic questions.
+              You are chatting with an AI persona, not the real creator. Private or risky requests are refused.
             </div>
             <div className="chat-body">
               <div className="messages">
                 {messages.map((message, index) => (
                   <div key={`${message.from}-${index}`} className={`message ${message.from === "fan" ? "fan" : ""}`}>
                     {message.text}
+                    {message.from === "persona" && <div className="source-strip creator">Approved creator context</div>}
                   </div>
                 ))}
               </div>
@@ -123,21 +121,16 @@ export default function SimulatedFanPage() {
               </div>
 
               <form onSubmit={submit} className="chat-form">
-                <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask the simulated persona..." />
+                <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask Chirag's AI..." />
                 <button className="primary-btn compact">Send</button>
               </form>
             </div>
           </div>
 
           <aside className="side-stack">
-            <div className="mint-card">
-              <span className="tiny-label">What fans see</span>
-              <h3>One public link, one focused chat.</h3>
-              <p>No app download, no feed, no confusing setup. The fan lands directly inside the creator&apos;s AI chat.</p>
-            </div>
-            <div className="dark-card">
-              <span className="tiny-label">Creator controls</span>
-              <p>Disclosure, approved content, safety rules, fallback responses, and reviewable flagged conversations stay built in.</p>
+            <div className="dark-card fan-preview-note">
+              <span className="tiny-label">Creator-approved</span>
+              <p>Voice, topics, languages, and boundaries are set before the link goes public.</p>
               <Link className="light-btn" href="/creator">
                 Create your persona
               </Link>

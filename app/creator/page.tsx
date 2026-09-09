@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { clearStoredSession, getStoredSession, resendSignupConfirmation, supabasePasswordAuth } from "../auth-client";
 import {
@@ -14,11 +14,11 @@ import {
 } from "../persona-model";
 
 const wizardSteps = [
-  { id: 1, label: "Account" },
+  { id: 1, label: "Access" },
   { id: 2, label: "Voice" },
-  { id: 3, label: "Review" },
+  { id: 3, label: "Persona" },
   { id: 4, label: "Limits" },
-  { id: 5, label: "Publish" },
+  { id: 5, label: "Launch" },
 ];
 
 const interviewQuestions = [
@@ -133,6 +133,16 @@ export default function CreatorPortal() {
   const canSubmitAuth = Boolean(
     email.trim() && password.trim() && (authMode === "signin" || (hasCreatorProfile && consentGiven)),
   );
+  const accountActionHint =
+    !accessToken && !email.trim()
+      ? "Add your email to continue."
+      : !accessToken && !password.trim()
+        ? "Add a password to continue."
+        : !accessToken && authMode === "signup" && !hasCreatorProfile
+          ? "Add the creator name and public handle to continue."
+          : !accessToken && authMode === "signup" && !consentGiven
+            ? "Confirm permission and AI disclosure to continue."
+            : "";
   const canResendConfirmation = Boolean(
     email.trim() && !accessToken && systemNotice.toLowerCase().includes("confirm"),
   );
@@ -150,53 +160,19 @@ export default function CreatorPortal() {
     workspace.profile.exampleReplies[0] ||
     workspace.profile.responseStyle ||
     `I would keep it simple. Start with the real problem, make one useful move, and build from what fans already trust ${creatorFirstName} for.`;
+  const activeGuardrailCount = Object.values(workspace.enabledGuardrails).filter(Boolean).length;
+  const approvedSourceCount = workspace.content
+    .split(/\n{2,}/)
+    .map((item) => item.trim())
+    .filter(Boolean).length;
+  const dashboardSignals = [
+    ["Source blocks", approvedSourceCount || workspace.profile.retrievalChunks.length || 0],
+    ["Languages", workspace.profile.supportedLanguages.length],
+    ["Guardrails", activeGuardrailCount],
+    ["Examples", workspace.profile.exampleReplies.length],
+  ];
 
-  useEffect(() => {
-    const requestedMode = searchParams.get("mode");
-    if (requestedMode === "onboarding") {
-      queueMicrotask(() => {
-        setViewMode("onboarding");
-        setStep(1);
-      });
-    }
-    if (requestedMode === "review") {
-      queueMicrotask(() => setViewMode("dashboard"));
-    }
-
-    queueMicrotask(() => setOrigin(window.location.origin));
-    const authError = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("error_description");
-    if (authError) {
-      queueMicrotask(() => setSystemNotice(authError.replace(/\+/g, " ")));
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-
-    const session = getStoredSession();
-    if (session?.access_token) {
-      queueMicrotask(() => {
-        setAccessToken(session.access_token || "");
-        setEmail(session.user?.email || "");
-      });
-      void loadCreatorPersona(session.access_token);
-    }
-
-    async function loadHealth() {
-      try {
-        const response = await fetch("/api/health");
-        const data = await response.json();
-        setHealth(data);
-      } catch {
-        setHealth(null);
-      }
-    }
-
-    void loadHealth();
-  }, [searchParams]);
-
-  function updateField<K extends keyof typeof workspace>(field: K, value: (typeof workspace)[K]) {
-    setWorkspace((current) => ({ ...current, [field]: value }));
-  }
-
-  async function loadCreatorPersona(token: string) {
+  const loadCreatorPersona = useCallback(async (token: string) => {
     try {
       const response = await fetch("/api/personas?mine=true", {
         headers: { Authorization: `Bearer ${token}` },
@@ -234,6 +210,51 @@ export default function CreatorPortal() {
     } catch (error) {
       setSystemNotice(error instanceof Error ? error.message : "Unable to load saved persona.");
     }
+  }, [setWorkspace]);
+
+  useEffect(() => {
+    const requestedMode = searchParams.get("mode");
+    if (requestedMode === "onboarding") {
+      queueMicrotask(() => {
+        setViewMode("onboarding");
+        setStep(1);
+      });
+    }
+    if (requestedMode === "review") {
+      queueMicrotask(() => setViewMode("dashboard"));
+    }
+
+    queueMicrotask(() => setOrigin(window.location.origin));
+    const authError = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("error_description");
+    if (authError) {
+      queueMicrotask(() => setSystemNotice(authError.replace(/\+/g, " ")));
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+
+    const session = getStoredSession();
+    if (session?.access_token) {
+      queueMicrotask(() => {
+        setAccessToken(session.access_token || "");
+        setEmail(session.user?.email || "");
+      });
+      queueMicrotask(() => void loadCreatorPersona(session.access_token));
+    }
+
+    async function loadHealth() {
+      try {
+        const response = await fetch("/api/health");
+        const data = await response.json();
+        setHealth(data);
+      } catch {
+        setHealth(null);
+      }
+    }
+
+    void loadHealth();
+  }, [loadCreatorPersona, searchParams]);
+
+  function updateField<K extends keyof typeof workspace>(field: K, value: (typeof workspace)[K]) {
+    setWorkspace((current) => ({ ...current, [field]: value }));
   }
 
   function toggleGuardrail(key: string) {
@@ -586,10 +607,10 @@ export default function CreatorPortal() {
           Persona Studio
         </Link>
         <div>
-          <Link href="/">Landing</Link>
-          <Link href="/creator/onboarding">Onboarding</Link>
+          <Link href="/">Home</Link>
+          <Link href="/creator/onboarding">Create</Link>
           <Link href="/creator/review">Review</Link>
-          <Link href={publicPath}>Fan page</Link>
+          <Link href={publicPath}>Fan link</Link>
         </div>
       </nav>
 
@@ -599,8 +620,8 @@ export default function CreatorPortal() {
           <h1>{viewMode === "dashboard" ? "Manage your AI personas" : "Create your AI persona"}</h1>
           <p>
             {viewMode === "dashboard"
-              ? "Track performance, open fan links, edit live personas, or create a new persona."
-              : "Answer the prompts in each step. We turn your approved material into a persona you can review before fans see it."}
+              ? "Your live personas, fan links, review queue, and metrics in one place."
+              : "Answer a short interview. The live preview shows how fans will experience the persona before it goes public."}
           </p>
 
           {viewMode === "dashboard" ? (
@@ -649,8 +670,7 @@ export default function CreatorPortal() {
                   <span className="section-kicker">Creator dashboard</span>
                   <h2>{workspace.creatorName || "Your persona studio"}</h2>
                   <p>
-                    Your live persona, fan link, conversation performance, and future revenue view live here after
-                    onboarding.
+                    Manage what is live, see what fans ask, review flagged moments, and create the next persona from here.
                   </p>
                 </div>
                 <div className={`dashboard-status ${workspace.status}`}>
@@ -659,9 +679,18 @@ export default function CreatorPortal() {
                 </div>
               </section>
 
+              <section className="creator-signal-strip" aria-label="Persona readiness signals">
+                {dashboardSignals.map(([label, value]) => (
+                  <div key={String(label)}>
+                    <span>{String(label)}</span>
+                    <strong>{String(value)}</strong>
+                  </div>
+                ))}
+              </section>
+
               <section className="dashboard-grid">
                 <div className="product-card persona-management-card">
-                  <span className="section-kicker">Persona</span>
+                  <span className="section-kicker">Selected persona</span>
                   <h3>{workspace.creatorName || "Untitled persona"}</h3>
                   <p>@{cleanHandle(workspace.creatorHandle)}</p>
                   <div className="share-url-box compact dashboard-link">
@@ -683,8 +712,8 @@ export default function CreatorPortal() {
 
                 <div className="product-card persona-management-card new-persona-card">
                   <span className="section-kicker">Create more</span>
-                  <h3>Launch another persona</h3>
-                  <p>Create a separate AI persona for another creator, brand voice, show, or character.</p>
+                  <h3>Build another voice</h3>
+                  <p>Create a separate persona for another creator, show, character, or content lane.</p>
                   <button className="primary-action" onClick={startNewPersona}>
                     New persona
                   </button>
@@ -782,7 +811,7 @@ export default function CreatorPortal() {
             <div className="product-card account-card">
               <span className="section-kicker">Step 1</span>
               <div className="account-heading">
-                <h2>{accessToken ? "Welcome back" : authMode === "signup" ? "Create your creator account" : "Log in to continue"}</h2>
+                <h2>{accessToken ? "Welcome back" : authMode === "signup" ? "Set up your profile" : "Log in to continue"}</h2>
                 <p>
                   {authMode === "signup" && !accessToken
                     ? "Who is this persona for, and what public handle should fans recognize?"
@@ -893,6 +922,7 @@ export default function CreatorPortal() {
                       : "Log in and continue"
                     : "Continue to content"}
                 </button>
+                {accountActionHint && <p className="inline-form-hint">{accountActionHint}</p>}
                 {canResendConfirmation && (
                   <button className="secondary-action" onClick={() => void resendConfirmation()} disabled={resendingEmail}>
                     {resendingEmail ? "Sending..." : "Resend confirmation"}
@@ -905,8 +935,8 @@ export default function CreatorPortal() {
           {viewMode === "onboarding" && step === 2 && (
             <div className="product-card">
               <span className="section-kicker">Step 2</span>
-              <h2>Shape your AI like a quick interview</h2>
-              <p>Answer one thing at a time. The preview updates as your persona gets sharper.</p>
+              <h2>Teach the persona how you sound</h2>
+              <p>Answer one focused prompt at a time. The fan preview updates as the persona gets sharper.</p>
 
               <div className="interview-layout">
                 <section className="interview-card">
@@ -920,6 +950,9 @@ export default function CreatorPortal() {
                         {question.label}
                       </button>
                     ))}
+                  </div>
+                  <div className="interview-meter" aria-hidden="true">
+                    <span style={{ width: `${((interviewIndex + 1) / interviewQuestions.length) * 100}%` }} />
                   </div>
                   <span className="section-kicker">Question {interviewIndex + 1} of {interviewQuestions.length}</span>
                   <h3>{currentInterviewQuestion.title}</h3>
@@ -960,6 +993,10 @@ export default function CreatorPortal() {
                     </div>
                     <div className="preview-bubble fan">{livePreviewQuestion}</div>
                     <div className="preview-bubble ai">{livePreviewAnswer}</div>
+                    <div className="preview-source-strip">
+                      <span>{approvedSourceCount || workspace.profile.retrievalChunks.length || 0} source blocks</span>
+                      <span>{activeGuardrailCount} rails active</span>
+                    </div>
                   </div>
                 </aside>
               </div>
@@ -1008,8 +1045,8 @@ export default function CreatorPortal() {
               <section className="source-builder">
                 <div>
                   <span className="section-kicker">Knowledge</span>
-                  <h3>Add approved source material</h3>
-                  <p>Paste captions, transcripts, posts, FAQs, notes, or links with the relevant text. This is what grounds answers.</p>
+                  <h3>Add what the AI is allowed to know</h3>
+                  <p>Paste captions, transcripts, posts, FAQs, notes, or links with useful context. This is what grounds fan replies.</p>
                 </div>
                 <textarea
                   value={workspace.content}
@@ -1053,8 +1090,8 @@ export default function CreatorPortal() {
             <div className="screen-stack">
               <div className="product-card">
                 <span className="section-kicker">Step 3</span>
-                <h2>Approve how the persona will speak</h2>
-                <p>Adjust the traits that become the AI&apos;s system prompt before fans ever enter the chat.</p>
+                <h2>Approve the public voice</h2>
+                <p>Edit the topics, tone, phrases, examples, and languages before fans ever enter the chat.</p>
                 <div className="prompt-list">
                   <span>Would this feel like a natural reply from the creator&apos;s public voice?</span>
                   <span>Are the topics broad enough for fans but narrow enough to stay safe?</span>
@@ -1150,8 +1187,8 @@ export default function CreatorPortal() {
           {viewMode === "onboarding" && step === 4 && (
             <div className="product-card">
               <span className="section-kicker">Step 4</span>
-              <h2>Define what the persona must refuse</h2>
-              <p>Set the topics and situations where the AI should stop, disclose limits, and use the creator-approved fallback.</p>
+              <h2>Set the hard lines</h2>
+              <p>Choose where the AI should step back, protect the creator, and use a fixed fallback.</p>
               <div className="prompt-list">
                 <span>What topics create reputation risk?</span>
                 <span>What private-life questions should always be blocked?</span>
@@ -1196,7 +1233,7 @@ export default function CreatorPortal() {
                 </label>
                 <div className="fallback-box">
                   <strong>Access model</strong>
-                  <p>Fan chat is free for now. Anyone with the published link can start after logging in.</p>
+                  <p>Free for now. Fans sign in once, then continue from their own chat history.</p>
                 </div>
                 <div className="fallback-box">
                   <strong>Fixed fallback</strong>
@@ -1220,8 +1257,8 @@ export default function CreatorPortal() {
                 <span className="section-kicker">Step 5</span>
                 <h2>{workspace.status === "live" ? "Your AI persona is live" : "Publish your persona"}</h2>
                 <p>
-                  Review the final link, then share it where fans already follow the creator: Instagram bio, stories,
-                  Linktree, broadcast channels, or fan communities.
+                  Review the final link, then share it where fans already follow you: Instagram bio, stories, Linktree,
+                  broadcast channels, or fan communities.
                 </p>
                 <div className="prompt-list dark">
                   <span>Is the creator comfortable with this link going public?</span>

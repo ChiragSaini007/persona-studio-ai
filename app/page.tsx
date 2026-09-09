@@ -1,108 +1,112 @@
 import Link from "next/link";
 
-const steps = [
-  "Create the account",
-  "Add approved content",
-  "Shape the persona",
-  "Lock the boundaries",
-  "Share the fan link",
+const proofPoints = [
+  {
+    label: "Interview",
+    title: "Capture the creator's voice",
+    body: "Stories, tone, languages, example replies, and hard boundaries turn into the first persona draft.",
+  },
+  {
+    label: "Review",
+    title: "Approve before fans see it",
+    body: "Creators review what the AI believes, how it greets fans, and what it will refuse.",
+  },
+  {
+    label: "Share",
+    title: "Publish one clean fan link",
+    body: "A disclosed DM link goes into Instagram, Linktree, broadcasts, and fan communities.",
+  },
+];
+
+const benchmarkRows = [
+  ["Voice", "Creator-written examples shape every reply."],
+  ["Memory", "Approved content is retrieved before answering."],
+  ["Safety", "Private, risky, or off-brand asks are blocked."],
+  ["Control", "Creators can edit, pause, and review conversations."],
 ];
 
 export default function Home() {
   return (
-    <main className="site-shell">
-      <nav className="landing-nav">
+    <main className="site-shell editorial-home">
+      <nav className="landing-nav editorial-nav">
         <Link href="/" className="wordmark">
           Persona Studio
         </Link>
         <div>
-          <Link href="#how">Workflow</Link>
-          <Link href="#safety">Trust</Link>
-          <Link href="/creator">Start</Link>
+          <Link href="#workflow">Workflow</Link>
+          <Link href="#proof">Proof</Link>
+          <Link href="/demo/fan">Fan preview</Link>
+          <Link href="/creator" className="nav-cta">
+            Create
+          </Link>
         </div>
       </nav>
 
-      <section className="landing-hero-pro">
-        <div className="hero-copy-pro">
-          <span className="section-kicker">AI fan chat for creators and public figures</span>
-          <h1>Turn your voice into a fan chat link.</h1>
+      <section className="editorial-hero" aria-labelledby="landing-title">
+        <div className="hero-image-layer" aria-hidden="true" />
+        <div className="hero-identity">
+          <span className="section-kicker">Creator AI, approved by the creator</span>
+          <h1 id="landing-title">Persona Studio</h1>
           <p>
-            Persona Studio helps creators launch an AI persona trained on approved content, reviewed in their own
-            words, and shared as a simple link for Instagram bios, stories, and fan communities.
+            Launch an AI persona fans can actually talk to. Creators answer a guided interview, approve the voice,
+            set hard limits, and publish one clean fan chat link.
           </p>
           <div className="cta-row">
             <Link href="/creator" className="primary-action">
-              Create your persona
+              Start creator setup
             </Link>
             <Link href="/demo/fan" className="secondary-action">
-              See a fan link
+              Preview fan chat
             </Link>
           </div>
-        </div>
-
-        <div className="hero-product-shot">
-          <div className="mock-browser">
-            <div className="browser-bar">
-              <span />
-              <span />
-              <span />
-              <strong>persona.studio/p/chirag</strong>
-            </div>
-            <div className="mock-chat">
-              <div className="creator-bio">
-                <div className="avatar-ring">CS</div>
-                <div>
-                  <strong>Chirag&apos;s AI</strong>
-                  <p>Approved topics, tone, and boundaries</p>
-                </div>
-              </div>
-              <div className="bubble fan">What should I focus on this week?</div>
-              <div className="bubble ai">
-                Keep it simple: one promise, one audience, one reason people come back.
-              </div>
-              <div className="guardrail-strip">AI disclosed · Creator approved · Guardrails active</div>
-            </div>
+          <div className="hero-chat-proof" aria-label="Example fan chat">
+            <span>Fan asks</span>
+            <p>How should I think about building a creator product?</p>
+            <span>Persona replies</span>
+            <p>Start with the fan behavior you want to earn again. Build trust first, then add AI where it makes the relationship better.</p>
+          </div>
+          <div className="hero-proof-strip" aria-label="Persona Studio safeguards">
+            {benchmarkRows.slice(0, 3).map(([label, value]) => (
+              <span key={label}>
+                <strong>{label}</strong>
+                {value}
+              </span>
+            ))}
           </div>
         </div>
       </section>
 
-      <section id="how" className="landing-section">
-        <div className="section-head">
-          <span className="section-kicker">Creator workflow</span>
-          <h2>Launch only after the persona feels right.</h2>
+      <section id="workflow" className="workflow-band">
+        <div className="workflow-copy">
+          <span className="section-kicker">How it works</span>
+          <h2>It feels like onboarding a public voice, not filling a settings form.</h2>
         </div>
-        <div className="step-cards">
-          {steps.map((step, index) => (
-            <div key={step} className="landing-card">
-              <span>{index + 1}</span>
-              <h3>{step}</h3>
-              <p>
-                {index === 0 && "Sign up with the public name and handle fans will recognize."}
-                {index === 1 && "Paste captions, transcripts, interviews, notes, or writing samples you approve."}
-                {index === 2 && "Review the tone, topics, and recurring phrases before anything goes public."}
-                {index === 3 && "Set safety rules, off-limits topics, and the fallback response."}
-                {index === 4 && "Publish a clean chat URL for Instagram, Linktree, stories, or communities."}
-              </p>
-            </div>
+        <div className="workflow-rail">
+          {proofPoints.map((item, index) => (
+            <article key={item.label} className="workflow-row">
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <div>
+                <small>{item.label}</small>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+              </div>
+            </article>
           ))}
         </div>
       </section>
 
-      <section id="safety" className="landing-section split-section">
+      <section id="proof" className="proof-band">
         <div>
-          <span className="section-kicker">Trust layer</span>
-          <h2>Designed for reputations, not throwaway bots.</h2>
-          <p>
-            Every persona starts with clear AI disclosure, stays inside creator-approved material, refuses risky or
-            off-brand prompts, and gives creators a way to pause the experience if something needs attention.
-          </p>
+          <span className="section-kicker">Production spine</span>
+          <h2>Built for reputation risk, repeat fans, and real creator control.</h2>
         </div>
-        <div className="safety-list">
-          <div>Clear AI disclosure</div>
-          <div>Approved source content only</div>
-          <div>Creator-owned fallback response</div>
-          <div>Logged-in fan conversations</div>
-          <div>Flagged interaction review</div>
+        <div className="proof-table">
+          {benchmarkRows.map(([label, value]) => (
+            <div key={label}>
+              <strong>{label}</strong>
+              <span>{value}</span>
+            </div>
+          ))}
         </div>
       </section>
     </main>

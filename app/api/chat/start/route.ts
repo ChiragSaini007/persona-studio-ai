@@ -12,7 +12,7 @@ type ConversationRow = {
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser(bearerToken(request));
-  if (!user) return NextResponse.json({ error: "Fan login required" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Please sign in to start chatting." }, { status: 401 });
 
   const { handle, paid = false, stripe_session_id } = await request.json();
   const creatorHandle = cleanHandle(handle || "");

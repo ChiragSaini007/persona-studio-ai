@@ -1,6 +1,6 @@
 # Persona Studio AI Test Report
 
-Generated at: 2026-09-07T11:36:53.226Z
+Generated at: 2026-09-09T12:02:46.324Z
 
 ## Overall Status
 
@@ -9,8 +9,8 @@ Ready for MVP testing
 ## Eval Summary
 
 - Dataset version: 2026-09-07
-- Total cases: 18
-- Passed: 18
+- Total cases: 21
+- Passed: 21
 - Failed: 0
 - Score: 100%
 - Critical failures: 0

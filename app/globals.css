@@ -601,6 +601,7 @@ input:disabled {
 
 .dashboard-grid,
 .account-layout,
+.creator-setup-grid,
 .interview-layout,
 .source-builder,
 .field-grid,
@@ -792,6 +793,12 @@ input:disabled {
 
 .account-layout.login-only {
   max-width: 620px;
+}
+
+.creator-setup-grid {
+  align-items: stretch;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(320px, 1fr);
+  margin-top: 24px;
 }
 
 .account-panel,
@@ -1010,7 +1017,7 @@ textarea {
   display: grid;
   gap: 12px;
   margin-top: 6px;
-  min-height: 470px;
+  min-height: 360px;
   padding: 16px;
 }
 
@@ -1080,6 +1087,10 @@ textarea {
   align-items: start;
   grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1fr);
   margin-top: 16px;
+}
+
+.optional-builder {
+  background: #fbfbf5;
 }
 
 .source-builder textarea {
@@ -1752,6 +1763,7 @@ textarea {
   .editorial-hero,
   .portal-shell,
   .account-layout,
+  .creator-setup-grid,
   .creator-dashboard-hero,
   .dashboard-grid,
   .interview-layout,

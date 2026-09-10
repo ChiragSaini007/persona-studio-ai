@@ -2,27 +2,27 @@ import Link from "next/link";
 
 const proofPoints = [
   {
-    label: "Interview",
-    title: "Capture the creator's voice",
-    body: "Stories, tone, languages, example replies, and hard boundaries turn into the first persona draft.",
+    label: "Add material",
+    title: "Paste what already exists",
+    body: "Captions, transcripts, posts, notes, and FAQs are enough to start.",
   },
   {
-    label: "Review",
-    title: "Approve before fans see it",
-    body: "Creators review what the AI believes, how it greets fans, and what it will refuse.",
+    label: "AI drafts",
+    title: "We build the first voice",
+    body: "Persona Studio drafts topics, reply style, examples, languages, and the first fan preview.",
   },
   {
-    label: "Share",
-    title: "Publish one clean fan link",
-    body: "A disclosed DM link goes into Instagram, Linktree, broadcasts, and fan communities.",
+    label: "Creator approves",
+    title: "You review, edit, and publish",
+    body: "Nothing goes live until the creator approves the voice and topics to avoid.",
   },
 ];
 
 const benchmarkRows = [
-  ["Voice", "Creator-written examples shape every reply."],
-  ["Memory", "Approved content is retrieved before answering."],
-  ["Safety", "Private, risky, or off-brand asks are blocked."],
-  ["Control", "Creators can edit, pause, and review conversations."],
+  ["Creator gives", "Public material, languages, and final approval."],
+  ["Studio drafts", "Voice, topics, welcome message, examples, and fan preview."],
+  ["Fans get", "A clean DM-style chat link with an AI disclosure."],
+  ["Creator controls", "Edit, pause, publish, and review sensitive messages."],
 ];
 
 export default function Home() {
@@ -48,15 +48,15 @@ export default function Home() {
           <span className="section-kicker">Creator AI, approved by the creator</span>
           <h1 id="landing-title">Persona Studio</h1>
           <p>
-            Launch an AI persona fans can actually talk to. Creators answer a guided interview, approve the voice,
-            set hard limits, and publish one clean fan chat link.
+            Turn public creator material into an AI fan chat. The creator gives the source, Persona Studio drafts the
+            voice, and nothing goes live until it is approved.
           </p>
           <div className="cta-row">
             <Link href="/creator" className="primary-action">
-              Start creator setup
+              Create my persona
             </Link>
             <Link href="/demo/fan" className="secondary-action">
-              Preview fan chat
+              See fan chat
             </Link>
           </div>
           <div className="hero-chat-proof" aria-label="Example fan chat">
@@ -79,7 +79,7 @@ export default function Home() {
       <section id="workflow" className="workflow-band">
         <div className="workflow-copy">
           <span className="section-kicker">How it works</span>
-          <h2>It feels like onboarding a public voice, not filling a settings form.</h2>
+          <h2>Ask less from creators. Draft more for them.</h2>
         </div>
         <div className="workflow-rail">
           {proofPoints.map((item, index) => (
@@ -98,7 +98,7 @@ export default function Home() {
       <section id="proof" className="proof-band">
         <div>
           <span className="section-kicker">Production spine</span>
-          <h2>Built for reputation risk, repeat fans, and real creator control.</h2>
+          <h2>Built for creator control, repeat fan chats, and safer public AI.</h2>
         </div>
         <div className="proof-table">
           {benchmarkRows.map(([label, value]) => (

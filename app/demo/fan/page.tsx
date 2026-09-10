@@ -23,9 +23,9 @@ const starterMessages = [
 ];
 
 const suggestedPrompts = [
-  "What would you tell a first-time founder?",
-  "How should I think about community?",
-  "What topics are off-limits here?",
+  "How do I become a better PM?",
+  "Explain this with numbers",
+  "Do a case study with me",
 ];
 
 function simulatedReply(input: string) {
@@ -85,7 +85,7 @@ export default function SimulatedFanPage() {
             <h1>
               Chat with <span>Chirag</span>
             </h1>
-            <p>Ask a DM-style question. The AI answers from Chirag&apos;s approved public voice and shows when creator context shaped the reply.</p>
+            <p>Ask what you would normally DM Chirag. The AI replies from his approved public material.</p>
           </div>
         </header>
 
@@ -95,19 +95,16 @@ export default function SimulatedFanPage() {
               <div className="dm-avatar photo">CS</div>
               <div>
                 <strong>Chirag</strong>
-                <span>AI persona · approved public context</span>
+                <span>AI persona</span>
               </div>
               <em>AI</em>
             </div>
-            <div className="disclosure">
-              You are chatting with an AI persona, not the real creator. Private or risky requests are refused.
-            </div>
+            <div className="disclosure">Based on Chirag&apos;s approved public material. Private or risky requests are blocked.</div>
             <div className="chat-body">
               <div className="messages">
                 {messages.map((message, index) => (
                   <div key={`${message.from}-${index}`} className={`message ${message.from === "fan" ? "fan" : ""}`}>
                     {message.text}
-                    {message.from === "persona" && <div className="source-strip creator">Approved creator context</div>}
                   </div>
                 ))}
               </div>
@@ -130,7 +127,7 @@ export default function SimulatedFanPage() {
           <aside className="side-stack">
             <div className="dark-card fan-preview-note">
               <span className="tiny-label">Creator-approved</span>
-              <p>Voice, topics, languages, and boundaries are set before the link goes public.</p>
+              <p>Voice, languages, and topics to avoid are reviewed before the link goes live.</p>
               <Link className="light-btn" href="/creator">
                 Create your persona
               </Link>

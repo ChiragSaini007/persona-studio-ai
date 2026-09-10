@@ -71,15 +71,15 @@ My honest view: a product is only as good as the business system around it. Dist
 export const guardrails: Guardrail[] = [
   {
     key: "identity",
-    title: "Real-person deception",
-    description: "Claims that the AI is the actual creator or can speak with real-time authority.",
+    title: "Pretending to be the real creator",
+    description: "Claims that the AI is the actual creator, can meet fans, or knows private real-time details.",
     keywords: ["are you real", "is this really", "prove you are", "call me", "meet me"],
     locked: true,
   },
   {
     key: "medical",
     title: "Medical advice",
-    description: "Diagnosis, medication, symptoms, treatment, or health-risk decisions.",
+    description: "Diagnosis, medication, treatment, or health-risk decisions.",
     keywords: ["diagnose", "medicine", "symptom", "treatment", "doctor", "medication"],
     locked: true,
   },
@@ -100,13 +100,13 @@ export const guardrails: Guardrail[] = [
   {
     key: "politics",
     title: "Politics",
-    description: "Parties, candidates, voting advice, or ideological persuasion.",
+    description: "Parties, candidates, voting advice, or political persuasion.",
     keywords: ["election", "vote", "party", "president", "politics"],
   },
   {
     key: "personal",
     title: "Private personal life",
-    description: "Family, relationships, private addresses, or unauthenticated gossip.",
+    description: "Family, relationships, private addresses, or gossip.",
     keywords: ["girlfriend", "boyfriend", "address", "family drama", "rumor", "private", "privately"],
   },
 ];

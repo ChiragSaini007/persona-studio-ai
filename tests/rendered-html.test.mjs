@@ -32,10 +32,10 @@ test("server-renders the Persona Studio landing page", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>Persona Studio AI<\/title>/i);
-  assert.match(html, /Launch an AI persona fans can actually talk to/);
-  assert.match(html, /Start creator setup/);
-  assert.match(html, /Preview fan chat/);
-  assert.match(html, /Built for reputation risk/);
+  assert.match(html, /Turn public creator material into an AI fan chat/);
+  assert.match(html, /Create my persona/);
+  assert.match(html, /See fan chat/);
+  assert.match(html, /Ask less from creators/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 

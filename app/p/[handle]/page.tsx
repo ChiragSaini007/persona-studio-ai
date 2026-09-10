@@ -111,8 +111,8 @@ export default function FanChatPage() {
   const creatorFirstName = creatorName === "the creator" ? "the creator" : creatorName.split(" ")[0] || "the creator";
   const thinkingPhrases = [
     `${creatorFirstName} is thinking...`,
-    `Reading ${creatorFirstName}'s approved context...`,
-    `Shaping the reply in ${creatorFirstName}'s style...`,
+    `Checking ${creatorFirstName}'s material...`,
+    `Writing it in ${creatorFirstName}'s style...`,
   ];
   const welcomeTopics = activePersona.profile.topics.slice(0, 3).join(", ").toLowerCase();
   const welcomeMessage = activePersona.profile.greetingStyle?.trim()
@@ -420,10 +420,10 @@ export default function FanChatPage() {
             <div className="fan-avatar">{creatorName.slice(0, 2).toUpperCase()}</div>
             <p className="section-kicker">Public fan chat</p>
             <h1>
-              Talk to <span>{creatorName}</span>
+              Chat with <span>{creatorName}</span>
             </h1>
             <p>
-              Ask what you would normally DM {creatorFirstName}. The AI answers in their approved public voice and uses current sources only when the question needs them.
+              Ask what you would normally DM {creatorFirstName}. The AI replies from approved public material and uses current sources only when helpful.
             </p>
           </div>
         </header>
@@ -434,12 +434,12 @@ export default function FanChatPage() {
               <div className="dm-avatar">{creatorName.slice(0, 2).toUpperCase()}</div>
               <div>
                 <strong>{creatorName}&apos;s AI</strong>
-                <span>Approved context, disclosed AI, reviewable safety rails</span>
+                <span>AI persona</span>
               </div>
               <em>{activePersona.status === "live" ? "Live" : "Preview"}</em>
             </div>
             <div className="disclosure">
-              This is {creatorName}&apos;s AI persona. It uses approved creator material, remembers this conversation, and steps back from private or risky requests.
+              Based on {creatorFirstName}&apos;s approved public material. Private or risky requests are blocked.
             </div>
             <div className="chat-body">
               <div className="messages">
@@ -448,7 +448,7 @@ export default function FanChatPage() {
                     <h2>{activePersona.monetization === "free" ? `Start a DM with ${creatorFirstName}` : "Unlock this chat"}</h2>
                     <p>
                       {activePersona.monetization === "free"
-                        ? "Sign in once. Your chat history stays with you."
+                        ? "Sign in once. Your chats stay with you."
                         : `This creator charges $${activePersona.price.toFixed(2)} per conversation.`}
                     </p>
                     {!fanAccessToken && (
@@ -504,10 +504,10 @@ export default function FanChatPage() {
                         <div className={`source-strip ${message.usedWeb ? "web" : "creator"}`}>
                           {message.usedWeb
                             ? `Creator context + current public sources${message.sourceCount ? ` · ${message.sourceCount} lookup${message.sourceCount === 1 ? "" : "s"}` : ""}`
-                            : "Creator-approved context"}
+                            : "Based on creator material"}
                         </div>
                       )}
-                      {message.flagged && <div className="flag-label">Flagged: {message.flagReason}</div>}
+                      {message.flagged && <div className="flag-label">Needs review: {message.flagReason}</div>}
                     </div>
                   ))}
                 {started && isSending && (
@@ -556,7 +556,7 @@ export default function FanChatPage() {
             <div className="dark-card">
               <span className="tiny-label">Good to know</span>
               <p>
-                Keep it close to {creatorFirstName}&apos;s public work. If the answer needs current facts and fits the topic, the persona can use public sources.
+                Ask about {creatorFirstName}&apos;s public topics, advice, and point of view. Sensitive or private requests are blocked.
               </p>
               {notice && <p className="runtime-note">{notice}</p>}
             </div>

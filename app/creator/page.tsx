@@ -14,43 +14,12 @@ import {
 } from "../persona-model";
 
 const wizardSteps = [
-  { id: 1, label: "Access" },
-  { id: 2, label: "Voice" },
-  { id: 3, label: "Persona" },
-  { id: 4, label: "Limits" },
-  { id: 5, label: "Launch" },
+  { id: 1, label: "Account" },
+  { id: 2, label: "Public material" },
+  { id: 3, label: "AI voice" },
+  { id: 4, label: "Topics to avoid" },
+  { id: 5, label: "Fan link" },
 ];
-
-const interviewQuestions = [
-  {
-    key: "bio",
-    label: "Creator identity",
-    title: "What should fans know about you?",
-    helper: "Keep this public. Mention what you do, who you help, and what you are known for.",
-    placeholder: "I am a product and business builder focused on AI workflows, creator economy, and practical startup strategy.",
-  },
-  {
-    key: "fanRelationship",
-    label: "Fan relationship",
-    title: "Why do fans usually come to you?",
-    helper: "Think about the real DMs you get: advice, motivation, analysis, entertainment, coaching, or behind-the-scenes.",
-    placeholder: "Fans come to me when they want direct advice on product thinking, business models, and building with AI.",
-  },
-  {
-    key: "responseStyle",
-    label: "Reply style",
-    title: "How should your AI answer?",
-    helper: "Describe the feel of the reply. Short, warm, sharp, detailed, funny, tactical, opinionated.",
-    placeholder: "Answer like a thoughtful DM: direct, practical, slightly opinionated, and easy to act on.",
-  },
-  {
-    key: "greetingStyle",
-    label: "Greeting",
-    title: "How should your AI greet fans?",
-    helper: "This becomes the first message fans see when they open your link.",
-    placeholder: "Hey, good to see you here. Ask me anything about product, AI, startups, or career decisions.",
-  },
-] as const;
 
 const languageOptions = ["English", "Hinglish", "Hindi", "Tamil", "Telugu", "Kannada", "Bengali", "Marathi", "Spanish"];
 
@@ -115,8 +84,6 @@ export default function CreatorPortal() {
   const [creatingNewPersona, setCreatingNewPersona] = useState(false);
   const [profileInputs, setProfileInputs] = useState({ topics: "", tone: "", phrases: "" });
   const [customLanguage, setCustomLanguage] = useState("");
-  const [interviewIndex, setInterviewIndex] = useState(0);
-  const needsCreatorProfile = authMode === "signup" || creatingNewPersona;
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
   const activePersonaId = personaPortfolio.find((persona) => cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle))?.id;
@@ -129,20 +96,14 @@ export default function CreatorPortal() {
   };
   const canPublish = Boolean(accessToken && health?.supabase);
   const hasCreatorProfile = Boolean(workspace.creatorName.trim() && cleanHandle(workspace.creatorHandle));
-  const canContinueFromAccount = Boolean(accessToken && (!creatingNewPersona || hasCreatorProfile));
-  const canSubmitAuth = Boolean(
-    email.trim() && password.trim() && (authMode === "signin" || (hasCreatorProfile && consentGiven)),
-  );
+  const canContinueFromAccount = Boolean(accessToken);
+  const canSubmitAuth = Boolean(email.trim() && password.trim());
   const accountActionHint =
     !accessToken && !email.trim()
       ? "Add your email to continue."
       : !accessToken && !password.trim()
         ? "Add a password to continue."
-        : !accessToken && authMode === "signup" && !hasCreatorProfile
-          ? "Add the creator name and public handle to continue."
-          : !accessToken && authMode === "signup" && !consentGiven
-            ? "Confirm permission and AI disclosure to continue."
-            : "";
+        : "";
   const canResendConfirmation = Boolean(
     email.trim() && !accessToken && systemNotice.toLowerCase().includes("confirm"),
   );
@@ -151,7 +112,6 @@ export default function CreatorPortal() {
     health && !health.supabase ? "Publishing setup is still being finalized" : "",
     health === null ? "Waiting for backend readiness check" : "",
   ].filter(Boolean);
-  const currentInterviewQuestion = interviewQuestions[interviewIndex];
   const creatorFirstName = workspace.creatorName.trim().split(" ")[0] || "the creator";
   const livePreviewQuestion = workspace.profile.topics[0]
     ? `How should I think about ${workspace.profile.topics[0].toLowerCase()}?`
@@ -166,10 +126,10 @@ export default function CreatorPortal() {
     .map((item) => item.trim())
     .filter(Boolean).length;
   const dashboardSignals = [
-    ["Source blocks", approvedSourceCount || workspace.profile.retrievalChunks.length || 0],
+    ["Public material", approvedSourceCount || workspace.profile.retrievalChunks.length || 0],
     ["Languages", workspace.profile.supportedLanguages.length],
-    ["Guardrails", activeGuardrailCount],
-    ["Examples", workspace.profile.exampleReplies.length],
+    ["Topics to avoid", activeGuardrailCount],
+    ["Example replies", workspace.profile.exampleReplies.length],
   ];
 
   const loadCreatorPersona = useCallback(async (token: string) => {
@@ -285,21 +245,6 @@ export default function CreatorPortal() {
     setProfileInputs((current) => ({ ...current, [field]: "" }));
   }
 
-  function updateProfileText(field: "bio" | "fanRelationship" | "responseStyle" | "greetingStyle", value: string) {
-    setWorkspace((current) => ({
-      ...current,
-      profile: {
-        ...current.profile,
-        [field]: value,
-      },
-    }));
-  }
-
-  function canMoveInterviewForward() {
-    const value = workspace.profile[currentInterviewQuestion.key].trim();
-    return value.length > 12;
-  }
-
   function updateProfileList(field: "exampleReplies" | "neverSay", value: string) {
     setWorkspace((current) => ({
       ...current,
@@ -405,7 +350,7 @@ export default function CreatorPortal() {
           },
         };
       });
-      setSystemNotice(data.usedAI ? "Persona profile generated." : "Persona profile generated from your content.");
+      setSystemNotice(data.usedAI ? "AI voice draft is ready." : "AI voice drafted from your public material.");
     } catch (error) {
       setWorkspace((current) => {
         const generated = makePersonaProfile(current.content);
@@ -440,7 +385,7 @@ export default function CreatorPortal() {
     }
 
     setSaving(true);
-    setSystemNotice(status === "live" ? "Publishing persona..." : "Saving persona...");
+    setSystemNotice(status === "live" ? "Making fan link live..." : "Saving changes...");
 
     try {
       const nextWorkspace = { ...workspace, status };
@@ -476,7 +421,7 @@ export default function CreatorPortal() {
         });
       }
       if (status === "live") setViewMode("dashboard");
-      setSystemNotice(status === "live" ? "Persona is live. Share the Instagram bio link." : "Persona saved.");
+      setSystemNotice(status === "live" ? "Fan link is live. Share it anywhere fans follow you." : "Changes saved.");
     } catch (error) {
       setSystemNotice(
         error instanceof Error
@@ -513,16 +458,6 @@ export default function CreatorPortal() {
 
   async function continueAccountStep() {
     if (!accessToken) {
-      if (needsCreatorProfile && !hasCreatorProfile) {
-        setSystemNotice("Add your public creator name and handle before creating the account.");
-        return;
-      }
-
-      if (authMode === "signup" && !consentGiven) {
-        setSystemNotice("Confirm content permission and AI disclosure before creating the account.");
-        return;
-      }
-
       const authenticated = await authenticate();
       if (authenticated) setStep(2);
       return;
@@ -620,15 +555,15 @@ export default function CreatorPortal() {
           <h1>{viewMode === "dashboard" ? "Manage your AI personas" : "Create your AI persona"}</h1>
           <p>
             {viewMode === "dashboard"
-              ? "Your live personas, fan links, review queue, and metrics in one place."
-              : "Answer a short interview. The live preview shows how fans will experience the persona before it goes public."}
+              ? "Your live personas, fan links, messages to review, and metrics in one place."
+              : "Add public material. We draft the AI voice, topics, and fan preview. You approve before it goes live."}
           </p>
 
           {viewMode === "dashboard" ? (
             <div className="dashboard-nav">
               <button className="active">Overview</button>
               <button onClick={() => editCurrentPersona(2)}>Edit persona</button>
-              <Link href="/creator/review">Review queue</Link>
+              <Link href="/creator/review">Needs review</Link>
               <button onClick={startNewPersona}>New persona</button>
             </div>
           ) : (
@@ -670,12 +605,12 @@ export default function CreatorPortal() {
                   <span className="section-kicker">Creator dashboard</span>
                   <h2>{workspace.creatorName || "Your persona studio"}</h2>
                   <p>
-                    Manage what is live, see what fans ask, review flagged moments, and create the next persona from here.
+                    See what is live, what fans ask, what needs review, and create the next persona from here.
                   </p>
                 </div>
                 <div className={`dashboard-status ${workspace.status}`}>
                   <span>{workspace.status}</span>
-                  <strong>{workspace.status === "live" ? "Share-ready" : "Needs review"}</strong>
+                  <strong>{workspace.status === "live" ? "Ready to share" : "Draft"}</strong>
                 </div>
               </section>
 
@@ -746,7 +681,7 @@ export default function CreatorPortal() {
                         <em>{persona.status}</em>
                         <span>{metrics?.conversations || 0} chats</span>
                         <span>{metrics?.fanMessages || 0} messages</span>
-                        <span>{metrics?.fallbackRate || 0}% fallback</span>
+                        <span>{metrics?.fallbackRate || 0}% step-back</span>
                       </button>
                     );
                   })}
@@ -763,8 +698,8 @@ export default function CreatorPortal() {
                 {[
                   ["Conversations", dashboardMetrics.conversations],
                   ["Fan messages", dashboardMetrics.fanMessages],
-                  ["Flagged", dashboardMetrics.flagged],
-                  ["Fallback rate", `${dashboardMetrics.fallbackRate}%`],
+                  ["Needs review", dashboardMetrics.flagged],
+                  ["Step-back rate", `${dashboardMetrics.fallbackRate}%`],
                   ["Revenue", "$0.00"],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="product-card metric-card">
@@ -783,8 +718,8 @@ export default function CreatorPortal() {
               <section className="product-card review-queue-card">
                 <div className="section-heading-row">
                   <div>
-                    <span className="section-kicker">Review queue</span>
-                    <h3>Fallback and flagged conversations</h3>
+                    <span className="section-kicker">Needs review</span>
+                    <h3>Messages that need a look</h3>
                   </div>
                   <strong>{reviewQueue.length}</strong>
                 </div>
@@ -798,8 +733,8 @@ export default function CreatorPortal() {
                   ))}
                   {!reviewQueue.length && (
                     <div className="empty-state">
-                      <strong>No flagged messages yet</strong>
-                      <p>Risky, off-topic, or fallback-triggering fan messages will appear here for creator review.</p>
+                      <strong>No messages need review yet</strong>
+                      <p>Private, risky, or unclear fan messages will appear here.</p>
                     </div>
                   )}
                 </div>
@@ -811,15 +746,15 @@ export default function CreatorPortal() {
             <div className="product-card account-card">
               <span className="section-kicker">Step 1</span>
               <div className="account-heading">
-                <h2>{accessToken ? "Welcome back" : authMode === "signup" ? "Set up your profile" : "Log in to continue"}</h2>
+                <h2>{accessToken ? "Welcome back" : authMode === "signup" ? "Create your account" : "Log in to continue"}</h2>
                 <p>
                   {authMode === "signup" && !accessToken
-                    ? "Who is this persona for, and what public handle should fans recognize?"
-                    : "Return to your saved persona, check performance, or continue editing before you publish again."}
+                    ? "One account lets you create personas, edit them later, and see fan conversations."
+                    : "Return to your personas, check performance, or keep editing before you publish again."}
                 </p>
               </div>
 
-              <div className={needsCreatorProfile ? "account-layout" : "account-layout login-only"}>
+              <div className="account-layout login-only">
                 <section className="account-panel">
                   <div className="auth-switch" aria-label="Account mode">
                     <button className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>
@@ -853,30 +788,7 @@ export default function CreatorPortal() {
                     </div>
                   )}
                 </section>
-
-                {needsCreatorProfile && (
-                  <section className="profile-panel">
-                    <h3 className="form-section-title">{creatingNewPersona ? "New persona profile" : "Creator profile"}</h3>
-                    <div className="account-fields">
-                      <label>
-                        Creator name
-                        <input value={workspace.creatorName} onChange={(event) => updateField("creatorName", event.target.value)} />
-                      </label>
-                      <label>
-                        Public handle
-                        <input value={workspace.creatorHandle} onChange={(event) => updateField("creatorHandle", event.target.value)} />
-                      </label>
-                    </div>
-                  </section>
-                )}
               </div>
-
-              {authMode === "signup" && !accessToken && (
-                <label className="consent-row">
-                  <input type="checkbox" checked={consentGiven} onChange={(event) => setConsentGiven(event.target.checked)} />
-                  I confirm I own or have permission to use this content and fans will see an AI disclosure.
-                </label>
-              )}
 
               {accessToken && hasSavedPersona && (
                 <section className="returning-dashboard">
@@ -892,7 +804,7 @@ export default function CreatorPortal() {
                   <div className="mini-metrics">
                     <span>{dashboardMetrics.conversations} conversations</span>
                     <span>{dashboardMetrics.fanMessages} fan messages</span>
-                    <span>{dashboardMetrics.fallbackRate}% fallback</span>
+                    <span>{dashboardMetrics.fallbackRate}% step-back</span>
                   </div>
                   <div className="button-row compact-actions">
                     <Link className="secondary-action" href={publicPath}>
@@ -935,49 +847,29 @@ export default function CreatorPortal() {
           {viewMode === "onboarding" && step === 2 && (
             <div className="product-card">
               <span className="section-kicker">Step 2</span>
-              <h2>Teach the persona how you sound</h2>
-              <p>Answer one focused prompt at a time. The fan preview updates as the persona gets sharper.</p>
+              <h2>Add your public material</h2>
+              <p>Paste what fans already see from you. We will draft the AI voice, fan topics, sample replies, and welcome message.</p>
 
-              <div className="interview-layout">
-                <section className="interview-card">
-                  <div className="interview-progress">
-                    {interviewQuestions.map((question, index) => (
-                      <button
-                        key={question.key}
-                        className={index === interviewIndex ? "active" : ""}
-                        onClick={() => setInterviewIndex(index)}
-                      >
-                        {question.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="interview-meter" aria-hidden="true">
-                    <span style={{ width: `${((interviewIndex + 1) / interviewQuestions.length) * 100}%` }} />
-                  </div>
-                  <span className="section-kicker">Question {interviewIndex + 1} of {interviewQuestions.length}</span>
-                  <h3>{currentInterviewQuestion.title}</h3>
-                  <p>{currentInterviewQuestion.helper}</p>
-                  <textarea
-                    className="interview-answer"
-                    value={workspace.profile[currentInterviewQuestion.key]}
-                    onChange={(event) => updateProfileText(currentInterviewQuestion.key, event.target.value)}
-                    placeholder={currentInterviewQuestion.placeholder}
-                  />
-                  <div className="button-row compact-actions">
-                    <button
-                      className="secondary-action"
-                      onClick={() => setInterviewIndex((current) => Math.max(0, current - 1))}
-                      disabled={interviewIndex === 0}
-                    >
-                      Previous
-                    </button>
-                    <button
-                      className="primary-action"
-                      onClick={() => setInterviewIndex((current) => Math.min(interviewQuestions.length - 1, current + 1))}
-                      disabled={interviewIndex === interviewQuestions.length - 1 || !canMoveInterviewForward()}
-                    >
-                      Next question
-                    </button>
+              <div className="creator-setup-grid">
+                <section className="profile-panel">
+                  <h3 className="form-section-title">{creatingNewPersona ? "Who is this persona for?" : "Creator details"}</h3>
+                  <div className="account-fields">
+                    <label>
+                      Creator name
+                      <input
+                        value={workspace.creatorName}
+                        onChange={(event) => updateField("creatorName", event.target.value)}
+                        placeholder="Chirag Saini"
+                      />
+                    </label>
+                    <label>
+                      Public handle
+                      <input
+                        value={workspace.creatorHandle}
+                        onChange={(event) => updateField("creatorHandle", event.target.value)}
+                        placeholder="@chirag"
+                      />
+                    </label>
                   </div>
                 </section>
 
@@ -994,18 +886,41 @@ export default function CreatorPortal() {
                     <div className="preview-bubble fan">{livePreviewQuestion}</div>
                     <div className="preview-bubble ai">{livePreviewAnswer}</div>
                     <div className="preview-source-strip">
-                      <span>{approvedSourceCount || workspace.profile.retrievalChunks.length || 0} source blocks</span>
-                      <span>{activeGuardrailCount} rails active</span>
+                      <span>{approvedSourceCount || workspace.profile.retrievalChunks.length || 0} material blocks</span>
+                      <span>{workspace.profile.supportedLanguages.length} languages</span>
                     </div>
                   </div>
                 </aside>
               </div>
 
+              <section className="source-builder">
+                <div>
+                  <span className="section-kicker">Public material</span>
+                  <h3>Paste captions, transcripts, posts, notes, or FAQs</h3>
+                  <p>Use material the creator is comfortable being represented by. The more specific it is, the more grounded fan replies become.</p>
+                </div>
+                <textarea
+                  value={workspace.content}
+                  onChange={(event) => updateField("content", event.target.value)}
+                  aria-label="Creator public material"
+                  placeholder={[
+                    "Paste approved public material here.",
+                    "",
+                    "Good examples:",
+                    "- Instagram captions",
+                    "- YouTube transcripts",
+                    "- Interview answers",
+                    "- Newsletter posts",
+                    "- Product or career advice you often give",
+                  ].join("\n")}
+                />
+              </section>
+
               <section className="source-builder language-builder">
                 <div>
                   <span className="section-kicker">Languages</span>
-                  <h3>Which languages can this persona chat in?</h3>
-                  <p>Pick the languages or mixed styles the creator is comfortable answering fans in.</p>
+                  <h3>Which languages can your AI reply in?</h3>
+                  <p>Pick only the languages or mixed styles that feel natural for the creator.</p>
                 </div>
                 <div className="language-selector">
                   <div className="chip-wrap">
@@ -1042,22 +957,12 @@ export default function CreatorPortal() {
                 </div>
               </section>
 
-              <section className="source-builder">
+              <section className="source-builder optional-builder">
                 <div>
-                  <span className="section-kicker">Knowledge</span>
-                  <h3>Add what the AI is allowed to know</h3>
-                  <p>Paste captions, transcripts, posts, FAQs, notes, or links with useful context. This is what grounds fan replies.</p>
+                  <span className="section-kicker">Optional polish</span>
+                  <h3>Add 3-5 replies that sound exactly right</h3>
+                  <p>Skip this if you want. A few examples help the AI learn your rhythm faster.</p>
                 </div>
-                <textarea
-                  value={workspace.content}
-                  onChange={(event) => updateField("content", event.target.value)}
-                  aria-label="Creator content"
-                  placeholder="Paste approved content here. More specific examples create better fan replies."
-                />
-              </section>
-
-              <label className="example-replies-field">
-                Add 3-5 ideal replies
                 <textarea
                   className="compact-textarea"
                   value={workspace.profile.exampleReplies.join("\n")}
@@ -1068,7 +973,7 @@ export default function CreatorPortal() {
                     "Question: Can you explain this with numbers? Answer: Yes. I would break it into users, frequency, conversion, and revenue...",
                   ].join("\n")}
                 />
-              </label>
+              </section>
               <div className="button-row">
                 <button className="secondary-action" onClick={() => setStep(1)}>
                   Back
@@ -1076,11 +981,15 @@ export default function CreatorPortal() {
                 <button
                   className="primary-action"
                   onClick={() => {
+                    if (!hasCreatorProfile) {
+                      setSystemNotice("Add the creator name and public handle first.");
+                      return;
+                    }
                     void generateProfile();
                     setStep(3);
                   }}
                 >
-                  Generate persona
+                  Draft my AI voice
                 </button>
               </div>
             </div>
@@ -1090,50 +999,50 @@ export default function CreatorPortal() {
             <div className="screen-stack">
               <div className="product-card">
                 <span className="section-kicker">Step 3</span>
-                <h2>Approve the public voice</h2>
-                <p>Edit the topics, tone, phrases, examples, and languages before fans ever enter the chat.</p>
+                <h2>Review your AI voice</h2>
+                <p>We drafted this from your public material. Keep what feels right, remove what does not, then test the fan experience.</p>
                 <div className="prompt-list">
-                  <span>Would this feel like a natural reply from the creator&apos;s public voice?</span>
-                  <span>Are the topics broad enough for fans but narrow enough to stay safe?</span>
-                  <span>Which phrases feel authentic, and which feel forced?</span>
+                  <span>Would fans recognize this as your public point of view?</span>
+                  <span>Are these the topics you actually want to answer?</span>
+                  <span>Do any phrases feel fake or overused?</span>
                 </div>
               </div>
               <div className="product-card persona-instructions-card">
-                <span className="section-kicker">System prompt inputs</span>
+                <span className="section-kicker">Drafted for you</span>
                 <div>
-                  <strong>About</strong>
+                  <strong>Who fans are talking to</strong>
                   <p>{workspace.profile.bio || "Add the creator bio in Step 2."}</p>
                 </div>
                 <div>
-                  <strong>Fan relationship</strong>
-                  <p>{workspace.profile.fanRelationship || "Add how fans relate to this creator in Step 2."}</p>
+                  <strong>Why fans come here</strong>
+                  <p>{workspace.profile.fanRelationship || "We will infer this from stronger public material."}</p>
                 </div>
                 <div>
-                  <strong>Response style</strong>
-                  <p>{workspace.profile.responseStyle || "Add the desired speaking style in Step 2."}</p>
+                  <strong>How replies should feel</strong>
+                  <p>{workspace.profile.responseStyle || "We will infer this from your example replies and public content."}</p>
                 </div>
                 <div>
-                  <strong>Greeting style</strong>
-                  <p>{workspace.profile.greetingStyle || "Add how the persona should handle greetings in Step 2."}</p>
+                  <strong>First message fans see</strong>
+                  <p>{workspace.profile.greetingStyle || `Hey, good to see you here. Ask me anything you would normally ask ${creatorFirstName}.`}</p>
                 </div>
                 <div>
-                  <strong>Supported languages</strong>
+                  <strong>Languages</strong>
                   <p>{workspace.profile.supportedLanguages.join(", ") || "English"}</p>
                 </div>
                 <div>
-                  <strong>Example replies</strong>
+                  <strong>Replies to copy</strong>
                   <p>
                     {workspace.profile.exampleReplies.length
                       ? workspace.profile.exampleReplies.slice(0, 3).join(" / ")
-                      : "Add 3-5 ideal answers in Step 2."}
+                      : "Optional. Add 3-5 ideal answers in Step 2 if you want tighter style."}
                   </p>
                 </div>
               </div>
               <div className="profile-grid">
                 {[
                   ["Topics", "topics", "topic", "Add a topic fans can ask about"],
-                  ["Tone", "tone", "tone", "Add a tone trait"],
-                  ["Recurring phrases", "phrases", "phrase", "Add a creator phrase"],
+                  ["Reply style", "tone", "tone", "Add a style trait"],
+                  ["Phrases that sound like you", "phrases", "phrase", "Add a phrase"],
                 ].map(([title, field, key, placeholder]) => (
                   <div key={String(title)} className="product-card mini-card">
                     <h3>{String(title)}</h3>
@@ -1178,7 +1087,7 @@ export default function CreatorPortal() {
                   Back
                 </button>
                 <button className="primary-action" onClick={() => setStep(4)}>
-                  Approve profile
+                  Looks right
                 </button>
               </div>
             </div>
@@ -1187,12 +1096,12 @@ export default function CreatorPortal() {
           {viewMode === "onboarding" && step === 4 && (
             <div className="product-card">
               <span className="section-kicker">Step 4</span>
-              <h2>Set the hard lines</h2>
-              <p>Choose where the AI should step back, protect the creator, and use a fixed fallback.</p>
+              <h2>Choose topics to avoid</h2>
+              <p>These protect the creator. The AI will politely step back when fans ask for private, risky, or off-topic answers.</p>
               <div className="prompt-list">
-                <span>What topics create reputation risk?</span>
+                <span>What should never be answered on your behalf?</span>
                 <span>What private-life questions should always be blocked?</span>
-                <span>What exact response should fans see when the AI cannot answer?</span>
+                <span>What should the AI say when it cannot answer?</span>
               </div>
               <div className="guardrail-grid">
                 {guardrails.map((rail) => (
@@ -1232,20 +1141,38 @@ export default function CreatorPortal() {
                   />
                 </label>
                 <div className="fallback-box">
-                  <strong>Access model</strong>
+                  <strong>Fan access</strong>
                   <p>Free for now. Fans sign in once, then continue from their own chat history.</p>
                 </div>
                 <div className="fallback-box">
-                  <strong>Fixed fallback</strong>
+                  <strong>When the AI cannot answer</strong>
                   <p>{workspace.fallbackText}</p>
                 </div>
               </div>
+              <label className="consent-row">
+                <input type="checkbox" checked={consentGiven} onChange={(event) => setConsentGiven(event.target.checked)} />
+                <span>I own or have permission to use this material, and fans will see that this is an AI persona.</span>
+              </label>
               <div className="button-row">
                 <button className="secondary-action" onClick={() => setStep(3)}>
                   Back
                 </button>
-                <button className="primary-action" onClick={() => (canPublish ? publish() : setStep(5))} disabled={saving}>
-                  {canPublish ? (saving ? "Publishing..." : "Publish persona") : "Review publish checklist"}
+                <button
+                  className="primary-action"
+                  onClick={() => {
+                    if (!consentGiven) {
+                      setSystemNotice("Confirm permission and AI disclosure before going live.");
+                      return;
+                    }
+                    if (canPublish) {
+                      publish();
+                    } else {
+                      setStep(5);
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  {canPublish ? (saving ? "Making live..." : "Make fan link live") : "Review launch checklist"}
                 </button>
               </div>
             </div>
@@ -1255,15 +1182,14 @@ export default function CreatorPortal() {
             <div className="screen-stack">
               <div className="launch-card">
                 <span className="section-kicker">Step 5</span>
-                <h2>{workspace.status === "live" ? "Your AI persona is live" : "Publish your persona"}</h2>
+                <h2>{workspace.status === "live" ? "Your fan link is live" : "Make your fan link live"}</h2>
                 <p>
-                  Review the final link, then share it where fans already follow you: Instagram bio, stories, Linktree,
-                  broadcast channels, or fan communities.
+                  Share it where fans already follow you: Instagram bio, stories, Linktree, broadcast channels, or fan communities.
                 </p>
                 <div className="prompt-list dark">
-                  <span>Is the creator comfortable with this link going public?</span>
-                  <span>Do the guardrails cover risky fan questions?</span>
-                  <span>Who will review flagged conversations after launch?</span>
+                  <span>Are you comfortable with this link going public?</span>
+                  <span>Do the topics to avoid cover risky fan questions?</span>
+                  <span>Who will check messages that need review?</span>
                 </div>
                 <div className="share-url-box">
                   <span>Instagram bio link</span>
@@ -1285,8 +1211,8 @@ export default function CreatorPortal() {
                 )}
                 <div className="button-row">
                   {workspace.status !== "live" && (
-                    <button className="primary-action" onClick={publish} disabled={saving || !canPublish}>
-                      {saving ? "Publishing..." : "Make persona live"}
+                    <button className="primary-action" onClick={publish} disabled={saving || !canPublish || !consentGiven}>
+                      {saving ? "Making live..." : "Make fan link live"}
                     </button>
                   )}
                   {workspace.status === "live" && (
@@ -1309,7 +1235,7 @@ export default function CreatorPortal() {
                 {[
                   ["Conversations", dashboardMetrics.conversations],
                   ["Fan messages", dashboardMetrics.fanMessages],
-                  ["Fallback rate", `${dashboardMetrics.fallbackRate}%`],
+                  ["Step-back rate", `${dashboardMetrics.fallbackRate}%`],
                   ["Revenue", `$${dashboardMetrics.revenue.toFixed(2)}`],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="product-card metric-card">

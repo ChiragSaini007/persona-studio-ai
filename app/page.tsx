@@ -59,11 +59,14 @@ export default function Home() {
               See fan chat
             </Link>
           </div>
-          <div className="hero-chat-proof" aria-label="Example fan chat">
-            <span>Fan asks</span>
-            <p>How should I think about building a creator product?</p>
-            <span>Persona replies</span>
-            <p>Start with the fan behavior you want to earn again. Build trust first, then add AI where it makes the relationship better.</p>
+          <div className="hero-outcome-panel" aria-label="Persona Studio output">
+            <span>What you get</span>
+            <p>A creator-approved AI voice, a public fan chat link, and a dashboard to review conversations.</p>
+            <div>
+              <strong>Source in</strong>
+              <strong>Persona drafted</strong>
+              <strong>Fan link live</strong>
+            </div>
           </div>
           <div className="hero-proof-strip" aria-label="Persona Studio safeguards">
             {benchmarkRows.slice(0, 3).map(([label, value]) => (

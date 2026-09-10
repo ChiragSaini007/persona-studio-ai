@@ -222,7 +222,7 @@ input:disabled {
 .hero-image-layer {
   background:
     linear-gradient(180deg, rgba(20, 20, 18, 0.02), rgba(20, 20, 18, 0.24)),
-    url("/persona-creator-hero.png") center / cover no-repeat;
+    url("/persona-creator-hero.png") 34% center / cover no-repeat;
   border: 1px solid rgba(20, 20, 18, 0.14);
   min-height: 520px;
   overflow: hidden;

@@ -25,17 +25,17 @@ async function render() {
   );
 }
 
-test("server-renders the Persona Studio landing page", async () => {
+test("server-renders the Fanline landing page", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Persona Studio AI<\/title>/i);
-  assert.match(html, /Turn public creator material into an AI fan chat/);
-  assert.match(html, /Create my persona/);
+  assert.match(html, /<title>Fanline<\/title>/i);
+  assert.match(html, /I add my public posts, transcripts, and FAQs/);
+  assert.match(html, /Create my fanline/);
   assert.match(html, /See fan chat/);
-  assert.match(html, /Ask less from creators/);
+  assert.match(html, /I give the raw material/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
@@ -48,7 +48,7 @@ test("keeps starter scaffolding removed from the product", async () => {
 
   assert.match(page, /export default function Home/);
   assert.match(page, /href="\/creator"/);
-  assert.match(layout, /title:\s*"Persona Studio AI"/);
+  assert.match(layout, /title:\s*"Fanline"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   assert.doesNotMatch(page, /SkeletonPreview|codex-preview/);
   assert.doesNotMatch(layout, /codex-preview|_sites-preview|themeColor|\bViewport\b/);

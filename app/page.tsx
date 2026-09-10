@@ -2,27 +2,27 @@ import Link from "next/link";
 
 const proofPoints = [
   {
-    label: "Add material",
-    title: "Paste what already exists",
-    body: "Captions, transcripts, posts, notes, and FAQs are enough to start.",
+    label: "I add material",
+    title: "I paste what already exists",
+    body: "My captions, transcripts, posts, notes, and FAQs are enough to start.",
   },
   {
-    label: "AI drafts",
-    title: "We build the first voice",
-    body: "Persona Studio drafts topics, reply style, examples, languages, and the first fan preview.",
+    label: "Fanline drafts",
+    title: "My AI voice is drafted for me",
+    body: "Fanline turns my material into topics, reply style, examples, languages, and a fan preview.",
   },
   {
-    label: "Creator approves",
-    title: "You review, edit, and publish",
-    body: "Nothing goes live until the creator approves the voice and topics to avoid.",
+    label: "I approve",
+    title: "I review, edit, and publish",
+    body: "Nothing goes live until I approve the voice and the topics my AI should avoid.",
   },
 ];
 
 const benchmarkRows = [
-  ["Creator gives", "Public material, languages, and final approval."],
-  ["Studio drafts", "Voice, topics, welcome message, examples, and fan preview."],
-  ["Fans get", "A clean DM-style chat link with an AI disclosure."],
-  ["Creator controls", "Edit, pause, publish, and review sensitive messages."],
+  ["I add", "Public material, languages, and final approval."],
+  ["Fanline drafts", "My AI voice, topics, welcome message, examples, and fan preview."],
+  ["Fans open", "A clean DM-style chat link with an AI disclosure."],
+  ["I control", "Edit, pause, publish, and review sensitive messages."],
 ];
 
 export default function Home() {
@@ -30,7 +30,7 @@ export default function Home() {
     <main className="site-shell editorial-home">
       <nav className="landing-nav editorial-nav">
         <Link href="/" className="wordmark">
-          Persona Studio
+          Fanline
         </Link>
         <div>
           <Link href="#workflow">Workflow</Link>
@@ -45,30 +45,30 @@ export default function Home() {
       <section className="editorial-hero" aria-labelledby="landing-title">
         <div className="hero-image-layer" aria-hidden="true" />
         <div className="hero-identity">
-          <span className="section-kicker">Creator AI, approved by the creator</span>
-          <h1 id="landing-title">Persona Studio</h1>
+          <span className="section-kicker">My AI fan line, approved by me</span>
+          <h1 id="landing-title">Fanline</h1>
           <p>
-            Turn public creator material into an AI fan chat. The creator gives the source, Persona Studio drafts the
-            voice, and nothing goes live until it is approved.
+            I add my public posts, transcripts, and FAQs. Fanline drafts my AI voice and gives me a fan chat link I can
+            approve before anyone sees it.
           </p>
           <div className="cta-row">
             <Link href="/creator" className="primary-action">
-              Create my persona
+              Create my fanline
             </Link>
             <Link href="/demo/fan" className="secondary-action">
               See fan chat
             </Link>
           </div>
-          <div className="hero-outcome-panel" aria-label="Persona Studio output">
-            <span>What you get</span>
-            <p>A creator-approved AI voice, a public fan chat link, and a dashboard to review conversations.</p>
+          <div className="hero-outcome-panel" aria-label="Fanline output">
+            <span>What I get</span>
+            <p>My approved AI voice, a public fan chat link, and a dashboard to review conversations.</p>
             <div>
-              <strong>Source in</strong>
-              <strong>Persona drafted</strong>
-              <strong>Fan link live</strong>
+              <strong>My source in</strong>
+              <strong>My AI drafted</strong>
+              <strong>My fan link live</strong>
             </div>
           </div>
-          <div className="hero-proof-strip" aria-label="Persona Studio safeguards">
+          <div className="hero-proof-strip" aria-label="Fanline safeguards">
             {benchmarkRows.slice(0, 3).map(([label, value]) => (
               <span key={label}>
                 <strong>{label}</strong>
@@ -82,7 +82,7 @@ export default function Home() {
       <section id="workflow" className="workflow-band">
         <div className="workflow-copy">
           <span className="section-kicker">How it works</span>
-          <h2>Ask less from creators. Draft more for them.</h2>
+          <h2>I give the raw material. Fanline does the setup.</h2>
         </div>
         <div className="workflow-rail">
           {proofPoints.map((item, index) => (
@@ -101,7 +101,7 @@ export default function Home() {
       <section id="proof" className="proof-band">
         <div>
           <span className="section-kicker">Production spine</span>
-          <h2>Built for creator control, repeat fan chats, and safer public AI.</h2>
+          <h2>Built so I stay in control while fans get a faster answer.</h2>
         </div>
         <div className="proof-table">
           {benchmarkRows.map(([label, value]) => (

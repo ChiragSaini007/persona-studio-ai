@@ -71,9 +71,7 @@ export default function SimulatedFanPage() {
     <main className="app-shell fan-shell">
       <section className="stage fan-stage demo-fan-stage">
         <nav className="top-nav">
-          <Link className="brand-script" href="/">
-            Persona Studio
-          </Link>
+          <Link className="brand-script" href="/">Fanline</Link>
           <div className="nav-tabs">
             <Link href="/creator">Create yours</Link>
           </div>

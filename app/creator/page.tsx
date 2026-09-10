@@ -538,9 +538,7 @@ export default function CreatorPortal() {
   return (
     <main className="app-page">
       <nav className="product-nav">
-        <Link href="/" className="wordmark">
-          Persona Studio
-        </Link>
+        <Link href="/" className="wordmark">Fanline</Link>
         <div>
           <Link href="/">Home</Link>
           <Link href="/creator/onboarding">Create</Link>

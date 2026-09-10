@@ -13,17 +13,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Persona Studio AI",
+  title: "Fanline",
   description:
-    "Creator-controlled AI fan chat with direct signup, guardrails, optional paywall, and creator analytics.",
+    "Creator-approved AI fan chat with direct signup, safer topics, optional paywall, and creator analytics.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
   openGraph: {
-    title: "Persona Studio AI",
+    title: "Fanline",
     description:
-      "Creator-controlled AI fan chat with strict guardrails and optional monetization.",
+      "Creator-approved AI fan chat with safer topics and optional monetization.",
     images: ["/og.png"],
   },
 };

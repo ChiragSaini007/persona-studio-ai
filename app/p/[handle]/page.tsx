@@ -379,9 +379,7 @@ export default function FanChatPage() {
       <main className="app-shell">
         <section className="stage fan-stage">
           <nav className="top-nav">
-            <Link className="brand-script" href="/">
-              Persona Studio
-            </Link>
+            <Link className="brand-script" href="/">Fanline</Link>
             <div className="nav-tabs">
               <Link href="/creator">Creator portal</Link>
             </div>
@@ -406,9 +404,7 @@ export default function FanChatPage() {
     <main className="app-shell fan-shell">
       <section className="stage fan-stage">
         <nav className="top-nav">
-          <Link className="brand-script" href="/">
-            Persona Studio
-          </Link>
+          <Link className="brand-script" href="/">Fanline</Link>
           <div className="nav-tabs">
             <Link href="/creator">Creator portal</Link>
           </div>

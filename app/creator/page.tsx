@@ -58,6 +58,7 @@ type ReviewItem = {
   personaName: string;
   text: string;
   reason: string;
+  role?: "fan" | "persona";
   createdAt?: string;
 };
 
@@ -86,6 +87,7 @@ export default function CreatorPortal() {
   const [customLanguage, setCustomLanguage] = useState("");
   const [dashTab, setDashTab] = useState<"overview" | "review">("overview");
   const [showStep2Errors, setShowStep2Errors] = useState(false);
+  const [personaChecked, setPersonaChecked] = useState(false);
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
   const activePersonaId = personaPortfolio.find((persona) => cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle))?.id;
@@ -104,6 +106,21 @@ export default function CreatorPortal() {
   };
   const step2ErrorList = (Object.entries(step2Errors) as [keyof typeof step2Errors, string][]).filter(([, message]) => message);
   const isDraftOnly = creatingNewPersona || !hasSavedPersona;
+  const reviewGroups = Array.from(
+    reviewQueue
+      .reduce((groups, item) => {
+        const key = item.conversationId || item.id;
+        const group = groups.get(key) || { key, personaName: item.personaName, reason: item.reason, items: [] as ReviewItem[] };
+        group.items.push(item);
+        groups.set(key, group);
+        return groups;
+      }, new Map<string, { key: string; personaName: string; reason: string; items: ReviewItem[] }>())
+      .values(),
+  ).map((group) => ({
+    ...group,
+    items: [...group.items].sort((a, b) => (a.role === "fan" ? -1 : 1) - (b.role === "fan" ? -1 : 1)),
+    reason: group.items.find((item) => item.role === "fan")?.reason || group.reason,
+  }));
   const canContinueFromAccount = Boolean(accessToken);
   const canSubmitAuth = Boolean(email.trim() && password.trim());
   const accountActionHint =
@@ -178,6 +195,8 @@ export default function CreatorPortal() {
       setSystemNotice("");
     } catch (error) {
       setSystemNotice(error instanceof Error ? error.message : "Unable to load saved persona.");
+    } finally {
+      setPersonaChecked(true);
     }
   }, [setWorkspace]);
 
@@ -601,7 +620,7 @@ export default function CreatorPortal() {
                   document.getElementById("needs-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
               >
-                Needs review{reviewQueue.length ? ` (${reviewQueue.length})` : ""}
+                Needs review{reviewGroups.length ? ` (${reviewGroups.length})` : ""}
               </button>
               <button onClick={startNewPersona}>New persona</button>
             </div>
@@ -630,9 +649,11 @@ export default function CreatorPortal() {
           )}
 
           <div className={`publish-state ${isDraftOnly ? "draft" : workspace.status}`}>
-            <strong>{isDraftOnly ? "New draft" : workspace.status === "live" ? "Live" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
+            <strong>{accessToken && !personaChecked ? "Loading…" : isDraftOnly ? "New draft" : workspace.status === "live" ? "Live" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
             <p>
-              {isDraftOnly
+              {accessToken && !personaChecked
+                ? "Checking your saved personas."
+                : isDraftOnly
                 ? "Not published yet. Your fan link appears after you publish."
                 : workspace.status === "live"
                   ? "Your fan link is ready to share."
@@ -742,7 +763,7 @@ export default function CreatorPortal() {
                 {[
                   ["Conversations", dashboardMetrics.conversations],
                   ["Fan messages", dashboardMetrics.fanMessages],
-                  ["Needs review", dashboardMetrics.flagged],
+                  ["Needs review", reviewGroups.length || dashboardMetrics.flagged],
                   ["Step-back rate", `${dashboardMetrics.fallbackRate}%`],
                   ["Revenue", "$0.00"],
                 ].map(([label, value]) => (
@@ -765,17 +786,24 @@ export default function CreatorPortal() {
                     <span className="section-kicker">Needs review</span>
                     <h3>Messages that need a look</h3>
                   </div>
-                  <strong>{reviewQueue.length}</strong>
+                  <strong>{reviewGroups.length}</strong>
                 </div>
                 <div className="review-list">
-                  {reviewQueue.slice(0, 6).map((item) => (
-                    <article key={item.id}>
-                      <span>{item.personaName}</span>
-                      <p>{item.text}</p>
-                      <small>{item.reason}</small>
+                  {reviewGroups.slice(0, 6).map((group) => (
+                    <article key={group.key} className="review-thread">
+                      <header>
+                        <span>{group.personaName || "Persona"}</span>
+                        <em>{group.reason}</em>
+                      </header>
+                      {group.items.map((item) => (
+                        <p key={item.id} className={item.role === "fan" ? "from-fan" : "from-persona"}>
+                          <small>{item.role === "fan" ? "Fan asked" : "AI replied"}</small>
+                          {item.text}
+                        </p>
+                      ))}
                     </article>
                   ))}
-                  {!reviewQueue.length && (
+                  {!reviewGroups.length && (
                     <div className="empty-state">
                       <strong>No messages need review yet</strong>
                       <p>Private, risky, or unclear fan messages will appear here.</p>

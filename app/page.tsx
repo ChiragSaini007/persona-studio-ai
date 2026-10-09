@@ -18,11 +18,11 @@ const proofPoints = [
   },
 ];
 
-const benchmarkRows = [
-  ["I add", "Public material, languages, and final approval."],
-  ["Fanline drafts", "My AI voice, topics, welcome message, examples, and fan preview."],
-  ["Fans open", "A clean DM-style chat link with an AI disclosure."],
-  ["I control", "Edit, pause, publish, and review sensitive messages."],
+const safeguards = [
+  ["Approval first", "Nothing is public until I publish it, and I can pause the link any time."],
+  ["Clear AI disclosure", "Fans always see that they are talking to my AI, grounded in material I approved."],
+  ["Topics I rule out", "Private, financial, or risky questions get a polite step-back, not a guess."],
+  ["A review queue", "Sensitive conversations are grouped so I can see what fans asked and how my AI answered."],
 ];
 
 export default function Home() {
@@ -34,7 +34,7 @@ export default function Home() {
         </Link>
         <div>
           <Link href="#workflow">Workflow</Link>
-          <Link href="#proof">Proof</Link>
+          <Link href="#safeguards">Safeguards</Link>
           <Link href="/demo/fan">Fan preview</Link>
           <Link href="/creator" className="nav-cta">
             Create
@@ -45,8 +45,8 @@ export default function Home() {
       <section className="editorial-hero" aria-labelledby="landing-title">
         <div className="hero-image-layer" aria-hidden="true" />
         <div className="hero-identity">
-          <span className="section-kicker">My AI fan line, approved by me</span>
-          <h1 id="landing-title">Fanline</h1>
+          <span className="section-kicker">Fanline · my AI fan line, approved by me</span>
+          <h1 id="landing-title">Answer every fan DM in my voice. Only after I approve it.</h1>
           <p>
             I add my public posts, transcripts, and FAQs. Fanline drafts my AI voice and gives me a fan chat link I can
             approve before anyone sees it.
@@ -67,14 +67,6 @@ export default function Home() {
               <strong>My AI drafted</strong>
               <strong>My fan link live</strong>
             </div>
-          </div>
-          <div className="hero-proof-strip" aria-label="Fanline safeguards">
-            {benchmarkRows.slice(0, 3).map(([label, value]) => (
-              <span key={label}>
-                <strong>{label}</strong>
-                {value}
-              </span>
-            ))}
           </div>
         </div>
       </section>
@@ -98,13 +90,13 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="proof" className="proof-band">
+      <section id="safeguards" className="proof-band">
         <div>
-          <span className="section-kicker">Production spine</span>
-          <h2>Built so I stay in control while fans get a faster answer.</h2>
+          <span className="section-kicker">Safeguards</span>
+          <h2>Fans get a faster answer. I stay in control.</h2>
         </div>
         <div className="proof-table">
-          {benchmarkRows.map(([label, value]) => (
+          {safeguards.map(([label, value]) => (
             <div key={label}>
               <strong>{label}</strong>
               <span>{value}</span>
@@ -112,6 +104,30 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      <section className="closing-cta" aria-labelledby="closing-title">
+        <h2 id="closing-title">See it work, then make it mine.</h2>
+        <p>Try the fan chat first, or paste my posts and have a draft voice in a few minutes.</p>
+        <div className="cta-row">
+          <Link href="/creator" className="primary-action">
+            Create my fanline
+          </Link>
+          <Link href="/demo/fan" className="secondary-action">
+            Try the fan chat
+          </Link>
+        </div>
+      </section>
+
+      <footer className="site-footer">
+        <Link href="/" className="wordmark">
+          Fanline
+        </Link>
+        <span>Fan chats are AI-generated from approved public material.</span>
+        <div>
+          <Link href="/demo/fan">Fan preview</Link>
+          <Link href="/creator">Creator portal</Link>
+        </div>
+      </footer>
     </main>
   );
 }

@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
             conversationId: message.conversation_id,
             personaId: conversation?.persona_id,
             personaName: flaggedPersona?.creator_name || "Persona",
+            role: message.role === "fan" ? "fan" : "persona",
             text: message.text,
             reason: message.flag_reason || "Fallback",
             createdAt: message.created_at,

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { SiteNav } from "../../components/site-nav";
 import { clearStoredSession, getStoredSession, refreshStoredSession, resendSignupConfirmation, supabasePasswordAuth } from "../auth-client";
 import {
   cleanHandle,
@@ -99,7 +98,7 @@ export default function CreatorPortal() {
   const [creatingNewPersona, setCreatingNewPersona] = useState(false);
   const [profileInputs, setProfileInputs] = useState({ topics: "", tone: "", phrases: "" });
   const [customLanguage, setCustomLanguage] = useState("");
-  const [dashTab, setDashTab] = useState<"overview" | "review">("overview");
+  const [dashTab, setDashTab] = useState<"overview" | "review" | "channels">("overview");
   const [showStep2Errors, setShowStep2Errors] = useState(false);
   const [personaChecked, setPersonaChecked] = useState(false);
   const [drafting, setDrafting] = useState(false);
@@ -648,265 +647,314 @@ export default function CreatorPortal() {
     }
   }
 
+  const statusLabel =
+    accessToken && !personaChecked
+      ? "Loading"
+      : isDraftOnly
+        ? "Draft"
+        : workspace.status === "live"
+          ? "Live"
+          : workspace.status === "paused"
+            ? "Paused"
+            : "Draft";
+  const statusTone = statusLabel === "Live" ? "live" : statusLabel === "Paused" ? "paused" : "draft";
+  const avatarTitle = workspace.creatorName.trim() || "Your AI avatar";
+
   return (
-    <main className="app-page">
-      <SiteNav>
-        {accessToken && hasSavedPersona && <Link href={publicPath}>My fan link</Link>}
-      </SiteNav>
+    <div className="console">
+      <header className="console-topbar">
+        <Link href="/" className="wordmark">
+          Fanline
+        </Link>
+        <span className="console-crumb">Creator console</span>
+        <div className="console-topbar-right">
+          <Link href="/demo/fan">Demo</Link>
+          {accessToken && hasSavedPersona && workspace.status === "live" && <Link href={publicPath}>View public avatar</Link>}
+          {accessToken && (
+            <span className="account-chip">
+              <span title={email}>{email}</span>
+              <button type="button" onClick={signOut}>
+                Sign out
+              </button>
+            </span>
+          )}
+        </div>
+      </header>
 
-      <section className="portal-shell">
-        <aside className="wizard-panel">
-          <span className="section-kicker">Creator portal</span>
-          <h1>{viewMode === "dashboard" ? "Manage your AI personas" : "Create your AI persona"}</h1>
-          <p>
-            {viewMode === "dashboard"
-              ? "Your live personas, fan links, messages to review, and metrics in one place."
-              : "Paste your content. We draft your voice and topics. You approve everything before it goes live."}
-          </p>
-
-          {viewMode === "dashboard" ? (
-            <div className="dashboard-nav">
+      <div className={`console-body ${accessToken ? "" : "no-nav"}`}>
+        {accessToken && (
+          <aside className="console-nav" aria-label="Console navigation">
+            <nav>
               <button
-                className={dashTab === "overview" ? "active" : ""}
-                aria-current={dashTab === "overview" ? "page" : undefined}
+                className={viewMode === "dashboard" && dashTab === "overview" ? "active" : ""}
+                aria-current={viewMode === "dashboard" && dashTab === "overview" ? "page" : undefined}
                 onClick={() => {
+                  setViewMode("dashboard");
                   setDashTab("overview");
-                  window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
+                disabled={!hasSavedPersona}
               >
                 Overview
               </button>
-              <button onClick={() => editCurrentPersona(2)}>Edit persona</button>
               <button
-                className={dashTab === "review" ? "active" : ""}
-                aria-current={dashTab === "review" ? "page" : undefined}
-                onClick={() => {
-                  setDashTab("review");
-                  document.getElementById("needs-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
+                className={viewMode === "onboarding" ? "active" : ""}
+                aria-current={viewMode === "onboarding" ? "page" : undefined}
+                onClick={() => (hasSavedPersona ? editCurrentPersona(2) : setViewMode("onboarding"))}
               >
-                Needs review{reviewGroups.length ? ` (${reviewGroups.length})` : ""}
+                Avatar
               </button>
-              <button onClick={startNewPersona}>New persona</button>
+              <button
+                className={viewMode === "dashboard" && dashTab === "review" ? "active" : ""}
+                aria-current={viewMode === "dashboard" && dashTab === "review" ? "page" : undefined}
+                onClick={() => {
+                  setViewMode("dashboard");
+                  setDashTab("review");
+                }}
+                disabled={!hasSavedPersona}
+              >
+                Conversations{reviewGroups.length ? <em>{reviewGroups.length}</em> : null}
+              </button>
+              <button
+                className={viewMode === "dashboard" && dashTab === "channels" ? "active" : ""}
+                aria-current={viewMode === "dashboard" && dashTab === "channels" ? "page" : undefined}
+                onClick={() => {
+                  setViewMode("dashboard");
+                  setDashTab("channels");
+                }}
+                disabled={!hasSavedPersona}
+              >
+                Channels
+              </button>
+              <button disabled>
+                Revenue<small>Soon</small>
+              </button>
+            </nav>
+            <div className="console-nav-foot">
+              <span className={`status-pill ${statusTone}`}>{statusLabel}</span>
+              <button className="secondary-action" onClick={startNewPersona}>
+                New avatar
+              </button>
             </div>
-          ) : (
-            <div className="wizard-steps">
-              {wizardSteps.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    if (!accessToken && item.id > 1) {
-                      setStep(1);
-                      setSystemNotice("Create or sign in to a creator account before continuing.");
-                      return;
-                    }
-                    setStep(item.id);
-                  }}
-                  className={`${step === item.id ? "active" : ""} ${step > item.id || workspace.status === "live" ? "done" : ""} ${
-                    !accessToken && item.id > 1 ? "locked" : ""
-                  }`}
-                >
-                  <span>{item.id}</span>
-                  {item.label}
-                </button>
-              ))}
+          </aside>
+        )}
+
+        <main className="console-main">
+          {systemNotice && step !== 1 && viewMode === "onboarding" && (
+            <div className="system-notice" role="status">
+              {systemNotice}
             </div>
           )}
 
-          <div className={`publish-state ${isDraftOnly ? "draft" : workspace.status}`}>
-            <strong>{accessToken && !personaChecked ? "Loading…" : isDraftOnly ? "New draft" : workspace.status === "live" ? "Live" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
-            <p>
-              {accessToken && !personaChecked
-                ? "Checking your saved personas."
-                : isDraftOnly
-                ? "Not published yet. Your fan link appears after you publish."
-                : workspace.status === "live"
-                  ? "Your fan link is ready to share."
-                  : workspace.status === "paused"
-                    ? "Paused. Fans see a “not live” page until you publish again."
-                    : "Saved as a draft. Publish to get your fan link."}
-            </p>
-          </div>
-          {systemNotice && step !== 1 && <div className="system-notice">{systemNotice}</div>}
-        </aside>
+          {viewMode === "onboarding" && (
+            <ol className="stepper" aria-label="Avatar setup progress">
+              {wizardSteps.map((item) => (
+                <li key={item.id} className={`${step === item.id ? "active" : ""} ${step > item.id || (workspace.status === "live" && !isDraftOnly) ? "done" : ""}`}>
+                  <button
+                    onClick={() => {
+                      if (!accessToken && item.id > 1) {
+                        setStep(1);
+                        setSystemNotice("Create or sign in to a creator account before continuing.");
+                        return;
+                      }
+                      setStep(item.id);
+                    }}
+                    aria-current={step === item.id ? "step" : undefined}
+                  >
+                    <span>{step > item.id ? "✓" : item.id}</span>
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
 
-        <section className="wizard-content">
           {viewMode === "dashboard" && (
             <div className="screen-stack">
-              <section className="creator-dashboard-hero">
+              <header className="page-header">
                 <div>
-                  <span className="section-kicker">Creator dashboard</span>
-                  <h2>{workspace.creatorName || "Your persona studio"}</h2>
+                  <h1>
+                    {dashTab === "review" ? "Conversations" : dashTab === "channels" ? "Channels" : avatarTitle}
+                  </h1>
                   <p>
-                    See what is live, what fans ask, what needs review, and create the next persona from here.
+                    {dashTab === "review"
+                      ? "Sensitive or unclear fan messages, grouped by conversation, so you can see what was asked and how your avatar answered."
+                      : dashTab === "channels"
+                        ? "How fans can reach your avatar. Chat is live today; voice and video are on the way."
+                        : (
+                          <>
+                            <span className={`status-pill ${statusTone}`}>{statusLabel}</span> @{cleanHandle(workspace.creatorHandle)}
+                          </>
+                        )}
                   </p>
                 </div>
-                <div className={`dashboard-status ${workspace.status}`}>
-                  <span>{workspace.status}</span>
-                  <strong>{workspace.status === "live" ? "Ready to share" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
-                </div>
-              </section>
-
-              <section className="loop-card" aria-label="Is your AI working?">
-                <div className="loop-verdict">
-                  <span className="section-kicker">Is it working?</span>
-                  <h3>{loopVerdict.headline}</h3>
-                  <p>{loopVerdict.detail}</p>
-                  <div className="button-row compact-actions">
-                    {workspace.status !== "live" ? (
-                      <button className="primary-action" onClick={() => void savePersona("live")} disabled={saving}>
-                        Publish my fan link
-                      </button>
-                    ) : (
-                      <button className="primary-action" onClick={() => void copyShareLink()}>
-                        Copy fan link
-                      </button>
-                    )}
-                    <button className="secondary-action" onClick={() => editCurrentPersona(2)}>
-                      Add content to improve answers
-                    </button>
-                  </div>
-                </div>
-                <ol className="loop-steps">
-                  {loopSteps.map((item) => (
-                    <li key={item.label} className={item.done ? "done" : ""}>
-                      <span>{item.label}</span>
-                      <strong>{item.value}</strong>
-                      <small>{item.note}</small>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-
-              <section className="creator-signal-strip" aria-label="Persona readiness signals">
-                {dashboardSignals.map(([label, value]) => (
-                  <div key={String(label)}>
-                    <span>{String(label)}</span>
-                    <strong>{String(value)}</strong>
-                  </div>
-                ))}
-              </section>
-
-              <section className="dashboard-grid">
-                <div className="product-card persona-management-card">
-                  <span className="section-kicker">Selected persona</span>
-                  <h3>{workspace.creatorName || "Untitled persona"}</h3>
-                  <p>@{cleanHandle(workspace.creatorHandle)}</p>
-                  <div className="share-url-box compact dashboard-link">
-                    <span>Fan link</span>
-                    <strong>{shareUrl}</strong>
-                  </div>
-                  <div className="button-row compact-actions">
-                    <Link className="primary-action" href={publicPath}>
-                      Open fan link
-                    </Link>
-                    <button className="secondary-action" onClick={() => editCurrentPersona(2)}>
-                      Edit persona
-                    </button>
-                    <button className="secondary-action" onClick={() => void savePersona(workspace.status === "live" ? "paused" : "live")}>
-                      {workspace.status === "live" ? "Pause" : "Publish"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="product-card persona-management-card new-persona-card">
-                  <span className="section-kicker">Create more</span>
-                  <h3>Build another voice</h3>
-                  <p>Create a separate persona for another creator, show, character, or content lane.</p>
-                  <button className="primary-action" onClick={startNewPersona}>
-                    New persona
+                <div className="page-header-actions">
+                  <button className="secondary-action" onClick={() => editCurrentPersona(2)}>
+                    Edit avatar
                   </button>
-                </div>
-              </section>
-
-              <section className="product-card portfolio-card">
-                <div className="section-heading-row">
-                  <div>
-                    <span className="section-kicker">Persona portfolio</span>
-                    <h3>All personas</h3>
-                  </div>
-                </div>
-                <div className="persona-table">
-                  {(personaPortfolio.length ? personaPortfolio : []).map((persona) => {
-                    const metrics = persona.id ? metricsByPersona[persona.id] : undefined;
-                    return (
-                      <button
-                        key={persona.id || persona.creator_handle}
-                        className={cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle) ? "active" : ""}
-                        onClick={() => selectPersona(persona)}
-                      >
-                        <span>
-                          <strong>{persona.creator_name}</strong>
-                          <small>@{cleanHandle(persona.creator_handle)}</small>
-                        </span>
-                        <em>{persona.status}</em>
-                        <span>{metrics?.conversations || 0} chats</span>
-                        <span>{metrics?.fanMessages || 0} messages</span>
-                        <span>{metrics?.fallbackRate || 0}% step-back</span>
-                      </button>
-                    );
-                  })}
-                  {!personaPortfolio.length && (
-                    <div className="empty-state">
-                      <strong>No published personas yet</strong>
-                      <p>Create and publish your first persona to see it here.</p>
-                    </div>
+                  {workspace.status === "live" ? (
+                    <button className="primary-action" onClick={() => void copyShareLink()}>
+                      Copy fan link
+                    </button>
+                  ) : (
+                    <button className="primary-action" onClick={() => void savePersona("live")} disabled={saving}>
+                      Publish avatar
+                    </button>
                   )}
                 </div>
-              </section>
+              </header>
 
-              <section className="analytics-grid">
-                {[
-                  ["Conversations", dashboardMetrics.conversations],
-                  ["Fan messages", dashboardMetrics.fanMessages],
-                  ["Needs review", reviewGroups.length || dashboardMetrics.flagged],
-                  ["Step-back rate", `${dashboardMetrics.fallbackRate}%`],
-                  ["Revenue", "$0.00"],
-                ].map(([label, value]) => (
-                  <div key={String(label)} className="product-card metric-card">
-                    <span>{String(label)}</span>
-                    <strong>{String(value)}</strong>
-                  </div>
-                ))}
-              </section>
-
-              <section className="product-card future-revenue-card">
-                <span className="section-kicker">Revenue</span>
-                <h3>Free access is active</h3>
-                <p>Revenue tracking will appear here when paid fan chat is switched on in a future release.</p>
-              </section>
-
-              <section className="product-card review-queue-card" id="needs-review">
-                <div className="section-heading-row">
-                  <div>
-                    <span className="section-kicker">Needs review</span>
-                    <h3>Messages that need a look</h3>
-                  </div>
-                  <strong>{reviewGroups.length}</strong>
-                </div>
-                <div className="review-list">
-                  {reviewGroups.slice(0, 6).map((group) => (
-                    <article key={group.key} className="review-thread">
-                      <header>
-                        <span>{group.personaName || "Persona"}</span>
-                        <em>{group.reason}</em>
-                      </header>
-                      {group.items.map((item) => (
-                        <p key={item.id} className={item.role === "fan" ? "from-fan" : "from-persona"}>
-                          <small>{item.role === "fan" ? "Fan asked" : "AI replied"}</small>
-                          {item.text}
-                        </p>
+              {dashTab === "overview" && (
+                <>
+                  <section className="loop-card" aria-label="Is your avatar working?">
+                    <div className="loop-verdict">
+                      <span className="section-kicker">Performance</span>
+                      <h3>{loopVerdict.headline}</h3>
+                      <p>{loopVerdict.detail}</p>
+                    </div>
+                    <ol className="loop-steps">
+                      {loopSteps.map((item) => (
+                        <li key={item.label} className={item.done ? "done" : ""}>
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
+                          <small>{item.note}</small>
+                        </li>
                       ))}
-                    </article>
-                  ))}
-                  {!reviewGroups.length && (
-                    <div className="empty-state">
-                      <strong>No messages need review yet</strong>
-                      <p>Private, risky, or unclear fan messages will appear here.</p>
+                    </ol>
+                  </section>
+
+                  <section className="dashboard-grid">
+                    <div className="product-card persona-management-card">
+                      <span className="section-kicker">Public link</span>
+                      <div className="share-url-box compact dashboard-link">
+                        <span>Fan chat</span>
+                        <strong>{shareUrl}</strong>
+                      </div>
+                      <div className="button-row compact-actions">
+                        <Link className="secondary-action" href={publicPath}>
+                          Open fan chat
+                        </Link>
+                        {workspace.status === "live" && (
+                          <button className="secondary-action" onClick={() => void savePersona("paused")} disabled={saving}>
+                            Pause
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </section>
+                    <div className="product-card persona-management-card">
+                      <span className="section-kicker">Needs your attention</span>
+                      <h3>
+                        {reviewGroups.length
+                          ? `${reviewGroups.length} ${reviewGroups.length === 1 ? "conversation" : "conversations"} to review`
+                          : "Nothing to review"}
+                      </h3>
+                      <p>Private, risky, or unclear fan messages are held here for you.</p>
+                      <button className="secondary-action" onClick={() => setDashTab("review")}>
+                        Open conversations
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="product-card portfolio-card">
+                    <div className="section-heading-row">
+                      <div>
+                        <span className="section-kicker">Your avatars</span>
+                      </div>
+                    </div>
+                    <div className="persona-table">
+                      {personaPortfolio.map((persona) => {
+                        const metrics = persona.id ? metricsByPersona[persona.id] : undefined;
+                        return (
+                          <button
+                            key={persona.id || persona.creator_handle}
+                            className={cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle) ? "active" : ""}
+                            onClick={() => selectPersona(persona)}
+                          >
+                            <span>
+                              <strong>{persona.creator_name || "Unnamed avatar"}</strong>
+                              <small>@{cleanHandle(persona.creator_handle)}</small>
+                            </span>
+                            <em>{persona.status}</em>
+                            <span>{metrics?.conversations || 0} chats</span>
+                            <span>{metrics?.fanMessages || 0} messages</span>
+                            <span>{metrics?.fallbackRate || 0}% stepped back</span>
+                          </button>
+                        );
+                      })}
+                      {!personaPortfolio.length && (
+                        <div className="empty-state">
+                          <strong>No avatars yet</strong>
+                          <p>Create and publish your first avatar to see it here.</p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                </>
+              )}
+
+              {dashTab === "review" && (
+                <section className="product-card review-queue-card" id="needs-review">
+                  <div className="review-list">
+                    {reviewGroups.slice(0, 20).map((group) => (
+                      <article key={group.key} className="review-thread">
+                        <header>
+                          <span>{group.personaName || "Avatar"}</span>
+                          <em>{group.reason}</em>
+                        </header>
+                        {group.items.map((item) => (
+                          <p key={item.id} className={item.role === "fan" ? "from-fan" : "from-persona"}>
+                            <small>{item.role === "fan" ? "Fan asked" : "Avatar replied"}</small>
+                            {item.text}
+                          </p>
+                        ))}
+                      </article>
+                    ))}
+                    {!reviewGroups.length && (
+                      <div className="empty-state">
+                        <strong>No conversations need review</strong>
+                        <p>Private, risky, or unclear fan messages will appear here.</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {dashTab === "channels" && (
+                <section className="channel-grid" aria-label="Channels">
+                  <article className="channel-card live">
+                    <header>
+                      <h3>Chat</h3>
+                      <span className="status-pill live">Live</span>
+                    </header>
+                    <p>Fans message your avatar from one link. Replies come from your approved content and respect your boundaries.</p>
+                    <div className="share-url-box compact">
+                      <span>Fan link</span>
+                      <strong>{shareUrl}</strong>
+                    </div>
+                    <div className="button-row compact-actions">
+                      <button className="secondary-action" onClick={() => void copyShareLink()}>
+                        Copy link
+                      </button>
+                      <Link className="secondary-action" href={publicPath}>
+                        Open chat
+                      </Link>
+                    </div>
+                  </article>
+                  <article className="channel-card">
+                    <header>
+                      <h3>Voice</h3>
+                      <span className="status-pill soon">Coming soon</span>
+                    </header>
+                    <p>Fans talk to your avatar out loud. Voice will only ever use your voice with your explicit consent.</p>
+                  </article>
+                  <article className="channel-card">
+                    <header>
+                      <h3>Video calls</h3>
+                      <span className="status-pill soon">Coming soon</span>
+                    </header>
+                    <p>Face-to-face conversations with a video avatar, under the same approvals and boundaries as chat.</p>
+                  </article>
+                </section>
+              )}
             </div>
           )}
 
@@ -1513,8 +1561,8 @@ export default function CreatorPortal() {
               </section>
             </div>
           )}
-        </section>
-      </section>
-    </main>
+        </main>
+      </div>
+    </div>
   );
 }

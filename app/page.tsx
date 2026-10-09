@@ -1,168 +1,205 @@
 import Link from "next/link";
 
-const proofPoints = [
+const channels = [
   {
-    label: "1. Connect",
-    title: "Bring the content you already make",
-    body: "Paste captions, transcripts, posts, and FAQs. No interview, no training sessions.",
+    name: "Chat",
+    status: "Live today",
+    live: true,
+    body: "Fans message your avatar from one link. Replies come from content you approved and stay inside the limits you set.",
   },
   {
-    label: "2. Train",
-    title: "Get a working AI version of you",
-    body: "Fanline drafts your voice, topics, and welcome message in minutes. You edit it until it sounds right.",
+    name: "Voice",
+    status: "Coming soon",
+    live: false,
+    body: "Fans talk to your avatar out loud. Your voice is only ever used with your explicit, recorded consent.",
   },
   {
-    label: "3. Launch",
-    title: "Put one link in front of fans",
-    body: "Nothing goes live until you approve it. Fans chat with your AI from a single link in your bio.",
-  },
-  {
-    label: "4. Decide",
-    title: "See if it is worth your time",
-    body: "Fans reached, messages, replies handled without you, and revenue in one dashboard. Keep it, pause it, or change it.",
+    name: "Video calls",
+    status: "Coming soon",
+    live: false,
+    body: "Face-to-face conversations with a video avatar, under the same approvals and boundaries as chat.",
   },
 ];
 
-const safeguards = [
-  ["Approval first", "Nothing is public until you publish it, and you can pause the link any time."],
-  ["Clear AI disclosure", "Fans always see they are talking to your AI, grounded in material you approved."],
-  ["Topics I rule out", "Private, financial, or risky questions get a polite step-back, never a guess."],
-  ["A review queue", "Sensitive conversations are grouped so you can see what fans asked and how your AI answered."],
+const steps = [
+  {
+    title: "Connect your content",
+    body: "Paste the captions, transcripts, interviews and FAQs you already have. No recording sessions.",
+  },
+  {
+    title: "Train your avatar",
+    body: "Fanline drafts your voice, topics and welcome message. You edit until it sounds like you.",
+  },
+  {
+    title: "Put it in front of fans",
+    body: "Confirm consent, publish, and share one link. Fans chat with your avatar any time of day.",
+  },
+  {
+    title: "Decide if it is worth it",
+    body: "See who is talking, what they ask, how much your avatar handled, and revenue once paid access arrives.",
+  },
+];
+
+const controls = [
+  ["Consent comes first", "Nothing is drafted, saved or published until you confirm you are the creator, or have their written permission."],
+  ["You approve before it goes live", "Review the voice, the topics and the welcome message. Pause the avatar at any time."],
+  ["Boundaries you define", "Rule out topics like politics, finance or private life, and list phrases your avatar must never say."],
+  ["Fans always know it is AI", "Every conversation is clearly labelled as your AI avatar, not you."],
+  ["A review queue for risky moments", "Sensitive or unclear messages are held in one place, with the fan's question next to your avatar's reply."],
 ];
 
 export default function Home() {
   return (
-    <main className="site-shell editorial-home">
-      <nav className="landing-nav editorial-nav" aria-label="Main">
+    <div className="lp">
+      <header className="lp-nav">
         <Link href="/" className="wordmark">
           Fanline
         </Link>
-        <div>
-          <Link href="#workflow">How it works</Link>
-          <Link href="#safeguards">Safeguards</Link>
+        <nav aria-label="Main">
+          <Link href="#channels">Channels</Link>
+          <Link href="#how">How it works</Link>
+          <Link href="#control">Control</Link>
           <Link href="/demo/fan">Demo</Link>
-          <Link href="/creator" className="nav-cta">
-            Get started
+        </nav>
+        <div className="lp-nav-cta">
+          <Link href="/creator" className="lp-link">
+            Sign in
+          </Link>
+          <Link href="/creator" className="lp-btn lp-btn-primary">
+            Build your avatar
           </Link>
         </div>
-      </nav>
+      </header>
 
-      <section className="editorial-hero" aria-labelledby="landing-title">
-        <div className="hero-image-layer hero-visual" aria-hidden="true">
-          <div className="hv-header">
-            <span className="hv-avatar">You</span>
-            <div>
-              <strong>Your AI</strong>
-              <small>Live · approved by you</small>
+      <main>
+        <section className="lp-hero" aria-labelledby="lp-title">
+          <div className="lp-hero-copy">
+            <p className="lp-eyebrow">For creators and public figures</p>
+            <h1 id="lp-title">Your AI avatar, for every fan.</h1>
+            <p className="lp-lede">
+              Build an AI version of yourself that talks with fans one-to-one in chat, and soon in voice and video. You
+              give consent, you approve every detail, and you see what it is worth.
+            </p>
+            <div className="lp-cta-row">
+              <Link href="/creator" className="lp-btn lp-btn-primary">
+                Build your avatar
+              </Link>
+              <Link href="/demo/fan" className="lp-btn lp-btn-secondary">
+                Try a live demo
+              </Link>
             </div>
-            <em>Sample</em>
+            <p className="lp-note">Consent-first. Nothing goes live without your approval.</p>
           </div>
-          <div className="hv-chat">
-            <p className="hv-fan">How do you stay consistent when you are burnt out?</p>
-            <p className="hv-ai">
-              Shrink the goal, not the standard. One small post still counts. Want my 3-step reset?
-              <small>From your approved content</small>
+
+          <figure className="lp-avatar-card" aria-label="Example of a fan conversation with a creator's AI avatar">
+            <div className="lp-avatar-head">
+              <span className="lp-avatar-dot" aria-hidden="true">
+                You
+              </span>
+              <div>
+                <strong>Your AI avatar</strong>
+                <small>Example conversation</small>
+              </div>
+            </div>
+            <div className="lp-tabs" role="presentation">
+              <span className="on">Chat</span>
+              <span>
+                Voice <em>Soon</em>
+              </span>
+              <span>
+                Video <em>Soon</em>
+              </span>
+            </div>
+            <div className="lp-convo">
+              <p className="lp-fan">How do you stay consistent when you are burnt out?</p>
+              <p className="lp-ai">
+                Shrink the goal, not the standard. One small post still counts. Want the three-step reset I use?
+              </p>
+              <p className="lp-source">Answered from content you approved</p>
+            </div>
+            <ul className="lp-guards">
+              <li>Consent confirmed</li>
+              <li>Boundaries on</li>
+              <li>Review queue on</li>
+            </ul>
+          </figure>
+        </section>
+
+        <section id="channels" className="lp-section">
+          <div className="lp-section-head">
+            <h2>One avatar. Every way fans want to reach you.</h2>
+            <p>
+              Fans get a personal conversation instead of a comment thread. You stay in control of every channel.
             </p>
           </div>
-          <div className="hv-stats">
-            <div>
-              <strong>128</strong>
-              <span>Fans chatting</span>
-            </div>
-            <div>
-              <strong>94%</strong>
-              <span>Handled without you</span>
-            </div>
-            <div>
-              <strong>3</strong>
-              <span>Need your review</span>
-            </div>
+          <div className="lp-channels">
+            {channels.map((channel) => (
+              <article key={channel.name} className={`lp-channel ${channel.live ? "live" : ""}`}>
+                <header>
+                  <h3>{channel.name}</h3>
+                  <span className={channel.live ? "lp-badge live" : "lp-badge"}>{channel.status}</span>
+                </header>
+                <p>{channel.body}</p>
+              </article>
+            ))}
           </div>
-        </div>
-        <div className="hero-identity">
-          <span className="section-kicker">AI fan chat for creators</span>
-          <h1 id="landing-title">Answer every fan in your voice. Only after you approve it.</h1>
-          <p>
-            Paste your posts, transcripts, and FAQs. Fanline drafts your AI voice and gives you a fan chat link. You
-            review it before anyone sees it.
-          </p>
-          <div className="cta-row">
-            <Link href="/creator" className="primary-action">
-              Create your fan link
-            </Link>
-            <Link href="/demo/fan" className="secondary-action">
-              Try the demo
-            </Link>
-          </div>
-          <div className="hero-outcome-panel" aria-label="Fanline output">
-            <span>What you get</span>
-            <p>An approved AI voice, a public fan chat link, and a dashboard to review conversations.</p>
-            <div>
-              <strong>Your content in</strong>
-              <strong>Your voice drafted</strong>
-              <strong>Your link live</strong>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section id="workflow" className="workflow-band">
-        <div className="workflow-copy">
-          <span className="section-kicker">How it works</span>
-          <h2>From your content to a working AI, in four steps.</h2>
-        </div>
-        <div className="workflow-rail">
-          {proofPoints.map((item, index) => (
-            <article key={item.label} className="workflow-row">
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <div>
-                <small>{item.label}</small>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
+        <section id="how" className="lp-section">
+          <div className="lp-section-head">
+            <h2>From your content to a working avatar.</h2>
+            <p>Four steps, and one decision at the end that is yours to make.</p>
+          </div>
+          <ol className="lp-steps">
+            {steps.map((step, index) => (
+              <li key={step.title}>
+                <span aria-hidden="true">{index + 1}</span>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section id="control" className="lp-section lp-control">
+          <div className="lp-section-head">
+            <h2>Built to protect your name.</h2>
+            <p>Your reputation is the product. Every control below is on by default or required.</p>
+          </div>
+          <dl className="lp-controls">
+            {controls.map(([term, detail]) => (
+              <div key={term}>
+                <dt>{term}</dt>
+                <dd>{detail}</dd>
               </div>
-            </article>
-          ))}
-        </div>
-      </section>
+            ))}
+          </dl>
+        </section>
 
-      <section id="safeguards" className="proof-band">
-        <div>
-          <span className="section-kicker">Safeguards</span>
-          <h2>Fans get a faster answer. You stay in control.</h2>
-        </div>
-        <div className="proof-table">
-          {safeguards.map(([label, value]) => (
-            <div key={label}>
-              <strong>{label}</strong>
-              <span>{value}</span>
-            </div>
-          ))}
-        </div>
-      </section>
+        <section className="lp-final">
+          <h2>Start with the content you already have.</h2>
+          <p>Create your avatar, test it with a demo conversation, and decide what happens next.</p>
+          <div className="lp-cta-row">
+            <Link href="/creator" className="lp-btn lp-btn-primary">
+              Build your avatar
+            </Link>
+            <Link href="/demo/fan" className="lp-btn lp-btn-secondary">
+              Try a live demo
+            </Link>
+          </div>
+        </section>
+      </main>
 
-      <section className="closing-cta" aria-labelledby="closing-title">
-        <h2 id="closing-title">See it work, then make it yours.</h2>
-        <p>Try the fan chat first, or paste your posts and have a draft voice in a few minutes.</p>
-        <div className="cta-row">
-          <Link href="/creator" className="primary-action">
-            Create your fan link
-          </Link>
-          <Link href="/demo/fan" className="secondary-action">
-            Try the demo
-          </Link>
-        </div>
-      </section>
-
-      <footer className="site-footer">
+      <footer className="lp-footer">
         <Link href="/" className="wordmark">
           Fanline
         </Link>
-        <span>Fan chats are AI-generated from approved public material.</span>
-        <div>
-          <Link href="/demo/fan">Fan preview</Link>
-          <Link href="/creator">Creator portal</Link>
-        </div>
+        <span>AI avatars for creators and public figures. Fans are always told they are talking to an AI.</span>
+        <nav aria-label="Footer">
+          <Link href="/demo/fan">Demo</Link>
+          <Link href="/creator">Creator console</Link>
+        </nav>
       </footer>
-    </main>
+    </div>
   );
 }

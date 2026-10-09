@@ -35,6 +35,12 @@ function extractOutputText(data: { output_text?: string; output?: { content?: { 
   );
 }
 
+function trimToLastSentence(text: string) {
+  const end = Math.max(text.lastIndexOf(". "), text.lastIndexOf("? "), text.lastIndexOf("! "), text.lastIndexOf(".\n"), text.lastIndexOf("?\n"), text.lastIndexOf("!\n"));
+  if (/[.!?)"”]$/.test(text.trim())) return text;
+  return end > text.length * 0.4 ? text.slice(0, end + 1) : text;
+}
+
 function cleanChatReply(text: string) {
   return text
     .replace(/\*\*(.*?)\*\*/g, "$1")
@@ -45,8 +51,9 @@ function cleanChatReply(text: string) {
 
 function answerTokenBudget(answerMode: string, allowWebSearch: boolean, resolvedQuestion: string) {
   const asksForFullCase = /\b(complete|full|deep|case study|business case|with numbers|numbers|metrics)\b/i.test(resolvedQuestion);
-  if (answerMode === "estimation" || allowWebSearch || asksForFullCase) return 950;
-  return 620;
+  // Reasoning tokens count against this budget, so leave headroom beyond the visible answer.
+  if (answerMode === "estimation" || allowWebSearch || asksForFullCase) return 1600;
+  return 1100;
 }
 
 async function createResponse(body: Record<string, unknown>) {
@@ -264,7 +271,8 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
             answerMode === "estimation"
               ? "For estimation: define the scope, list 3-5 drivers, show an example calculation, give low/base/high ranges when possible, and convert currencies if the user asks."
               : "Avoid over-structuring casual answers.",
-            "Format for a chat bubble, not an article. Use 2-4 short paragraphs or a short numbered list with each point on its own line.",
+            "Format for a chat bubble, not an article. Reply like a DM: aim for 40-110 words unless the fan explicitly asks for depth, and end by inviting one natural follow-up.",
+            "Use 1-3 short paragraphs, or at most a 3-item list with each point on its own line.",
             "For number-heavy case studies, give the most important 5-7 numbers, explain why each matters, and stop cleanly with a next section suggestion.",
             "Do not use Markdown bold, headings, tables, or long uninterrupted blocks of text.",
             "Keep the answer complete. Do not start a numbered list unless you can finish every item.",
@@ -327,7 +335,8 @@ export async function generateChatReply(persona: PersonaRecord, text: string, fl
     });
   }
 
-  const reply = responseResult.data ? cleanChatReply(extractOutputText(responseResult.data)) : "";
+  const rawReply = responseResult.data ? cleanChatReply(extractOutputText(responseResult.data)) : "";
+  const reply = responseResult.data?.status === "incomplete" ? trimToLastSentence(rawReply) : rawReply;
   if (!reply) {
     return {
       reply: buildLocalReply({ ...persona, profile }, text, flagReason),

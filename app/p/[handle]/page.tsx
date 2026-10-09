@@ -85,6 +85,12 @@ function renderMessageText(text: string) {
   return parts.length ? parts : text;
 }
 
+function maskEmail(email: string) {
+  const [name, domain] = email.split("@");
+  if (!domain) return email;
+  return `${name.slice(0, 1)}${"•".repeat(Math.max(2, Math.min(name.length - 1, 5)))}@${domain}`;
+}
+
 export default function FanChatPage() {
   const { workspace, setWorkspace } = usePersonaWorkspace();
   const params = useParams<{ handle: string }>();
@@ -107,8 +113,9 @@ export default function FanChatPage() {
   const activeConversation = workspace.conversations[workspace.conversations.length - 1];
   const activePersona = remotePersona || workspace;
   const paidFromStripe = useMemo(() => searchParams.get("paid") === "1", [searchParams]);
-  const creatorName = activePersona.creatorName?.trim() || "the creator";
-  const creatorFirstName = creatorName === "the creator" ? "the creator" : creatorName.split(" ")[0] || "the creator";
+  const creatorName = activePersona.creatorName?.trim() || (handle ? `@${String(handle).replace(/^@/, "")}` : "the creator");
+  const creatorFirstName = creatorName.startsWith("@") || creatorName === "the creator" ? creatorName : creatorName.split(" ")[0] || "the creator";
+  const avatarInitials = creatorName.replace(/^@/, "").slice(0, 2).toUpperCase();
   const thinkingPhrases = [
     `${creatorFirstName} is thinking...`,
     `Checking ${creatorFirstName}'s material...`,
@@ -413,7 +420,7 @@ export default function FanChatPage() {
 
         <header className="fan-hero dm-hero">
           <div className="fan-title-block">
-            <div className="fan-avatar">{creatorName.slice(0, 2).toUpperCase()}</div>
+            <div className="fan-avatar">{avatarInitials}</div>
             <p className="section-kicker">Public fan chat</p>
             <h1>
               Chat with <span>{creatorName}</span>
@@ -427,7 +434,7 @@ export default function FanChatPage() {
         <section className="chat-layout public-chat-layout">
           <div className="chat-window">
             <div className="dm-thread-header">
-              <div className="dm-avatar">{creatorName.slice(0, 2).toUpperCase()}</div>
+              <div className="dm-avatar">{avatarInitials}</div>
               <div>
                 <strong>{creatorName}&apos;s AI</strong>
                 <span>AI persona</span>
@@ -471,7 +478,7 @@ export default function FanChatPage() {
                     )}
                     {fanAccessToken && (
                       <div className="connected-account fan-connected">
-                        <strong>{fanEmail || "Fan account connected"}</strong>
+                        <strong>{fanEmail ? maskEmail(fanEmail) : "Fan account connected"}</strong>
                         <button className="secondary-action" onClick={signOutFan}>
                           Sign out
                         </button>
@@ -529,7 +536,9 @@ export default function FanChatPage() {
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
                   disabled={!started || isSending}
-                  placeholder={`Message ${creatorFirstName}'s AI...`}
+                  placeholder={started ? `Message ${creatorFirstName}'s AI...` : "Start the conversation above to send a message"}
+                  aria-label={`Message ${creatorFirstName}'s AI`}
+                  enterKeyHint="send"
                 />
                 <button className="primary-btn compact" disabled={!started || isSending}>
                   {isSending ? "Sending" : "Send"}

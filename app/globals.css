@@ -1942,3 +1942,93 @@ textarea {
     max-width: 92%;
   }
 }
+
+
+/* Form validation */
+.field-error {
+  color: #a3261a;
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-top: 6px;
+}
+
+input[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: #c4362a;
+  box-shadow: 0 0 0 3px rgba(196, 54, 42, 0.14);
+}
+
+.error-summary {
+  background: #fff1ee;
+  border: 1px solid #f0b8b0;
+  border-radius: var(--radius);
+  color: #7a1d14;
+  margin: 18px 0 4px;
+  padding: 14px 16px;
+}
+
+.error-summary ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.error-summary a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+
+/* Fan chat polish */
+.side-stack > * {
+  min-width: 0;
+}
+
+.history-card {
+  overflow: hidden;
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.history-list button {
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.history-list button strong,
+.history-list button span {
+  display: block;
+  max-width: 100%;
+}
+
+.history-list button strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dark-card {
+  align-self: start;
+}
+
+.fan-title-block h1 {
+  line-height: 1.04;
+  margin-bottom: 0.3em;
+}
+
+.empty-public h1 {
+  line-height: 1.08;
+  margin: 0 0 16px;
+  text-wrap: balance;
+}
+
+.empty-public p {
+  margin: 0 auto 24px;
+  max-width: 44ch;
+}

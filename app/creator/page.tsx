@@ -84,6 +84,8 @@ export default function CreatorPortal() {
   const [creatingNewPersona, setCreatingNewPersona] = useState(false);
   const [profileInputs, setProfileInputs] = useState({ topics: "", tone: "", phrases: "" });
   const [customLanguage, setCustomLanguage] = useState("");
+  const [dashTab, setDashTab] = useState<"overview" | "review">("overview");
+  const [showStep2Errors, setShowStep2Errors] = useState(false);
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
   const activePersonaId = personaPortfolio.find((persona) => cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle))?.id;
@@ -95,7 +97,13 @@ export default function CreatorPortal() {
     revenue: analytics.revenue,
   };
   const canPublish = Boolean(accessToken && health?.supabase);
-  const hasCreatorProfile = Boolean(workspace.creatorName.trim() && cleanHandle(workspace.creatorHandle));
+  const step2Errors = {
+    creatorName: workspace.creatorName.trim() ? "" : "Enter the creator's name.",
+    creatorHandle: workspace.creatorHandle.trim().replace(/^@/, "") ? "" : "Choose a public handle, like @priya.",
+    content: workspace.content.trim().length >= 40 ? "" : "Paste at least a few sentences of public material so the AI has something real to learn from.",
+  };
+  const step2ErrorList = (Object.entries(step2Errors) as [keyof typeof step2Errors, string][]).filter(([, message]) => message);
+  const isDraftOnly = creatingNewPersona || !hasSavedPersona;
   const canContinueFromAccount = Boolean(accessToken);
   const canSubmitAuth = Boolean(email.trim() && password.trim());
   const accountActionHint =
@@ -165,12 +173,24 @@ export default function CreatorPortal() {
       setReviewQueue(data.reviewQueue || []);
       setHasSavedPersona(true);
       setCreatingNewPersona(false);
-      setViewMode("dashboard");
-      setSystemNotice("Welcome back. Your saved persona is loaded.");
+      const wantsOnboarding = new URLSearchParams(window.location.search).get("mode") === "onboarding";
+      if (!wantsOnboarding) setViewMode("dashboard");
+      setSystemNotice("");
     } catch (error) {
       setSystemNotice(error instanceof Error ? error.message : "Unable to load saved persona.");
     }
   }, [setWorkspace]);
+
+  useEffect(() => {
+    if (viewMode === "dashboard" && dashTab === "review") {
+      const timer = window.setTimeout(() => document.getElementById("needs-review")?.scrollIntoView({ block: "start" }), 150);
+      return () => window.clearTimeout(timer);
+    }
+  }, [viewMode, dashTab, reviewQueue.length]);
+
+  useEffect(() => {
+    if (viewMode === "onboarding") window.scrollTo({ top: 0 });
+  }, [step, viewMode]);
 
   useEffect(() => {
     const requestedMode = searchParams.get("mode");
@@ -181,7 +201,10 @@ export default function CreatorPortal() {
       });
     }
     if (requestedMode === "review") {
-      queueMicrotask(() => setViewMode("dashboard"));
+      queueMicrotask(() => {
+        setViewMode("dashboard");
+        setDashTab("review");
+      });
     }
 
     queueMicrotask(() => setOrigin(window.location.origin));
@@ -543,7 +566,7 @@ export default function CreatorPortal() {
           <Link href="/">Home</Link>
           <Link href="/creator/onboarding">Create</Link>
           <Link href="/creator/review">Review</Link>
-          <Link href={publicPath}>Fan link</Link>
+          {accessToken && hasSavedPersona && <Link href={publicPath}>Fan link</Link>}
         </div>
       </nav>
 
@@ -559,9 +582,27 @@ export default function CreatorPortal() {
 
           {viewMode === "dashboard" ? (
             <div className="dashboard-nav">
-              <button className="active">Overview</button>
+              <button
+                className={dashTab === "overview" ? "active" : ""}
+                aria-current={dashTab === "overview" ? "page" : undefined}
+                onClick={() => {
+                  setDashTab("overview");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Overview
+              </button>
               <button onClick={() => editCurrentPersona(2)}>Edit persona</button>
-              <Link href="/creator/review">Needs review</Link>
+              <button
+                className={dashTab === "review" ? "active" : ""}
+                aria-current={dashTab === "review" ? "page" : undefined}
+                onClick={() => {
+                  setDashTab("review");
+                  document.getElementById("needs-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                Needs review{dashboardMetrics.flagged ? ` (${dashboardMetrics.flagged})` : ""}
+              </button>
               <button onClick={startNewPersona}>New persona</button>
             </div>
           ) : (
@@ -588,9 +629,17 @@ export default function CreatorPortal() {
             </div>
           )}
 
-          <div className={`publish-state ${workspace.status}`}>
-            <strong>{workspace.status === "live" ? "Live" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
-            <p>{workspace.status === "live" ? "Your fan link is ready to share." : "Your fan link unlocks after publishing."}</p>
+          <div className={`publish-state ${isDraftOnly ? "draft" : workspace.status}`}>
+            <strong>{isDraftOnly ? "New draft" : workspace.status === "live" ? "Live" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
+            <p>
+              {isDraftOnly
+                ? "Not published yet. Your fan link appears after you publish."
+                : workspace.status === "live"
+                  ? "Your fan link is ready to share."
+                  : workspace.status === "paused"
+                    ? "Paused. Fans see a “not live” page until you publish again."
+                    : "Saved as a draft. Publish to get your fan link."}
+            </p>
           </div>
           {systemNotice && step !== 1 && <div className="system-notice">{systemNotice}</div>}
         </aside>
@@ -608,7 +657,7 @@ export default function CreatorPortal() {
                 </div>
                 <div className={`dashboard-status ${workspace.status}`}>
                   <span>{workspace.status}</span>
-                  <strong>{workspace.status === "live" ? "Ready to share" : "Draft"}</strong>
+                  <strong>{workspace.status === "live" ? "Ready to share" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
                 </div>
               </section>
 
@@ -659,9 +708,6 @@ export default function CreatorPortal() {
                     <span className="section-kicker">Persona portfolio</span>
                     <h3>All personas</h3>
                   </div>
-                  <button className="secondary-action" onClick={startNewPersona}>
-                    New persona
-                  </button>
                 </div>
                 <div className="persona-table">
                   {(personaPortfolio.length ? personaPortfolio : []).map((persona) => {
@@ -713,7 +759,7 @@ export default function CreatorPortal() {
                 <p>Revenue tracking will appear here when paid fan chat is switched on in a future release.</p>
               </section>
 
-              <section className="product-card review-queue-card">
+              <section className="product-card review-queue-card" id="needs-review">
                 <div className="section-heading-row">
                   <div>
                     <span className="section-kicker">Needs review</span>
@@ -744,24 +790,42 @@ export default function CreatorPortal() {
             <div className="product-card account-card">
               <span className="section-kicker">Step 1</span>
               <div className="account-heading">
-                <h2>{accessToken ? "Welcome back" : authMode === "signup" ? "Create your account" : "Log in to continue"}</h2>
+                <h2>
+                  {accessToken
+                    ? creatingNewPersona
+                      ? "Start a new persona"
+                      : hasSavedPersona
+                        ? "You're signed in"
+                        : "You're signed in. Let's build your persona"
+                    : authMode === "signup"
+                      ? "Create your account"
+                      : "Log in to continue"}
+                </h2>
                 <p>
-                  {authMode === "signup" && !accessToken
-                    ? "One account lets you create personas, edit them later, and see fan conversations."
-                    : "Return to your personas, check performance, or keep editing before you publish again."}
+                  {accessToken
+                    ? creatingNewPersona
+                      ? "Next, add the public material this persona will speak from."
+                      : hasSavedPersona
+                        ? "Continue editing your saved persona, or start a new one from the dashboard."
+                        : "Next, add the public material your AI will learn from."
+                    : authMode === "signup"
+                      ? "One account lets you create personas, edit them later, and see fan conversations."
+                      : "Log in to return to your personas, check performance, or keep editing."}
                 </p>
               </div>
 
               <div className="account-layout login-only">
                 <section className="account-panel">
-                  <div className="auth-switch" aria-label="Account mode">
-                    <button className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>
-                      Sign up
-                    </button>
-                    <button className={authMode === "signin" ? "active" : ""} onClick={() => setAuthMode("signin")}>
-                      Log in
-                    </button>
-                  </div>
+                  {!accessToken && (
+                    <div className="auth-switch" aria-label="Account mode">
+                      <button className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>
+                        Sign up
+                      </button>
+                      <button className={authMode === "signin" ? "active" : ""} onClick={() => setAuthMode("signin")}>
+                        Log in
+                      </button>
+                    </div>
+                  )}
 
                   {!accessToken ? (
                     <div className="account-fields">
@@ -788,12 +852,18 @@ export default function CreatorPortal() {
                 </section>
               </div>
 
-              {accessToken && hasSavedPersona && (
+              {accessToken && hasSavedPersona && !creatingNewPersona && (
                 <section className="returning-dashboard">
                   <div>
                     <span className="section-kicker">Saved persona</span>
                     <h3>{workspace.creatorName}</h3>
-                    <p>{workspace.status === "live" ? "Your fan link is live." : "Your persona is saved as a draft."}</p>
+                    <p>
+                      {workspace.status === "live"
+                        ? "Your fan link is live."
+                        : workspace.status === "paused"
+                          ? "Paused. Publish again to reopen your fan link."
+                          : "Saved as a draft. Publish to get your fan link."}
+                    </p>
                   </div>
                   <div className="share-url-box compact">
                     <span>Fan link</span>
@@ -818,7 +888,7 @@ export default function CreatorPortal() {
                 </section>
               )}
 
-              {systemNotice && <div className="inline-action-notice">{systemNotice}</div>}
+              {systemNotice && <div className="inline-action-notice" role="status">{systemNotice}</div>}
 
               <div className="account-action-row">
                 <button
@@ -830,7 +900,7 @@ export default function CreatorPortal() {
                     ? authMode === "signup"
                       ? "Create account and continue"
                       : "Log in and continue"
-                    : "Continue to content"}
+                    : "Continue to public material"}
                 </button>
                 {accountActionHint && <p className="inline-form-hint">{accountActionHint}</p>}
                 {canResendConfirmation && (
@@ -855,18 +925,30 @@ export default function CreatorPortal() {
                     <label>
                       Creator name
                       <input
+                        id="field-creatorName"
                         value={workspace.creatorName}
                         onChange={(event) => updateField("creatorName", event.target.value)}
-                        placeholder="Chirag Saini"
+                        placeholder="e.g. Priya Sharma"
+                        aria-invalid={showStep2Errors && Boolean(step2Errors.creatorName)}
+                        aria-describedby={showStep2Errors && step2Errors.creatorName ? "error-creatorName" : undefined}
                       />
+                      {showStep2Errors && step2Errors.creatorName && (
+                        <span className="field-error" id="error-creatorName">{step2Errors.creatorName}</span>
+                      )}
                     </label>
                     <label>
                       Public handle
                       <input
+                        id="field-creatorHandle"
                         value={workspace.creatorHandle}
                         onChange={(event) => updateField("creatorHandle", event.target.value)}
-                        placeholder="@chirag"
+                        placeholder="e.g. @priya"
+                        aria-invalid={showStep2Errors && Boolean(step2Errors.creatorHandle)}
+                        aria-describedby={showStep2Errors && step2Errors.creatorHandle ? "error-creatorHandle" : undefined}
                       />
+                      {showStep2Errors && step2Errors.creatorHandle && (
+                        <span className="field-error" id="error-creatorHandle">{step2Errors.creatorHandle}</span>
+                      )}
                     </label>
                   </div>
                 </section>
@@ -900,7 +982,10 @@ export default function CreatorPortal() {
                 <textarea
                   value={workspace.content}
                   onChange={(event) => updateField("content", event.target.value)}
+                  id="field-content"
                   aria-label="Creator public material"
+                  aria-invalid={showStep2Errors && Boolean(step2Errors.content)}
+                  aria-describedby={showStep2Errors && step2Errors.content ? "error-content" : undefined}
                   placeholder={[
                     "Paste approved public material here.",
                     "",
@@ -912,6 +997,9 @@ export default function CreatorPortal() {
                     "- Product or career advice you often give",
                   ].join("\n")}
                 />
+                {showStep2Errors && step2Errors.content && (
+                  <p className="field-error" id="error-content">{step2Errors.content}</p>
+                )}
               </section>
 
               <section className="source-builder language-builder">
@@ -972,6 +1060,18 @@ export default function CreatorPortal() {
                   ].join("\n")}
                 />
               </section>
+              {showStep2Errors && step2ErrorList.length > 0 && (
+                <div className="error-summary" role="alert">
+                  <strong>Finish these before we draft your AI voice</strong>
+                  <ul>
+                    {step2ErrorList.map(([key, message]) => (
+                      <li key={key}>
+                        <a href={`#field-${key}`}>{message}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="button-row">
                 <button className="secondary-action" onClick={() => setStep(1)}>
                   Back
@@ -979,8 +1079,14 @@ export default function CreatorPortal() {
                 <button
                   className="primary-action"
                   onClick={() => {
-                    if (!hasCreatorProfile) {
-                      setSystemNotice("Add the creator name and public handle first.");
+                    if (step2ErrorList.length) {
+                      setShowStep2Errors(true);
+                      const firstId = `field-${step2ErrorList[0][0]}`;
+                      requestAnimationFrame(() => {
+                        const el = document.getElementById(firstId);
+                        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        el?.focus({ preventScroll: true });
+                      });
                       return;
                     }
                     void generateProfile();

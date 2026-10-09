@@ -43,11 +43,17 @@ export async function GET(request: NextRequest) {
           )
         : [];
       const conversationIds = conversations.map((conversation) => conversation.id);
-      const messages = conversationIds.length
-        ? await supabaseRest<MessageRow[]>(
-            `messages?conversation_id=in.(${conversationIds.join(",")})&select=id,conversation_id,role,text,flagged,flag_reason,created_at&order=created_at.desc`,
-          )
-        : [];
+      // Counts need every message but not its text; only flagged messages need text for the review queue.
+      const [messages, flaggedMessages] = conversationIds.length
+        ? await Promise.all([
+            supabaseRest<Omit<MessageRow, "text">[]>(
+              `messages?conversation_id=in.(${conversationIds.join(",")})&select=id,conversation_id,role,flagged&order=created_at.desc&limit=5000`,
+            ),
+            supabaseRest<MessageRow[]>(
+              `messages?conversation_id=in.(${conversationIds.join(",")})&flagged=eq.true&select=id,conversation_id,role,text,flagged,flag_reason,created_at&order=created_at.desc&limit=25`,
+            ),
+          ])
+        : [[], []];
       const metricsByPersona = Object.fromEntries(
         personas.map((item) => {
           const personaConversations = conversations.filter((conversation) => conversation.persona_id === item.id);
@@ -68,9 +74,7 @@ export async function GET(request: NextRequest) {
         }),
       );
       const activeMetrics = persona.id ? metricsByPersona[persona.id] : null;
-      const reviewQueue = messages
-        .filter((message) => message.flagged)
-        .slice(0, 25)
+      const reviewQueue = flaggedMessages
         .map((message) => {
           const conversation = conversations.find((item) => item.id === message.conversation_id);
           const flaggedPersona = personas.find((item) => item.id === conversation?.persona_id);

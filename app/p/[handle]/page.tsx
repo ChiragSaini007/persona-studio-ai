@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SiteNav } from "../../../components/site-nav";
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { clearStoredSession, getStoredSession, refreshStoredSession, supabasePasswordAuth } from "../../auth-client";
@@ -385,13 +386,9 @@ export default function FanChatPage() {
     return (
       <main className="app-shell">
         <section className="stage fan-stage">
-          <nav className="top-nav">
-            <Link className="brand-script" href="/">Fanline</Link>
-            <div className="nav-tabs">
-              <Link href="/creator">Creator portal</Link>
-            </div>
-            <span className={`status-chip ${activePersona.status}`}>Not live</span>
-          </nav>
+          <SiteNav>
+              <span className={`status-chip ${activePersona.status}`}>Not live</span>
+            </SiteNav>
           <div className="empty-public">
             <h1>This persona is not live yet</h1>
             <p>The creator needs to publish from the creator portal before fans can chat here.</p>
@@ -410,13 +407,9 @@ export default function FanChatPage() {
   return (
     <main className="app-shell fan-shell">
       <section className="stage fan-stage">
-        <nav className="top-nav">
-          <Link className="brand-script" href="/">Fanline</Link>
-          <div className="nav-tabs">
-            <Link href="/creator">Creator portal</Link>
-          </div>
+        <SiteNav>
           <span className="status-chip live">AI persona</span>
-        </nav>
+        </SiteNav>
 
         <header className="fan-hero dm-hero">
           <div className="fan-title-block">

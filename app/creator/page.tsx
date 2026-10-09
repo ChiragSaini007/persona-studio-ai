@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { SiteNav } from "../../components/site-nav";
 import { clearStoredSession, getStoredSession, refreshStoredSession, resendSignupConfirmation, supabasePasswordAuth } from "../auth-client";
 import {
   cleanHandle,
@@ -13,12 +14,22 @@ import {
   usePersonaWorkspace,
 } from "../persona-model";
 
+function suggestHandle(name: string) {
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "").slice(0, 24);
+}
+
+const sampleMaterial = [
+  "I think the best creators treat every post as a conversation, not a broadcast. When someone comments, I reply with a real answer, not a thank-you emoji.",
+  "My rule for consistency: pick one format you can publish weekly for a year. Quality compounds; novelty burns out.",
+  "People ask me how to grow from zero. Start with one clear promise, show your work in public, and ask your first 100 followers what they actually want more of.",
+].join("\n\n");
+
 const wizardSteps = [
-  { id: 1, label: "Account" },
-  { id: 2, label: "Public material" },
-  { id: 3, label: "AI voice" },
-  { id: 4, label: "Topics to avoid" },
-  { id: 5, label: "Fan link" },
+  { id: 1, label: "Sign in" },
+  { id: 2, label: "Your content" },
+  { id: 3, label: "Review your voice" },
+  { id: 4, label: "Set boundaries" },
+  { id: 5, label: "Launch" },
 ];
 
 const languageOptions = ["English", "Hinglish", "Hindi", "Tamil", "Telugu", "Kannada", "Bengali", "Marathi", "Spanish"];
@@ -74,7 +85,7 @@ export default function CreatorPortal() {
   const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [consentGiven, setConsentGiven] = useState(true);
+  const [consentGiven, setConsentGiven] = useState(false);
   const [accessToken, setAccessToken] = useState("");
   const [health, setHealth] = useState<HealthState | null>(null);
   const [creatorMetrics, setCreatorMetrics] = useState<CreatorMetrics | null>(null);
@@ -88,6 +99,7 @@ export default function CreatorPortal() {
   const [dashTab, setDashTab] = useState<"overview" | "review">("overview");
   const [showStep2Errors, setShowStep2Errors] = useState(false);
   const [personaChecked, setPersonaChecked] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
   const activePersonaId = personaPortfolio.find((persona) => cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle))?.id;
@@ -176,7 +188,10 @@ export default function CreatorPortal() {
       }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to load saved persona");
-      if (!data.persona) return;
+      if (!data.persona) {
+        setStep((current) => (current === 1 ? 2 : current));
+        return;
+      }
 
       setWorkspace((current) => ({
         ...current,
@@ -220,7 +235,9 @@ export default function CreatorPortal() {
   }, [viewMode, dashTab, reviewQueue.length]);
 
   useEffect(() => {
-    if (viewMode === "onboarding") window.scrollTo({ top: 0 });
+    if (viewMode !== "onboarding") return;
+    const timer = window.setTimeout(() => window.scrollTo({ top: 0 }), 0);
+    return () => window.clearTimeout(timer);
   }, [step, viewMode]);
 
   useEffect(() => {
@@ -474,7 +491,6 @@ export default function CreatorPortal() {
           return [normalized, ...withoutCurrent];
         });
       }
-      if (status === "live") setViewMode("dashboard");
       setSystemNotice(status === "live" ? "Fan link is live. Share it anywhere fans follow you." : "Changes saved.");
     } catch (error) {
       setSystemNotice(
@@ -550,7 +566,7 @@ export default function CreatorPortal() {
     setReviewQueue([]);
     setCreatingNewPersona(true);
     setViewMode("onboarding");
-    setStep(1);
+    setStep(accessToken ? 2 : 1);
     setSystemNotice("");
   }
 
@@ -591,15 +607,9 @@ export default function CreatorPortal() {
 
   return (
     <main className="app-page">
-      <nav className="product-nav">
-        <Link href="/" className="wordmark">Fanline</Link>
-        <div>
-          <Link href="/">Home</Link>
-          <Link href="/creator/onboarding">Create</Link>
-          <Link href="/creator/review">Review</Link>
-          {accessToken && hasSavedPersona && <Link href={publicPath}>Fan link</Link>}
-        </div>
-      </nav>
+      <SiteNav>
+        {accessToken && hasSavedPersona && <Link href={publicPath}>My fan link</Link>}
+      </SiteNav>
 
       <section className="portal-shell">
         <aside className="wizard-panel">
@@ -608,7 +618,7 @@ export default function CreatorPortal() {
           <p>
             {viewMode === "dashboard"
               ? "Your live personas, fan links, messages to review, and metrics in one place."
-              : "Add public material. We draft the AI voice, topics, and fan preview. You approve before it goes live."}
+              : "Paste your content. We draft your voice and topics. You approve everything before it goes live."}
           </p>
 
           {viewMode === "dashboard" ? (
@@ -828,7 +838,7 @@ export default function CreatorPortal() {
 
           {viewMode === "onboarding" && step === 1 && (
             <div className="product-card account-card">
-              <span className="section-kicker">Step 1</span>
+              <span className="section-kicker">Step 1 of 5</span>
               <div className="account-heading">
                 <h2>
                   {accessToken
@@ -954,9 +964,9 @@ export default function CreatorPortal() {
 
           {viewMode === "onboarding" && step === 2 && (
             <div className="product-card">
-              <span className="section-kicker">Step 2</span>
-              <h2>Add your public material</h2>
-              <p>Paste what fans already see from you. We will draft the AI voice, fan topics, sample replies, and welcome message.</p>
+              <span className="section-kicker">Step 2 of 5</span>
+              <h2>Add what fans already see from you</h2>
+              <p>Paste captions, transcripts, or FAQs. Fanline drafts your voice, topics, and welcome message. You review everything before it goes live.</p>
 
               <div className="creator-setup-grid">
                 <section className="profile-panel">
@@ -967,7 +977,20 @@ export default function CreatorPortal() {
                       <input
                         id="field-creatorName"
                         value={workspace.creatorName}
-                        onChange={(event) => updateField("creatorName", event.target.value)}
+                        onChange={(event) => {
+                          const name = event.target.value;
+                          const previousSuggestion = workspace.creatorName.trim() ? `@${suggestHandle(workspace.creatorName)}` : "";
+                          setWorkspace((current) => ({
+                            ...current,
+                            creatorName: name,
+                            creatorHandle:
+                              !current.creatorHandle.trim() || current.creatorHandle === previousSuggestion
+                                ? name.trim()
+                                  ? `@${suggestHandle(name)}`
+                                  : ""
+                                : current.creatorHandle,
+                          }));
+                        }}
                         placeholder="e.g. Priya Sharma"
                         aria-invalid={showStep2Errors && Boolean(step2Errors.creatorName)}
                         aria-describedby={showStep2Errors && step2Errors.creatorName ? "error-creatorName" : undefined}
@@ -991,6 +1014,7 @@ export default function CreatorPortal() {
                       )}
                     </label>
                   </div>
+                  <p className="field-hint">Your fan link will be {(origin || "").replace(/^https?:\/\//, "")}/p/{cleanHandle(workspace.creatorHandle || "your-handle")}. Letters and numbers only.</p>
                 </section>
 
                 <aside className="live-preview-card">
@@ -1016,9 +1040,10 @@ export default function CreatorPortal() {
               <section className="source-builder">
                 <div>
                   <span className="section-kicker">Public material</span>
-                  <h3>Paste captions, transcripts, posts, notes, or FAQs</h3>
-                  <p>Use material the creator is comfortable being represented by. The more specific it is, the more grounded fan replies become.</p>
+                  <h3>Paste captions, transcripts, posts, or FAQs</h3>
+                  <p>Only include things you are happy to be represented by. The more specific it is, the better fans&apos; answers will sound like you.</p>
                 </div>
+                <div className="material-input">
                 <textarea
                   value={workspace.content}
                   onChange={(event) => updateField("content", event.target.value)}
@@ -1040,13 +1065,22 @@ export default function CreatorPortal() {
                 {showStep2Errors && step2Errors.content && (
                   <p className="field-error" id="error-content">{step2Errors.content}</p>
                 )}
+                <div className="material-helper">
+                  <span>{workspace.content.trim().length} characters. Aim for 500 or more.</span>
+                  {!workspace.content.trim() && (
+                    <button type="button" className="secondary-action" onClick={() => updateField("content", sampleMaterial)}>
+                      Try with sample material
+                    </button>
+                  )}
+                </div>
+                </div>
               </section>
 
               <section className="source-builder language-builder">
                 <div>
                   <span className="section-kicker">Languages</span>
-                  <h3>Which languages can your AI reply in?</h3>
-                  <p>Pick only the languages or mixed styles that feel natural for the creator.</p>
+                  <h3>Which languages should your AI reply in?</h3>
+                  <p>English is on by default. Add others only if you really chat that way. &quot;Hinglish&quot; means Hindi and English mixed.</p>
                 </div>
                 <div className="language-selector">
                   <div className="chip-wrap">
@@ -1086,8 +1120,8 @@ export default function CreatorPortal() {
               <section className="source-builder optional-builder">
                 <div>
                   <span className="section-kicker">Optional polish</span>
-                  <h3>Add 3-5 replies that sound exactly right</h3>
-                  <p>Skip this if you want. A few examples help the AI learn your rhythm faster.</p>
+                  <h3>Add 3-5 replies that sound exactly like you</h3>
+                  <p>Optional, but it is the fastest way to get your tone right.</p>
                 </div>
                 <textarea
                   className="compact-textarea"
@@ -1129,11 +1163,15 @@ export default function CreatorPortal() {
                       });
                       return;
                     }
-                    void generateProfile();
-                    setStep(3);
+                    setDrafting(true);
+                    void generateProfile().finally(() => {
+                      setDrafting(false);
+                      setStep(3);
+                    });
                   }}
+                  disabled={drafting}
                 >
-                  Draft my AI voice
+                  {drafting ? "Drafting your voice…" : "Draft my AI voice"}
                 </button>
               </div>
             </div>
@@ -1142,9 +1180,9 @@ export default function CreatorPortal() {
           {viewMode === "onboarding" && step === 3 && (
             <div className="screen-stack">
               <div className="product-card">
-                <span className="section-kicker">Step 3</span>
+                <span className="section-kicker">Step 3 of 5</span>
                 <h2>Review your AI voice</h2>
-                <p>We drafted this from your public material. Keep what feels right, remove what does not, then test the fan experience.</p>
+                <p>Fanline drafted this from your content. Edit anything that does not sound like you. Nothing is public yet.</p>
                 <div className="prompt-list">
                   <span>Would fans recognize this as your public point of view?</span>
                   <span>Are these the topics you actually want to answer?</span>
@@ -1218,7 +1256,7 @@ export default function CreatorPortal() {
                             aria-label={`Remove ${item}`}
                             onClick={() => removeProfileItem(field as "topics" | "tone" | "phrases", item)}
                           >
-                            x
+                            ×
                           </button>
                         </span>
                       ))}
@@ -1231,7 +1269,7 @@ export default function CreatorPortal() {
                   Back
                 </button>
                 <button className="primary-action" onClick={() => setStep(4)}>
-                  Looks right
+                  Looks right, continue
                 </button>
               </div>
             </div>
@@ -1239,14 +1277,9 @@ export default function CreatorPortal() {
 
           {viewMode === "onboarding" && step === 4 && (
             <div className="product-card">
-              <span className="section-kicker">Step 4</span>
-              <h2>Choose topics to avoid</h2>
-              <p>These protect the creator. The AI will politely step back when fans ask for private, risky, or off-topic answers.</p>
-              <div className="prompt-list">
-                <span>What should never be answered on your behalf?</span>
-                <span>What private-life questions should always be blocked?</span>
-                <span>What should the AI say when it cannot answer?</span>
-              </div>
+              <span className="section-kicker">Step 4 of 5</span>
+              <h2>Set your boundaries</h2>
+              <p>Choose what your AI should never answer for you. When a fan asks, it politely steps back instead of guessing.</p>
               <div className="guardrail-grid">
                 {guardrails.map((rail) => (
                   <label key={rail.key} className="guardrail-card">
@@ -1293,30 +1326,12 @@ export default function CreatorPortal() {
                   <p>{workspace.fallbackText}</p>
                 </div>
               </div>
-              <label className="consent-row">
-                <input type="checkbox" checked={consentGiven} onChange={(event) => setConsentGiven(event.target.checked)} />
-                <span>I own or have permission to use this material, and fans will see that this is an AI persona.</span>
-              </label>
               <div className="button-row">
                 <button className="secondary-action" onClick={() => setStep(3)}>
                   Back
                 </button>
-                <button
-                  className="primary-action"
-                  onClick={() => {
-                    if (!consentGiven) {
-                      setSystemNotice("Confirm permission and AI disclosure before going live.");
-                      return;
-                    }
-                    if (canPublish) {
-                      publish();
-                    } else {
-                      setStep(5);
-                    }
-                  }}
-                  disabled={saving}
-                >
-                  {canPublish ? (saving ? "Making live..." : "Make fan link live") : "Review launch checklist"}
+                <button className="primary-action" onClick={() => setStep(5)}>
+                  Continue to launch
                 </button>
               </div>
             </div>
@@ -1325,18 +1340,15 @@ export default function CreatorPortal() {
           {viewMode === "onboarding" && step === 5 && (
             <div className="screen-stack">
               <div className="launch-card">
-                <span className="section-kicker">Step 5</span>
-                <h2>{workspace.status === "live" ? "Your fan link is live" : "Make your fan link live"}</h2>
+                <span className="section-kicker">Step 5 of 5</span>
+                <h2>{workspace.status === "live" ? "You're live. Share your fan link" : "Ready to go live?"}</h2>
                 <p>
-                  Share it where fans already follow you: Instagram bio, stories, Linktree, broadcast channels, or fan communities.
+                  {workspace.status === "live"
+                    ? "Put it in your Instagram bio, stories, Linktree, or broadcast channel. You can pause it any time."
+                    : "Publishing makes your fan chat public. You can pause it any time, and you will see anything sensitive in your review queue."}
                 </p>
-                <div className="prompt-list dark">
-                  <span>Are you comfortable with this link going public?</span>
-                  <span>Do the topics to avoid cover risky fan questions?</span>
-                  <span>Who will check messages that need review?</span>
-                </div>
                 <div className="share-url-box">
-                  <span>Instagram bio link</span>
+                  <span>Your fan link</span>
                   <strong>{workspace.status === "live" ? shareUrl : "Publish the persona to generate your fan link"}</strong>
                 </div>
                 {workspace.status !== "live" && (
@@ -1353,10 +1365,21 @@ export default function CreatorPortal() {
                     )}
                   </div>
                 )}
+                {workspace.status !== "live" && (
+                  <label className="consent-row">
+                    <input type="checkbox" checked={consentGiven} onChange={(event) => setConsentGiven(event.target.checked)} />
+                    <span>I own or have permission to use this material, and fans will see that this is an AI persona.</span>
+                  </label>
+                )}
                 <div className="button-row">
                   {workspace.status !== "live" && (
+                    <button className="secondary-action" onClick={() => setStep(4)}>
+                      Back
+                    </button>
+                  )}
+                  {workspace.status !== "live" && (
                     <button className="primary-action" onClick={publish} disabled={saving || !canPublish || !consentGiven}>
-                      {saving ? "Making live..." : "Make fan link live"}
+                      {saving ? "Publishing…" : "Publish my fan link"}
                     </button>
                   )}
                   {workspace.status === "live" && (
@@ -1367,15 +1390,18 @@ export default function CreatorPortal() {
                       <Link className="secondary-action" href={publicPath}>
                         Open fan chat
                       </Link>
+                      <button className="secondary-action" onClick={() => setViewMode("dashboard")}>
+                        Go to dashboard
+                      </button>
                       <button className="secondary-action" onClick={() => void savePersona("paused")} disabled={saving}>
-                        Pause persona
+                        Pause
                       </button>
                     </>
                   )}
                 </div>
               </div>
 
-              <section className="analytics-grid">
+              <section className="analytics-grid" hidden={isDraftOnly || workspace.status !== "live"}>
                 {[
                   ["Conversations", dashboardMetrics.conversations],
                   ["Fan messages", dashboardMetrics.fanMessages],

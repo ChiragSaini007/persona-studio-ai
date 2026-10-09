@@ -2,42 +2,42 @@ import Link from "next/link";
 
 const proofPoints = [
   {
-    label: "I add material",
-    title: "I paste what already exists",
-    body: "My captions, transcripts, posts, notes, and FAQs are enough to start.",
+    label: "You add",
+    title: "Paste what already exists",
+    body: "Captions, transcripts, posts, and FAQs are enough to start. No interview, no training.",
   },
   {
     label: "Fanline drafts",
-    title: "My AI voice is drafted for me",
-    body: "Fanline turns my material into topics, reply style, examples, languages, and a fan preview.",
+    title: "Your AI voice, drafted in minutes",
+    body: "We turn your material into topics, a reply style, a welcome message, and a live preview of how fans will see it.",
   },
   {
-    label: "I approve",
-    title: "I review, edit, and publish",
-    body: "Nothing goes live until I approve the voice and the topics my AI should avoid.",
+    label: "You approve",
+    title: "Review, edit, then publish",
+    body: "Nothing goes live until you approve the voice and the topics your AI should stay away from.",
   },
 ];
 
 const safeguards = [
-  ["Approval first", "Nothing is public until I publish it, and I can pause the link any time."],
-  ["Clear AI disclosure", "Fans always see that they are talking to my AI, grounded in material I approved."],
-  ["Topics I rule out", "Private, financial, or risky questions get a polite step-back, not a guess."],
-  ["A review queue", "Sensitive conversations are grouped so I can see what fans asked and how my AI answered."],
+  ["Approval first", "Nothing is public until you publish it, and you can pause the link any time."],
+  ["Clear AI disclosure", "Fans always see they are talking to your AI, grounded in material you approved."],
+  ["Topics I rule out", "Private, financial, or risky questions get a polite step-back, never a guess."],
+  ["A review queue", "Sensitive conversations are grouped so you can see what fans asked and how your AI answered."],
 ];
 
 export default function Home() {
   return (
     <main className="site-shell editorial-home">
-      <nav className="landing-nav editorial-nav">
+      <nav className="landing-nav editorial-nav" aria-label="Main">
         <Link href="/" className="wordmark">
           Fanline
         </Link>
         <div>
-          <Link href="#workflow">Workflow</Link>
+          <Link href="#workflow">How it works</Link>
           <Link href="#safeguards">Safeguards</Link>
-          <Link href="/demo/fan">Fan preview</Link>
+          <Link href="/demo/fan">Demo</Link>
           <Link href="/creator" className="nav-cta">
-            Create
+            Get started
           </Link>
         </div>
       </nav>
@@ -45,27 +45,27 @@ export default function Home() {
       <section className="editorial-hero" aria-labelledby="landing-title">
         <div className="hero-image-layer" aria-hidden="true" />
         <div className="hero-identity">
-          <span className="section-kicker">Fanline · my AI fan line, approved by me</span>
-          <h1 id="landing-title">Answer every fan DM in my voice. Only after I approve it.</h1>
+          <span className="section-kicker">AI fan chat for creators</span>
+          <h1 id="landing-title">Answer every fan in your voice. Only after you approve it.</h1>
           <p>
-            I add my public posts, transcripts, and FAQs. Fanline drafts my AI voice and gives me a fan chat link I can
-            approve before anyone sees it.
+            Paste your posts, transcripts, and FAQs. Fanline drafts your AI voice and gives you a fan chat link. You
+            review it before anyone sees it.
           </p>
           <div className="cta-row">
             <Link href="/creator" className="primary-action">
-              Create my fanline
+              Create your fan link
             </Link>
             <Link href="/demo/fan" className="secondary-action">
-              See fan chat
+              Try the demo
             </Link>
           </div>
           <div className="hero-outcome-panel" aria-label="Fanline output">
-            <span>What I get</span>
-            <p>My approved AI voice, a public fan chat link, and a dashboard to review conversations.</p>
+            <span>What you get</span>
+            <p>An approved AI voice, a public fan chat link, and a dashboard to review conversations.</p>
             <div>
-              <strong>My source in</strong>
-              <strong>My AI drafted</strong>
-              <strong>My fan link live</strong>
+              <strong>Your content in</strong>
+              <strong>Your voice drafted</strong>
+              <strong>Your link live</strong>
             </div>
           </div>
         </div>
@@ -74,7 +74,7 @@ export default function Home() {
       <section id="workflow" className="workflow-band">
         <div className="workflow-copy">
           <span className="section-kicker">How it works</span>
-          <h2>I give the raw material. Fanline does the setup.</h2>
+          <h2>You bring the content. Fanline does the setup.</h2>
         </div>
         <div className="workflow-rail">
           {proofPoints.map((item, index) => (
@@ -93,7 +93,7 @@ export default function Home() {
       <section id="safeguards" className="proof-band">
         <div>
           <span className="section-kicker">Safeguards</span>
-          <h2>Fans get a faster answer. I stay in control.</h2>
+          <h2>Fans get a faster answer. You stay in control.</h2>
         </div>
         <div className="proof-table">
           {safeguards.map(([label, value]) => (
@@ -106,14 +106,14 @@ export default function Home() {
       </section>
 
       <section className="closing-cta" aria-labelledby="closing-title">
-        <h2 id="closing-title">See it work, then make it mine.</h2>
-        <p>Try the fan chat first, or paste my posts and have a draft voice in a few minutes.</p>
+        <h2 id="closing-title">See it work, then make it yours.</h2>
+        <p>Try the fan chat first, or paste your posts and have a draft voice in a few minutes.</p>
         <div className="cta-row">
           <Link href="/creator" className="primary-action">
-            Create my fanline
+            Create your fan link
           </Link>
           <Link href="/demo/fan" className="secondary-action">
-            Try the fan chat
+            Try the demo
           </Link>
         </div>
       </section>

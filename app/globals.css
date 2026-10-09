@@ -2298,3 +2298,233 @@ a,
 .top-nav a[aria-current="page"] {
   padding-bottom: 0;
 }
+
+
+/* Landing hero: product visual instead of a stock portrait */
+.hero-image-layer.hero-visual {
+  align-content: center;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(190, 24, 93, 0.45), transparent 46%),
+    radial-gradient(circle at 90% 90%, rgba(240, 200, 75, 0.28), transparent 42%),
+    #14231d;
+  color: white;
+  display: grid;
+  gap: 22px;
+  padding: clamp(24px, 4vw, 48px);
+}
+
+.hero-image-layer.hero-visual::after {
+  display: none;
+}
+
+.hv-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.hv-header strong {
+  display: block;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 18px;
+}
+
+.hv-header small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+
+.hv-header em {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  margin-left: auto;
+  padding: 4px 10px;
+}
+
+.hv-avatar {
+  align-items: center;
+  background: #f9a8d4;
+  border-radius: 50%;
+  color: #14231d;
+  display: inline-flex;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+
+.hv-chat {
+  display: grid;
+  gap: 12px;
+}
+
+.hv-chat p {
+  border-radius: 16px;
+  font-size: 16px;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 88%;
+  padding: 14px 16px;
+}
+
+.hv-chat small {
+  color: #5b6b63;
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.hv-fan {
+  background: #be185d;
+  justify-self: end;
+}
+
+.hv-ai {
+  background: #f6f3f0;
+  color: #14231d;
+}
+
+.hv-stats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hv-stats div {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.hv-stats strong {
+  display: block;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.1;
+}
+
+.hv-stats span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+}
+
+
+/* Dashboard: the core loop at a glance */
+.loop-card {
+  background: var(--paper);
+  border: 1px solid rgba(20, 20, 18, 0.14);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 24px;
+  padding: clamp(20px, 3vw, 32px);
+}
+
+.loop-verdict h3 {
+  font-size: clamp(22px, 2.6vw, 30px);
+  line-height: 1.15;
+  margin: 6px 0 8px;
+  max-width: 34ch;
+  text-wrap: balance;
+}
+
+.loop-verdict p {
+  color: var(--muted);
+  margin: 0 0 16px;
+  max-width: 62ch;
+}
+
+.loop-steps {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.loop-steps li {
+  background: white;
+  border: 1px solid rgba(20, 20, 18, 0.13);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 2px;
+  padding: 14px;
+}
+
+.loop-steps li.done {
+  border-color: rgba(23, 61, 50, 0.4);
+}
+
+.loop-steps li span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.loop-steps li strong {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 24px;
+}
+
+.loop-steps li small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .loop-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* Consent */
+.consent-panel {
+  background: #fff7d8;
+  border: 1px solid #ead889;
+  border-radius: var(--radius);
+  margin: 18px 0;
+  padding: 16px;
+}
+
+.consent-panel.invalid {
+  background: #fff1ee;
+  border-color: #c4362a;
+}
+
+.consent-panel .consent-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  line-height: 1.5;
+}
+
+.consent-panel .field-hint {
+  margin: 8px 0 0 32px;
+}
+
+.consent-confirmed {
+  color: #173d32;
+  font-weight: 700;
+  margin: 18px 0;
+}
+
+.consent-panel .consent-row {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.consent-panel .consent-row input {
+  flex: none;
+  margin-top: 2px;
+}

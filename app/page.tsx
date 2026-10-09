@@ -2,19 +2,24 @@ import Link from "next/link";
 
 const proofPoints = [
   {
-    label: "You add",
-    title: "Paste what already exists",
-    body: "Captions, transcripts, posts, and FAQs are enough to start. No interview, no training.",
+    label: "1. Connect",
+    title: "Bring the content you already make",
+    body: "Paste captions, transcripts, posts, and FAQs. No interview, no training sessions.",
   },
   {
-    label: "Fanline drafts",
-    title: "Your AI voice, drafted in minutes",
-    body: "We turn your material into topics, a reply style, a welcome message, and a live preview of how fans will see it.",
+    label: "2. Train",
+    title: "Get a working AI version of you",
+    body: "Fanline drafts your voice, topics, and welcome message in minutes. You edit it until it sounds right.",
   },
   {
-    label: "You approve",
-    title: "Review, edit, then publish",
-    body: "Nothing goes live until you approve the voice and the topics your AI should stay away from.",
+    label: "3. Launch",
+    title: "Put one link in front of fans",
+    body: "Nothing goes live until you approve it. Fans chat with your AI from a single link in your bio.",
+  },
+  {
+    label: "4. Decide",
+    title: "See if it is worth your time",
+    body: "Fans reached, messages, replies handled without you, and revenue in one dashboard. Keep it, pause it, or change it.",
   },
 ];
 
@@ -43,7 +48,37 @@ export default function Home() {
       </nav>
 
       <section className="editorial-hero" aria-labelledby="landing-title">
-        <div className="hero-image-layer" aria-hidden="true" />
+        <div className="hero-image-layer hero-visual" aria-hidden="true">
+          <div className="hv-header">
+            <span className="hv-avatar">You</span>
+            <div>
+              <strong>Your AI</strong>
+              <small>Live · approved by you</small>
+            </div>
+            <em>Sample</em>
+          </div>
+          <div className="hv-chat">
+            <p className="hv-fan">How do you stay consistent when you are burnt out?</p>
+            <p className="hv-ai">
+              Shrink the goal, not the standard. One small post still counts. Want my 3-step reset?
+              <small>From your approved content</small>
+            </p>
+          </div>
+          <div className="hv-stats">
+            <div>
+              <strong>128</strong>
+              <span>Fans chatting</span>
+            </div>
+            <div>
+              <strong>94%</strong>
+              <span>Handled without you</span>
+            </div>
+            <div>
+              <strong>3</strong>
+              <span>Need your review</span>
+            </div>
+          </div>
+        </div>
         <div className="hero-identity">
           <span className="section-kicker">AI fan chat for creators</span>
           <h1 id="landing-title">Answer every fan in your voice. Only after you approve it.</h1>
@@ -74,7 +109,7 @@ export default function Home() {
       <section id="workflow" className="workflow-band">
         <div className="workflow-copy">
           <span className="section-kicker">How it works</span>
-          <h2>You bring the content. Fanline does the setup.</h2>
+          <h2>From your content to a working AI, in four steps.</h2>
         </div>
         <div className="workflow-rail">
           {proofPoints.map((item, index) => (

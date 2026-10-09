@@ -18,6 +18,9 @@ function suggestHandle(name: string) {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "").slice(0, 24);
 }
 
+const consentText =
+  "I am this creator, or I have their written permission to create this AI persona. I own or may use this material, and I understand fans will always be told they are talking to an AI.";
+
 const sampleMaterial = [
   "I think the best creators treat every post as a conversation, not a broadcast. When someone comments, I reply with a real answer, not a thank-you emoji.",
   "My rule for consistency: pick one format you can publish weekly for a year. Quality compounds; novelty burns out.",
@@ -100,6 +103,7 @@ export default function CreatorPortal() {
   const [showStep2Errors, setShowStep2Errors] = useState(false);
   const [personaChecked, setPersonaChecked] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  const [showConsentError, setShowConsentError] = useState(false);
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
   const activePersonaId = personaPortfolio.find((persona) => cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle))?.id;
@@ -115,10 +119,10 @@ export default function CreatorPortal() {
     creatorName: workspace.creatorName.trim() ? "" : "Enter the creator's name.",
     creatorHandle: workspace.creatorHandle.trim().replace(/^@/, "") ? "" : "Choose a public handle, like @priya.",
     content: workspace.content.trim().length >= 40 ? "" : "Paste at least a few sentences of public material so the AI has something real to learn from.",
+    consent: consentGiven ? "" : "Confirm consent to continue. Nothing can be drafted without it.",
   };
   const step2ErrorList = (Object.entries(step2Errors) as [keyof typeof step2Errors, string][]).filter(([, message]) => message);
-  const isDraftOnly = creatingNewPersona || !hasSavedPersona;
-  const reviewGroups = Array.from(
+  const isDraftOnly = creatingNewPersona || !hasSavedPersona;  const reviewGroups = Array.from(
     reviewQueue
       .reduce((groups, item) => {
         const key = item.conversationId || item.id;
@@ -169,6 +173,31 @@ export default function CreatorPortal() {
     ["Example replies", workspace.profile.exampleReplies.length],
   ];
 
+  const handledRate = Math.max(0, 100 - (dashboardMetrics.fallbackRate || 0));
+  const minutesSaved = Math.round(dashboardMetrics.fanMessages * 2);
+  const loopVerdict =
+    workspace.status !== "live"
+      ? {
+          headline: "Not live yet, so there is nothing to judge.",
+          detail: "Publish your fan link, then share it. Within a day you will see who is chatting and what they ask.",
+        }
+      : dashboardMetrics.conversations === 0
+        ? {
+            headline: "Live, but no fans have chatted yet.",
+            detail: "Put your fan link in your bio or a story. Results will show up here as soon as fans start talking.",
+          }
+        : {
+            headline: `${dashboardMetrics.conversations} ${dashboardMetrics.conversations === 1 ? "fan has" : "fans have"} chatted. ${handledRate}% of replies were handled without you.`,
+            detail: `That is roughly ${minutesSaved} minutes of replies you did not have to write (estimated at 2 minutes each). Check the review queue before you decide how much to invest.`,
+          };
+  const loopSteps = [
+    { label: "Content connected", value: `${approvedSourceCount || workspace.profile.retrievalChunks.length || 0} pieces`, note: "Add more to sharpen answers", done: true },
+    { label: "AI trained", value: hasSavedPersona ? "Ready" : "Draft", note: `${workspace.profile.supportedLanguages.length} languages`, done: hasSavedPersona },
+    { label: "Fans chatting", value: String(dashboardMetrics.conversations), note: "Conversations so far", done: dashboardMetrics.conversations > 0 },
+    { label: "Engagement", value: String(dashboardMetrics.fanMessages), note: `${handledRate}% handled without you`, done: dashboardMetrics.fanMessages > 0 },
+    { label: "Revenue", value: `$${Number(dashboardMetrics.revenue || 0).toFixed(2)}`, note: "Free access. Paid chat is coming", done: false },
+  ];
+
   const loadCreatorPersona = useCallback(async (token: string) => {
     try {
       const fetchMine = (accessToken: string) =>
@@ -206,6 +235,7 @@ export default function CreatorPortal() {
         price: Number(data.persona.price_cents || 0) / 100,
         status: data.persona.status,
       }));
+      if (data.persona.profile?.consent?.givenAt) setConsentGiven(true);
       setCreatorMetrics(data.metrics);
       setPersonaPortfolio(
         (data.personas || []).map((item: CreatorPersona) => ({
@@ -355,6 +385,7 @@ export default function CreatorPortal() {
   }
 
   function selectPersona(persona: CreatorPersona) {
+    setConsentGiven(false);
     setWorkspace((current) => ({
       ...current,
       creatorName: persona.creator_name,
@@ -400,8 +431,8 @@ export default function CreatorPortal() {
       ].join("\n\n");
       const response = await fetch("/api/personas/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: personaBrief }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ content: personaBrief, consent: consentGiven }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Profile generation failed");
@@ -455,6 +486,14 @@ export default function CreatorPortal() {
       return;
     }
 
+    if (status !== "paused" && !consentGiven) {
+      setStep(5);
+      setViewMode("onboarding");
+      setShowConsentError(true);
+      setSystemNotice("Confirm your consent first. Nothing is saved or published without it.");
+      return;
+    }
+
     setSaving(true);
     setSystemNotice(status === "live" ? "Making fan link live..." : "Saving changes...");
 
@@ -464,6 +503,7 @@ export default function CreatorPortal() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({
+          consent: consentGiven,
           creator_name: nextWorkspace.creatorName,
           creator_handle: nextWorkspace.creatorHandle,
           source_content: nextWorkspace.content,
@@ -564,6 +604,8 @@ export default function CreatorPortal() {
     }));
     setCreatorMetrics(null);
     setReviewQueue([]);
+    setConsentGiven(false);
+    setShowStep2Errors(false);
     setCreatingNewPersona(true);
     setViewMode("onboarding");
     setStep(accessToken ? 2 : 1);
@@ -580,6 +622,7 @@ export default function CreatorPortal() {
   function signOut() {
     clearStoredSession();
     setAccessToken("");
+    setConsentGiven(false);
     setCreatorMetrics(null);
     setHasSavedPersona(false);
     setCreatingNewPersona(false);
@@ -702,6 +745,37 @@ export default function CreatorPortal() {
                   <span>{workspace.status}</span>
                   <strong>{workspace.status === "live" ? "Ready to share" : workspace.status === "paused" ? "Paused" : "Draft"}</strong>
                 </div>
+              </section>
+
+              <section className="loop-card" aria-label="Is your AI working?">
+                <div className="loop-verdict">
+                  <span className="section-kicker">Is it working?</span>
+                  <h3>{loopVerdict.headline}</h3>
+                  <p>{loopVerdict.detail}</p>
+                  <div className="button-row compact-actions">
+                    {workspace.status !== "live" ? (
+                      <button className="primary-action" onClick={() => void savePersona("live")} disabled={saving}>
+                        Publish my fan link
+                      </button>
+                    ) : (
+                      <button className="primary-action" onClick={() => void copyShareLink()}>
+                        Copy fan link
+                      </button>
+                    )}
+                    <button className="secondary-action" onClick={() => editCurrentPersona(2)}>
+                      Add content to improve answers
+                    </button>
+                  </div>
+                </div>
+                <ol className="loop-steps">
+                  {loopSteps.map((item) => (
+                    <li key={item.label} className={item.done ? "done" : ""}>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                      <small>{item.note}</small>
+                    </li>
+                  ))}
+                </ol>
               </section>
 
               <section className="creator-signal-strip" aria-label="Persona readiness signals">
@@ -1134,6 +1208,21 @@ export default function CreatorPortal() {
                   ].join("\n")}
                 />
               </section>
+              <div className={`consent-panel ${showStep2Errors && step2Errors.consent ? "invalid" : ""}`}>
+                <label className="consent-row">
+                  <input
+                    id="field-consent"
+                    type="checkbox"
+                    checked={consentGiven}
+                    onChange={(event) => setConsentGiven(event.target.checked)}
+                    aria-describedby="consent-help"
+                  />
+                  <span>{consentText}</span>
+                </label>
+                <p id="consent-help" className="field-hint">
+                  Required before anything is drafted, saved, or published. You can pause your AI at any time.
+                </p>
+              </div>
               {showStep2Errors && step2ErrorList.length > 0 && (
                 <div className="error-summary" role="alert">
                   <strong>Finish these before we draft your AI voice</strong>
@@ -1365,12 +1454,20 @@ export default function CreatorPortal() {
                     )}
                   </div>
                 )}
-                {workspace.status !== "live" && (
-                  <label className="consent-row">
-                    <input type="checkbox" checked={consentGiven} onChange={(event) => setConsentGiven(event.target.checked)} />
-                    <span>I own or have permission to use this material, and fans will see that this is an AI persona.</span>
-                  </label>
-                )}
+                {workspace.status !== "live" &&
+                  (consentGiven ? (
+                    <p className="consent-confirmed">
+                      ✓ Consent confirmed. You are this creator (or have their written permission), and fans will always see this is an AI.
+                    </p>
+                  ) : (
+                    <div className={`consent-panel ${showConsentError ? "invalid" : ""}`}>
+                      <label className="consent-row">
+                        <input type="checkbox" checked={consentGiven} onChange={(event) => setConsentGiven(event.target.checked)} />
+                        <span>{consentText}</span>
+                      </label>
+                      {showConsentError && <p className="field-error">Consent is required before anything can go live.</p>}
+                    </div>
+                  ))}
                 <div className="button-row">
                   {workspace.status !== "live" && (
                     <button className="secondary-action" onClick={() => setStep(4)}>

@@ -121,10 +121,22 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Creator login required" }, { status: 401 });
 
   const body = await request.json();
+
+  // Nothing is saved or published without the creator's explicit consent. Pausing is always allowed.
+  if (body.status !== "paused" && body.consent !== true) {
+    return NextResponse.json(
+      { error: "The creator must confirm consent before this persona can be saved or published" },
+      { status: 400 },
+    );
+  }
+
   const sourceContent = body.source_content || "";
   const profile = {
     ...normalizeProfile(body.profile, sourceContent),
     retrievalChunks: buildRetrievalChunks(sourceContent),
+    ...(body.consent === true
+      ? { consent: { givenAt: new Date().toISOString(), userId: user.id, version: 1 } }
+      : {}),
   };
   const persona: PersonaRecord = {
     creator_user_id: user.id,

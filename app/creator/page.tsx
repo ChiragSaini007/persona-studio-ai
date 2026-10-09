@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { clearStoredSession, getStoredSession, resendSignupConfirmation, supabasePasswordAuth } from "../auth-client";
+import { clearStoredSession, getStoredSession, refreshStoredSession, resendSignupConfirmation, supabasePasswordAuth } from "../auth-client";
 import {
   cleanHandle,
   defaultWorkspace,
@@ -159,9 +159,21 @@ export default function CreatorPortal() {
 
   const loadCreatorPersona = useCallback(async (token: string) => {
     try {
-      const response = await fetch("/api/personas?mine=true", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const fetchMine = (accessToken: string) =>
+        fetch("/api/personas?mine=true", { headers: { Authorization: `Bearer ${accessToken}` } });
+      let response = await fetchMine(token);
+      if (response.status === 401) {
+        const refreshed = await refreshStoredSession();
+        if (!refreshed?.access_token) {
+          setAccessToken("");
+          setEmail("");
+          setSystemNotice("Your session expired. Please log in again.");
+          setAuthMode("signin");
+          return;
+        }
+        setAccessToken(refreshed.access_token);
+        response = await fetchMine(refreshed.access_token);
+      }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to load saved persona");
       if (!data.persona) return;

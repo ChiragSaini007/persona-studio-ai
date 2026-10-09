@@ -2032,3 +2032,20 @@ textarea[aria-invalid="true"] {
   margin: 0 auto 24px;
   max-width: 44ch;
 }
+
+/* Account card: give it room and keep actions on one line */
+.account-layout.login-only {
+  grid-template-columns: minmax(0, 460px);
+}
+
+.account-panel {
+  width: 100%;
+}
+
+.connected-account strong {
+  overflow-wrap: anywhere;
+}
+
+.connected-account .secondary-action {
+  white-space: nowrap;
+}

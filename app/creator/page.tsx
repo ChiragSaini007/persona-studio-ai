@@ -601,7 +601,7 @@ export default function CreatorPortal() {
                   document.getElementById("needs-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
               >
-                Needs review{dashboardMetrics.flagged ? ` (${dashboardMetrics.flagged})` : ""}
+                Needs review{reviewQueue.length ? ` (${reviewQueue.length})` : ""}
               </button>
               <button onClick={startNewPersona}>New persona</button>
             </div>

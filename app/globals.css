@@ -2161,13 +2161,15 @@ textarea[aria-invalid="true"] {
 }
 
 .review-thread p.from-fan {
-  border-left: 3px solid var(--coral);
-  padding-left: 12px;
+  background: #fdf2f8;
+  border-radius: var(--radius);
+  padding: 10px 12px;
 }
 
 .review-thread p.from-persona {
-  border-left: 3px solid #1f9d68;
-  padding-left: 12px;
+  background: #f4f4f2;
+  border-radius: var(--radius);
+  padding: 10px 12px;
 }
 
 

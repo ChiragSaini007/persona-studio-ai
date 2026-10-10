@@ -274,3 +274,10 @@ Validation:
 
 Post-deploy check:
 - Use this documentation while testing fan chat behavior.
+
+## 10 Oct 2026: Admin portal, rights, voice and video
+- Admin Portal (`/admin`), staff roles by env, append-only audit log, example avatar.
+- Rights confirmation replaced agreements (migration 006 dropped the agreement table); territories enforced by country header.
+- Genre modes (variants), PDF/audio/text ingest, voice replies, real-time voice, kill switch.
+- Video brain endpoint; HeyGen v3 wallet connection with budget caps; LiveAvatar sandbox and brain test (see Real-time Video doc).
+- Fixes: whole-word guardrail matching, empty Supabase bodies, broken-build deploy gate (build before commit).

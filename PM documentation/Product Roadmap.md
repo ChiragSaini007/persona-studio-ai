@@ -29,3 +29,6 @@ Before building these, the MVP must prove:
 - safety/fallback behavior is reliable
 - creators trust the dashboard and review controls
 
+
+## Update 10 Oct 2026
+Done: text, voice replies, real-time voice, admin portal, rights, genre modes, video brain, real-time video proof. Next: fan video call page with limits and AI label, Indian-language voice, own-voice clone, recorded video via HeyGen (with approval), real Instagram connect, admin MFA.

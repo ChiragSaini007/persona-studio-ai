@@ -60,3 +60,8 @@ Estimation mode should:
 - provide low/base/high ranges when possible
 - use web search only when current public facts are needed
 - avoid generic "go look at reports" answers
+
+## Video stack (Oct 2026)
+- Use a vendor for the face (HeyGen recorded, LiveAvatar real-time) and keep the brain in-house so persona, safety and limits are identical across channels.
+- Test real-time video only in LiveAvatar sandbox until a fan-facing page, caps and labels exist.
+- Brain endpoint fails closed: wrong secret 401, not live or not approved 404, risky topic fallback.

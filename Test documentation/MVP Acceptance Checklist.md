@@ -41,3 +41,10 @@
 - Test report is updated.
 - Production change log is updated.
 - Release note states what changed and why.
+
+## Admin and video additions
+- [ ] Managed avatar cannot go live without rights, approval, and territory match
+- [ ] Editing reviewed fields pauses the avatar and resets approval
+- [ ] Brain test answers in persona and credits do not drop
+- [ ] Wrong brain secret returns 401; paused avatar returns 404
+- [ ] Fan video page (not built) shows AI label, limits and kill switch

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ChannelTabs } from "../../../components/channel-tabs";
 import { SiteNav } from "../../../components/site-nav";
 import { FormEvent, useState } from "react";
 
@@ -71,29 +72,36 @@ export default function SimulatedFanPage() {
   return (
     <main className="app-shell fan-shell">
       <section className="stage fan-stage demo-fan-stage">
-        <SiteNav />
+        <SiteNav className="fan-topbar" />
 
-        <header className="fan-hero">
-          <div>
-            <p className="section-kicker">AI persona</p>
-            <h1>
-              Chat with <span>Chirag</span>
-            </h1>
-            <p>Ask what you would normally DM Chirag. The AI replies from his approved public material.</p>
+        <header className="fan-hero dm-hero">
+          <div className="fan-title-block">
+            <div className="fan-avatar">CS</div>
+            <div>
+              <p className="fan-label">Demo avatar</p>
+              <h1>
+                Chat with <span>Chirag</span>
+              </h1>
+              <p>
+                This is a sample AI avatar so you can see what fans experience. Replies here are scripted. Your own avatar
+                answers from the content you approve.
+              </p>
+            </div>
           </div>
+          <ChannelTabs />
         </header>
 
         <section className="chat-layout public-chat-layout">
           <div className="chat-window">
             <div className="dm-thread-header">
-              <div className="dm-avatar photo">CS</div>
+              <div className="dm-avatar">CS</div>
               <div>
-                <strong>Chirag</strong>
-                <span>AI persona</span>
+                <strong>Chirag&apos;s AI avatar</strong>
+                <span>Demo, not the real Chirag</span>
               </div>
               <em>AI</em>
             </div>
-            <div className="disclosure">Based on Chirag&apos;s approved public material. Private or risky requests are blocked.</div>
+            <div className="disclosure">You are talking to an AI demo. A real avatar answers only from content its creator approved.</div>
             <div className="chat-body">
               <div className="messages">
                 {messages.map((message, index) => (
@@ -119,11 +127,11 @@ export default function SimulatedFanPage() {
           </div>
 
           <aside className="side-stack">
-            <div className="dark-card fan-preview-note">
-              <span className="tiny-label">Creator-approved</span>
-              <p>Voice, languages, and topics to avoid are reviewed before the link goes live.</p>
-              <Link className="light-btn" href="/creator">
-                Create your persona
+            <div className="about-card">
+              <span className="tiny-label">For creators</span>
+              <p>Build your own avatar from the content you already have. You approve everything before fans see it.</p>
+              <Link className="primary-btn" href="/creator">
+                Build your avatar
               </Link>
             </div>
           </aside>

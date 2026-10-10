@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ChannelTabs } from "../../../components/channel-tabs";
 import { SiteNav } from "../../../components/site-nav";
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -386,14 +387,13 @@ export default function FanChatPage() {
     return (
       <main className="app-shell">
         <section className="stage fan-stage">
-          <SiteNav>
-              <span className={`status-chip ${activePersona.status}`}>Not live</span>
-            </SiteNav>
+          <SiteNav className="fan-topbar" />
           <div className="empty-public">
-            <h1>This persona is not live yet</h1>
-            <p>The creator needs to publish from the creator portal before fans can chat here.</p>
+            <span className="status-pill draft">Not live</span>
+            <h1>This avatar is not live yet</h1>
+            <p>The creator has to publish it from their console before fans can chat here.</p>
             <Link className="primary-btn" href="/creator">
-              Open creator portal
+              Open creator console
             </Link>
             {notice && <p className="runtime-note">{notice}</p>}
           </div>
@@ -407,21 +407,23 @@ export default function FanChatPage() {
   return (
     <main className="app-shell fan-shell">
       <section className="stage fan-stage">
-        <SiteNav>
-          <span className="status-chip live">AI persona</span>
-        </SiteNav>
+        <SiteNav className="fan-topbar" />
 
         <header className="fan-hero dm-hero">
           <div className="fan-title-block">
             <div className="fan-avatar">{avatarInitials}</div>
-            <p className="section-kicker">Public fan chat</p>
-            <h1>
-              Chat with <span>{creatorName}</span>
-            </h1>
-            <p>
-              Ask what you would normally DM {creatorFirstName}. The AI replies from approved public material and uses current sources only when helpful.
-            </p>
+            <div>
+              <p className="fan-label">AI avatar</p>
+              <h1>
+                Chat with <span>{creatorName}</span>
+              </h1>
+              <p>
+                This is {creatorFirstName}&apos;s AI avatar, not {creatorFirstName}. Replies come from content {creatorFirstName} approved
+                {" "}and stay inside the limits {creatorFirstName} set.
+              </p>
+            </div>
           </div>
+          <ChannelTabs />
         </header>
 
         <section className="chat-layout public-chat-layout">
@@ -429,13 +431,13 @@ export default function FanChatPage() {
             <div className="dm-thread-header">
               <div className="dm-avatar">{avatarInitials}</div>
               <div>
-                <strong>{creatorName}&apos;s AI</strong>
-                <span>AI persona</span>
+                <strong>{creatorName}&apos;s AI avatar</strong>
+                <span>Not the real {creatorFirstName}</span>
               </div>
               <em>{activePersona.status === "live" ? "Live" : "Preview"}</em>
             </div>
             <div className="disclosure">
-              Based on {creatorFirstName}&apos;s approved public material. Private or risky requests are blocked.
+              You are talking to an AI. It answers from {creatorFirstName}&apos;s approved material, and private or risky requests are declined.
             </div>
             <div className="chat-body">
               <div className="messages">
@@ -551,10 +553,11 @@ export default function FanChatPage() {
                 </button>
               </div>
             )}
-            <div className="dark-card">
-              <span className="tiny-label">Good to know</span>
+            <div className="about-card">
+              <span className="tiny-label">About this avatar</span>
               <p>
-                Ask about {creatorFirstName}&apos;s public topics, advice, and point of view. Sensitive or private requests are blocked.
+                {creatorFirstName} approved how this avatar talks and what it will never discuss. Messages that look
+                sensitive are held for {creatorFirstName} to review.
               </p>
               {notice && <p className="runtime-note">{notice}</p>}
             </div>

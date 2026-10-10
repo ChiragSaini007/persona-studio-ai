@@ -90,7 +90,7 @@ export async function laStopSession(sessionId: string, reason = "USER_CLOSED") {
 
 // ---- custom brain (our own OpenAI-compatible endpoint) ----
 export async function laCreateSecret(name: string, value: string) {
-  const data = await call<{ id: string }>("/v1/secrets", { method: "POST", body: { secret_name: name, secret_value: value, secret_type: "LLM_API_KEY" } });
+  const data = await call<{ id: string }>("/v1/secrets", { method: "POST", body: { secret_name: name, secret_value: value, secret_type: "OPENAI_API_KEY" } });
   return data.id;
 }
 

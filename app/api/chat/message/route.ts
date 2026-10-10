@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateChatReply, moderateText } from "../../../../lib/ai";
+import { managedAvatarBlocked } from "../../../../lib/admin";
 import { findFlag, PersonaRecord } from "../../../../lib/persona";
 import { supabaseRest } from "../../../../lib/supabase-rest";
 
@@ -32,7 +33,11 @@ export async function POST(request: NextRequest) {
       `personas?id=eq.${encodeURIComponent(conversation.persona_id)}&select=*`,
     );
     const persona = personas[0];
-    if (!persona || persona.status !== "live") {
+    if (
+      !persona ||
+      persona.status !== "live" ||
+      (await managedAvatarBlocked(persona as PersonaRecord & { managed_by_admin?: boolean; approval_status?: string }))
+    ) {
       return NextResponse.json({ error: "Persona is not available" }, { status: 403 });
     }
 

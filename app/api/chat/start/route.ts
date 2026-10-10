@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { bearerToken, getAuthUser } from "../../../../lib/auth";
-import { cleanHandle, PersonaRecord } from "../../../../lib/persona";
+import { managedAvatarBlocked } from "../../../../lib/admin";
+import { cleanHandle, PersonaRecord, toPublicPersona } from "../../../../lib/persona";
 import { supabaseRest } from "../../../../lib/supabase-rest";
 
 type ConversationRow = {
@@ -25,6 +26,9 @@ export async function POST(request: NextRequest) {
 
     if (!persona) return NextResponse.json({ error: "Persona not found" }, { status: 404 });
     if (persona.status !== "live") return NextResponse.json({ error: "Persona is not live" }, { status: 403 });
+    if (await managedAvatarBlocked(persona as PersonaRecord & { managed_by_admin?: boolean; approval_status?: string })) {
+      return NextResponse.json({ error: "Persona is not available" }, { status: 403 });
+    }
     if (persona.monetization === "pay_per_conversation" && !paid) {
       return NextResponse.json({ requiresPayment: true, price_cents: persona.price_cents }, { status: 402 });
     }
@@ -40,7 +44,7 @@ export async function POST(request: NextRequest) {
       prefer: "return=representation",
     });
 
-    return NextResponse.json({ conversation: rows[0], persona });
+    return NextResponse.json({ conversation: rows[0], persona: toPublicPersona(persona) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to start chat" }, { status: 500 });
   }

@@ -4600,3 +4600,16 @@ a,
   font-size: 12px;
   font-weight: 700;
 }
+
+.admin-main .form-section-title {
+  margin-top: 24px;
+}
+
+.admin-main .field-grid label {
+  align-content: start;
+}
+
+.admin-main .field-grid input:not([type="checkbox"]):not([type="file"]),
+.admin-main .field-grid select {
+  height: 44px;
+}

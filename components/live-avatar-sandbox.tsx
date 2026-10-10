@@ -8,12 +8,14 @@ type Phase = "idle" | "connecting" | "live" | "ended";
 
 // Admin-only free test of the real-time video path. It always runs in LiveAvatar's sandbox mode (no credits, about a minute,
 // one public test avatar), so it proves the connection, video and audio without spending anything.
-export function LiveAvatarSandbox() {
+export function LiveAvatarSandbox({ brainAvatarId }: { brainAvatarId?: string } = {}) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState("");
   const [log, setLog] = useState<string[]>([]);
   const roomRef = useRef<Room | null>(null);
   const sessionRef = useRef("");
+  const cleanupRef = useRef<{ secretId?: string; configId?: string } | null>(null);
+  const [question, setQuestion] = useState("I am a total beginner. Where should I start?");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const meterRef = useRef<number | null>(null);
@@ -31,7 +33,8 @@ export function LiveAvatarSandbox() {
     room?.disconnect();
     const sessionId = sessionRef.current;
     sessionRef.current = "";
-    if (sessionId) await adminFetch("/api/admin/liveavatar/stop", { method: "POST", body: JSON.stringify({ sessionId }) }).catch(() => undefined);
+    if (sessionId) await adminFetch("/api/admin/liveavatar/stop", { method: "POST", body: JSON.stringify({ sessionId, cleanup: cleanupRef.current }) }).catch(() => undefined);
+    cleanupRef.current = null;
     setPhase("ended");
   }, []);
 
@@ -49,15 +52,23 @@ export function LiveAvatarSandbox() {
     note(`asked the avatar to say: "${text}"`);
   }
 
+  function ask(room: Room, text: string) {
+    // avatar.speak_response: the avatar generates a reply with its brain and speaks it.
+    const event = { event_id: crypto.randomUUID(), event_type: "avatar.speak_response", text };
+    void room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(event)), { reliable: true, topic: "agent-control" });
+    note(`asked the avatar: "${text}"`);
+  }
+
   async function start() {
     setError("");
     setLog([]);
     setPhase("connecting");
     try {
-      const response = await adminFetch("/api/admin/liveavatar/sandbox", { method: "POST" });
+      const response = await adminFetch(brainAvatarId ? "/api/admin/liveavatar/brain-test" : "/api/admin/liveavatar/sandbox", { method: "POST", body: brainAvatarId ? JSON.stringify({ avatarId: brainAvatarId }) : undefined });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not start the sandbox session");
       sessionRef.current = data.sessionId;
+      cleanupRef.current = data.cleanup || null;
       note(`session created${data.voice ? ` (voice: ${data.voice.name}, ${data.voice.language})` : ""}`);
 
       const room = new Room({ adaptiveStream: { pauseVideoInBackground: false }, dynacast: true });
@@ -116,7 +127,9 @@ export function LiveAvatarSandbox() {
         if (room.remoteParticipants.size >= 2 || Date.now() - waitStart > 10000) {
           window.clearInterval(ready);
           window.setTimeout(() => {
-            if (roomRef.current === room) speak(room, "Hello. This is a free sandbox test of the video avatar.");
+            if (roomRef.current !== room) return;
+            if (brainAvatarId) ask(room, question);
+            else speak(room, "Hello. This is a free sandbox test of the video avatar.");
           }, 1500);
         }
       }, 300);
@@ -137,13 +150,22 @@ export function LiveAvatarSandbox() {
       <div className="button-row">
         {phase === "idle" || phase === "ended" ? (
           <button className="primary-action" onClick={() => void start()}>
-            {phase === "ended" ? "Run the sandbox test again" : "Run the free sandbox test"}
+            {brainAvatarId ? (phase === "ended" ? "Run the brain test again" : "Run the brain test") : phase === "ended" ? "Run the sandbox test again" : "Run the free sandbox test"}
           </button>
         ) : (
           <>
-            <button className="secondary-action" disabled={phase !== "live"} onClick={() => roomRef.current && speak(roomRef.current, "Namaste. Can you hear me clearly?")}>
-              Make it speak
-            </button>
+            {brainAvatarId ? (
+              <>
+                <input value={question} onChange={(event) => setQuestion(event.target.value)} aria-label="Question for the avatar" />
+                <button className="secondary-action" disabled={phase !== "live" || !question.trim()} onClick={() => roomRef.current && ask(roomRef.current, question)}>
+                  Ask
+                </button>
+              </>
+            ) : (
+              <button className="secondary-action" disabled={phase !== "live"} onClick={() => roomRef.current && speak(roomRef.current, "Namaste. Can you hear me clearly?")}>
+                Make it speak
+              </button>
+            )}
             <button className="secondary-action danger" onClick={() => void stop()}>
               End now
             </button>

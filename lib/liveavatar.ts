@@ -87,3 +87,25 @@ export async function laStartSession(sessionToken: string) {
 export async function laStopSession(sessionId: string, reason = "USER_CLOSED") {
   await call("/v1/sessions/stop", { method: "POST", body: { session_id: sessionId, reason } });
 }
+
+// ---- custom brain (our own OpenAI-compatible endpoint) ----
+export async function laCreateSecret(name: string, value: string) {
+  const data = await call<{ id: string }>("/v1/secrets", { method: "POST", body: { secret_name: name, secret_value: value, secret_type: "LLM_API_KEY" } });
+  return data.id;
+}
+
+export async function laCreateLlmConfiguration(input: { displayName: string; modelName: string; secretId: string; baseUrl: string }) {
+  const data = await call<{ id: string }>("/v1/llm-configurations", {
+    method: "POST",
+    body: { display_name: input.displayName, model_name: input.modelName, secret_id: input.secretId, base_url: input.baseUrl },
+  });
+  return data.id;
+}
+
+export async function laDeleteLlmConfiguration(id: string) {
+  await call(`/v1/llm-configurations/${id}`, { method: "DELETE" }).catch(() => undefined);
+}
+
+export async function laDeleteSecret(id: string) {
+  await call(`/v1/secrets/${id}`, { method: "DELETE" }).catch(() => undefined);
+}

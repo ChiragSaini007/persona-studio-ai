@@ -848,6 +848,15 @@ function VideoTab({ id, avatar, status, busy, call }: { id: string; avatar: Avat
               This test runs in LiveAvatar&apos;s sandbox mode only: it uses no credits, lasts about a minute, and shows a public test avatar. It checks that the live connection, video and audio work end to end before any real avatar is used.
             </p>
             <LiveAvatarSandbox />
+            <h3 className="form-section-title">Brain test (also free, sandbox only)</h3>
+            <p className="field-hint">
+              The same live test, but the avatar answers with {avatar.creator_name}&apos;s own brain: the persona, content, limits and active genre mode. It needs the avatar to be live with video switched on, so it only works on a real, approved avatar.
+            </p>
+            {avatar.status === "live" && avatar.video_config?.enabled ? (
+              <LiveAvatarSandbox brainAvatarId={id} />
+            ) : (
+              <p className="field-hint">Not available yet: this avatar is not live with video turned on.</p>
+            )}
           </>
         ) : (
           <p className="field-hint">

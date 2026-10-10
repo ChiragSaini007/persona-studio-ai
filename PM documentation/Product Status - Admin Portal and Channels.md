@@ -29,3 +29,6 @@ Each avatar has a main persona plus adaptable modes (Action, Romance, Comedy, Ho
 - Own-voice clone (needs provider key and samples)
 - Real Instagram connect, admin MFA/SSO, review-queue actions, voice cost caps
 - India compliance: label synthetic media (IT Rules 2026), per-use consent, personality-rights orders
+
+## Shah Rukh Khan avatar (10 Oct 2026)
+Database reset to empty on 10 Oct; the Shah Rukh Khan avatar was recreated as a real Ops-built avatar (handle `shahrukhkhan`) after the owner stated offline consent. Rights recorded in the Rights tab (reference: offline consent confirmed by Chirag Saini; territories IN, US); document reference still to add. Persona written from public knowledge, paraphrased, with genre modes Action, Romance, Comedy, Horror. Voice: stock voice only (no clone). No photo (initials) until the talent team supplies an approved image. Video off until a licensed face exists. Status: submitted for approval; admin must approve and publish.

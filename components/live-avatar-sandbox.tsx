@@ -43,7 +43,8 @@ export function LiveAvatarSandbox() {
   );
 
   function speak(room: Room, text: string) {
-    const event = { event_id: `evt-${Date.now()}`, event_type: "avatar.speak_text", session_id: sessionRef.current, source_event_id: null, text };
+    // Same shape as LiveAvatar's own SDK: event id, event type and text.
+    const event = { event_id: crypto.randomUUID(), event_type: "avatar.speak_text", text };
     void room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(event)), { reliable: true, topic: "agent-control" });
     note(`asked the avatar to say: "${text}"`);
   }
@@ -59,7 +60,7 @@ export function LiveAvatarSandbox() {
       sessionRef.current = data.sessionId;
       note(`session created${data.voice ? ` (voice: ${data.voice.name}, ${data.voice.language})` : ""}`);
 
-      const room = new Room({ adaptiveStream: true });
+      const room = new Room({ adaptiveStream: { pauseVideoInBackground: false }, dynacast: true });
       roomRef.current = room;
       room.on(RoomEvent.TrackSubscribed, (track) => {
         note(`${track.kind} track arrived`);
@@ -108,9 +109,17 @@ export function LiveAvatarSandbox() {
       await room.connect(data.livekitUrl, data.livekitToken);
       note(`joined the room; already here: ${Array.from(room.remoteParticipants.values()).map((p) => p.identity).join(", ") || "nobody yet"}`);
       setPhase("live");
-      window.setTimeout(() => {
-        if (roomRef.current === room) speak(room, "Hello. This is a free sandbox test of the video avatar.");
-      }, 4000);
+      // Wait until both the LiveAvatar agent and the avatar are in the room, as LiveAvatar's SDK does.
+      const waitStart = Date.now();
+      const ready = window.setInterval(() => {
+        if (roomRef.current !== room) return window.clearInterval(ready);
+        if (room.remoteParticipants.size >= 2 || Date.now() - waitStart > 10000) {
+          window.clearInterval(ready);
+          window.setTimeout(() => {
+            if (roomRef.current === room) speak(room, "Hello. This is a free sandbox test of the video avatar.");
+          }, 1500);
+        }
+      }, 300);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Something went wrong");
       await stop();

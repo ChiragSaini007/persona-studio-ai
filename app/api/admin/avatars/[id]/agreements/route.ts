@@ -24,10 +24,15 @@ export async function POST(request: NextRequest, context: Context) {
     const signerRole = String(form.get("signer_role") || "");
     const signedOn = String(form.get("signed_on") || "");
     const expiresOn = String(form.get("expires_on") || "") || null;
+    const territories = String(form.get("territories") || "IN,US")
+      .split(",")
+      .map((item) => item.trim().toUpperCase())
+      .filter((item) => ["IN", "US", "ROW"].includes(item));
 
     if (!(file instanceof File) || file.size === 0) return NextResponse.json({ error: "Attach the signed agreement" }, { status: 400 });
     if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: "Agreement file must be 10 MB or smaller" }, { status: 400 });
     if (!allowedTypes.includes(file.type)) return NextResponse.json({ error: "Use a PDF, PNG, JPG or WebP file" }, { status: 400 });
+    if (!territories.length) return NextResponse.json({ error: "Choose at least one territory (India, United States or Rest of world)" }, { status: 400 });
     if (!channels.includes(channel)) return NextResponse.json({ error: "Choose a channel" }, { status: 400 });
     if (!signedBy) return NextResponse.json({ error: "Who signed the agreement?" }, { status: 400 });
     if (!["creator", "authorised_representative"].includes(signerRole)) return NextResponse.json({ error: "Choose the signer's role" }, { status: 400 });
@@ -48,12 +53,13 @@ export async function POST(request: NextRequest, context: Context) {
         signer_role: signerRole,
         signed_on: signedOn,
         expires_on: expiresOn,
+        territories,
         scope_notes: String(form.get("scope_notes") || "").slice(0, 2000),
         file_path: path,
         uploaded_by_email: auth.staff.email,
       },
     });
-    await logAudit(auth.staff, "agreement_uploaded", id, { channel, signed_by: signedBy, signer_role: signerRole, signed_on: signedOn, expires_on: expiresOn });
+    await logAudit(auth.staff, "agreement_uploaded", id, { channel, signed_by: signedBy, signer_role: signerRole, signed_on: signedOn, expires_on: expiresOn, territories });
     return NextResponse.json({ agreement: rows[0] });
   } catch (error) {
     return adminError(error);

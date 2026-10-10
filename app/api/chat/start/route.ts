@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     if (!persona) return NextResponse.json({ error: "Persona not found" }, { status: 404 });
     if (persona.status !== "live") return NextResponse.json({ error: "Persona is not live" }, { status: 403 });
-    if (await managedAvatarBlocked(persona as PersonaRecord & { managed_by_admin?: boolean; approval_status?: string })) {
+    if (await managedAvatarBlocked(persona as PersonaRecord & { managed_by_admin?: boolean; approval_status?: string }, request)) {
       return NextResponse.json({ error: "Persona is not available" }, { status: 403 });
     }
     if (persona.monetization === "pay_per_conversation" && !paid) {

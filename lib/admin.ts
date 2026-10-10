@@ -67,6 +67,7 @@ export type Agreement = {
   expires_on: string | null;
   scope_notes: string;
   file_path: string;
+  territories?: string[];
   status: "active" | "revoked";
   uploaded_by_email: string;
   created_at: string;
@@ -130,11 +131,25 @@ export async function signedAgreementUrl(path: string) {
 }
 
 
-// Ops-managed avatars may only talk to fans while approved and covered by an active signed text agreement.
-export async function managedAvatarBlocked(persona: { id?: string; managed_by_admin?: boolean; approval_status?: string }) {
+// Country of the request. On Vercel this header is set by the platform and cannot be spoofed by the visitor.
+export function requestCountry(request?: Request) {
+  return (request?.headers.get("x-vercel-ip-country") || "").toUpperCase();
+}
+
+export function territoryAllows(agreement: Pick<Agreement, "territories">, country: string) {
+  const territories = agreement.territories && agreement.territories.length ? agreement.territories : ["IN", "US"];
+  if (!country || territories.includes("ROW")) return true; // unknown country (local development) is allowed
+  return territories.includes(country);
+}
+
+// Ops-managed avatars may only talk to fans while approved, covered by an active signed text agreement,
+// and only in the territories that agreement covers.
+export async function managedAvatarBlocked(persona: { id?: string; managed_by_admin?: boolean; approval_status?: string }, request?: Request) {
   if (!persona.managed_by_admin) return false;
   if (persona.approval_status !== "approved") return true;
-  return !(await activeAgreement(persona.id as string, "text"));
+  const agreement = await activeAgreement(persona.id as string, "text");
+  if (!agreement) return true;
+  return !territoryAllows(agreement, requestCountry(request));
 }
 
 

@@ -20,6 +20,9 @@ export async function POST(request: NextRequest, context: Context) {
     if (!avatar) return NextResponse.json({ error: "Avatar not found" }, { status: 404 });
 
     if (status === "live") {
+      if (avatar.is_example) {
+        return NextResponse.json({ error: "Example avatars are for practice and can never be published" }, { status: 400 });
+      }
       if (avatar.approval_status !== "approved") {
         return NextResponse.json({ error: "This avatar needs recorded creator sign-off and approval before it can go live" }, { status: 400 });
       }

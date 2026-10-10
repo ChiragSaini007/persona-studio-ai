@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateChatReply, moderateText } from "../../../../lib/ai";
 import { managedAvatarBlocked } from "../../../../lib/admin";
 import { findFlag, PersonaRecord } from "../../../../lib/persona";
+import { resolveActivePersona } from "../../../../lib/variants";
 import { supabaseRest } from "../../../../lib/supabase-rest";
 
 type ConversationRow = {
@@ -36,12 +37,13 @@ export async function POST(request: NextRequest) {
     if (
       !persona ||
       persona.status !== "live" ||
-      (await managedAvatarBlocked(persona as PersonaRecord & { managed_by_admin?: boolean; approval_status?: string }))
+      (await managedAvatarBlocked(persona as PersonaRecord & { managed_by_admin?: boolean; approval_status?: string }, request))
     ) {
       return NextResponse.json({ error: "Persona is not available" }, { status: 403 });
     }
 
-    const guardrailFlag = findFlag(persona, message);
+    const { persona: activePersona } = await resolveActivePersona(persona as PersonaRecord & { active_variant_id?: string | null });
+    const guardrailFlag = findFlag(activePersona, message);
     const moderationFlag = await moderateText(message);
     const flagReason = guardrailFlag || moderationFlag;
     const history = await supabaseRest<MessageRow[]>(
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
       retrievedChunkCount,
       webSourceCount,
     } =
-      await generateChatReply(persona, message, flagReason, history);
+      await generateChatReply(activePersona, message, flagReason, history);
     if (runtimeError) console.error("Persona chat runtime failed", runtimeError);
 
     const savedMessages = await supabaseRest("messages", {

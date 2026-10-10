@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { savePersonaEmbeddings } from "../../../lib/ai";
 import { bearerToken, getAuthUser } from "../../../lib/auth";
 import { buildRetrievalChunks, cleanHandle, normalizeProfile, PersonaRecord, toPublicPersona } from "../../../lib/persona";
+import { resolveActivePersona } from "../../../lib/variants";
 import { supabaseRest } from "../../../lib/supabase-rest";
 
 type MessageRow = {
@@ -110,7 +111,8 @@ export async function GET(request: NextRequest) {
     );
 
     if (!rows[0]) return NextResponse.json({ error: "Persona not found" }, { status: 404 });
-    return NextResponse.json({ persona: toPublicPersona(rows[0]) });
+    const { variant } = await resolveActivePersona(rows[0] as PersonaRecord & { active_variant_id?: string | null });
+    return NextResponse.json({ persona: { ...toPublicPersona(rows[0]), active_variant: variant ? { name: variant.name, genre: variant.genre } : null } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load persona" }, { status: 500 });
   }

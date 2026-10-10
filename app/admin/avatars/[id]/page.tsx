@@ -34,6 +34,8 @@ type Avatar = {
   approved_at: string | null;
   claim_email: string | null;
   internal_notes: string;
+  is_example?: boolean;
+  active_variant_id?: string | null;
   voice_config?: { enabled?: boolean; voice?: string; instructions?: string; realtime_enabled?: boolean; realtime_voice?: string };
 };
 
@@ -45,13 +47,14 @@ type Agreement = {
   signed_on: string;
   expires_on: string | null;
   scope_notes: string;
+  territories?: string[];
   status: "active" | "revoked";
   uploaded_by_email: string;
 };
 
 type Activity = { id: string; action: string; actor_email: string; details: Record<string, unknown>; created_at: string };
 
-const tabs = ["Overview", "Agreements", "Content", "Voice and limits", "Voice", "Test chat", "Approval", "Activity"] as const;
+const tabs = ["Overview", "Agreements", "Content", "Voice and limits", "Variants", "Voice", "Test chat", "Approval", "Activity"] as const;
 type Tab = (typeof tabs)[number];
 
 const channelOptions = [
@@ -162,6 +165,7 @@ function Workspace({ role }: { role: Role }) {
           <h1>{avatar.creator_name}</h1>
           <p>
             <span className={`status-pill ${avatar.status === "live" ? "live" : avatar.status === "paused" ? "paused" : "draft"}`}>{avatar.status}</span> @{avatar.creator_handle}
+            {avatar.is_example && <span className="status-pill soon">Example</span>}
           </p>
         </div>
         <div className="page-header-actions">
@@ -195,6 +199,11 @@ function Workspace({ role }: { role: Role }) {
         ))}
       </nav>
 
+      {avatar.is_example && (
+        <div className="system-notice" role="note">
+          Example avatar for practice. It is not affiliated with or endorsed by the person named, and it can never be published.
+        </div>
+      )}
       {error && <div className="system-notice" role="alert">{error}</div>}
       {notice && <div className="success-notice" role="status">{notice}</div>}
 
@@ -204,6 +213,7 @@ function Workspace({ role }: { role: Role }) {
       {tab === "Agreements" && <AgreementsTab id={id} role={role} agreements={agreements} busy={busy} call={call} setError={setError} />}
       {tab === "Content" && <ContentTab id={id} avatar={avatar} hasAgreement={Boolean(activeText)} busy={busy} call={call} />}
       {tab === "Voice and limits" && <VoiceTab id={id} avatar={avatar} busy={busy} call={call} />}
+      {tab === "Variants" && <VariantsTab id={id} avatar={avatar} role={role} busy={busy} call={call} setError={setError} reload={load} />}
       {tab === "Voice" && <VoiceRepliesTab id={id} avatar={avatar} agreements={agreements} busy={busy} call={call} setError={setError} />}
       {tab === "Test chat" && <TestChat id={id} avatar={avatar} />}
       {tab === "Approval" && <ApprovalTab id={id} role={role} avatar={avatar} checklist={checklist} activity={activity} busy={busy} call={call} />}
@@ -254,6 +264,7 @@ function OverviewTab({ avatar, checklist, busy, onSave }: { avatar: Avatar; chec
 
 function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: string; role: Role; agreements: Agreement[]; busy: string; call: Call; setError: (value: string) => void }) {
   const [form, setForm] = useState({ channel: "text", signed_by_name: "", signer_role: "creator", signed_on: today(), expires_on: "", scope_notes: "" });
+  const [territories, setTerritories] = useState<Record<string, boolean>>({ IN: true, US: true, ROW: false });
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(0);
 
@@ -264,6 +275,7 @@ function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: str
     }
     const body = new FormData();
     Object.entries(form).forEach(([key, value]) => body.append(key, value));
+    body.append("territories", Object.keys(territories).filter((key) => territories[key]).join(","));
     body.append("file", file);
     const result = await call("upload", `/api/admin/avatars/${id}/agreements`, { method: "POST", body }, "Agreement saved.");
     if (result) {
@@ -305,6 +317,7 @@ function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: str
                 <th>Signed by</th>
                 <th>Signed on</th>
                 <th>Expires</th>
+                <th>Territories</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -319,6 +332,7 @@ function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: str
                   </td>
                   <td>{agreement.signed_on}</td>
                   <td>{agreement.expires_on || "No expiry"}</td>
+                  <td>{(agreement.territories && agreement.territories.length ? agreement.territories : ["IN", "US"]).map((code) => ({ IN: "India", US: "United States", ROW: "Rest of world" }[code] || code)).join(", ")}</td>
                   <td>
                     <span className={`status-pill ${agreement.status === "active" ? "live" : "paused"}`}>{agreement.status}</span>
                   </td>
@@ -380,6 +394,21 @@ function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: str
             Expires (optional)
             <input type="date" value={form.expires_on} onChange={(event) => setForm({ ...form, expires_on: event.target.value })} />
           </label>
+          <div className="choice-group">
+            <span className="choice-label">Where the avatar may be used</span>
+            <div className="choice-row">
+              {[
+                ["IN", "India"],
+                ["US", "United States"],
+                ["ROW", "Rest of world"],
+              ].map(([code, label]) => (
+                <button key={code} type="button" className="choice" aria-pressed={territories[code]} onClick={() => setTerritories({ ...territories, [code]: !territories[code] })}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="field-hint">Fans outside these territories are blocked from this avatar.</span>
+          </div>
           <label>
             Scope notes (optional)
             <textarea className="compact-textarea" value={form.scope_notes} onChange={(event) => setForm({ ...form, scope_notes: event.target.value })} />
@@ -631,6 +660,246 @@ function VoiceTab({ id, avatar, busy, call }: { id: string; avatar: Avatar; busy
   );
 }
 
+type VariantRow = {
+  id: string;
+  name: string;
+  genre: string;
+  description: string;
+  overlay: { styleNotes: string; extraInstructions: string; greeting: string; voiceInstructions: string; extraAvoid: string[]; extraNeverSay: string[] };
+  approval_status: "none" | "pending" | "approved" | "changes_requested";
+  approved_by_email: string | null;
+};
+
+type VariantTemplate = { genre: string; label: string; overlay: VariantRow["overlay"] };
+
+const emptyOverlay = { styleNotes: "", extraInstructions: "", greeting: "", voiceInstructions: "", extraAvoid: [] as string[], extraNeverSay: [] as string[] };
+
+function VariantsTab({ id, avatar, role, busy, call, setError, reload }: { id: string; avatar: Avatar; role: Role; busy: string; call: Call; setError: (value: string) => void; reload: () => Promise<void> }) {
+  const [variants, setVariants] = useState<VariantRow[] | null>(null);
+  const [templates, setTemplates] = useState<VariantTemplate[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(avatar.active_variant_id || null);
+  const [editing, setEditing] = useState<string>("");
+  const [form, setForm] = useState({ name: "", genre: "custom", description: "", overlay: emptyOverlay });
+  const [signoffFor, setSignoffFor] = useState("");
+  const [signoff, setSignoff] = useState({ by: "", method: "email", date: today(), reference: "" });
+  const lines = (value: string) => value.split("\n").map((item) => item.trim()).filter(Boolean);
+  const commas = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+
+  const load = useCallback(async () => {
+    const response = await adminFetch(`/api/admin/avatars/${id}/variants`);
+    if (!response.ok) return;
+    const data = await response.json();
+    setVariants(data.variants);
+    setTemplates(data.templates);
+    setActiveId(data.active_variant_id);
+  }, [id]);
+  useEffect(() => {
+    queueMicrotask(() => void load());
+  }, [load]);
+
+  function startNew(genre: string) {
+    const template = templates.find((item) => item.genre === genre);
+    setEditing("new");
+    setForm({ name: template ? `${template.label} mode` : "", genre, description: "", overlay: template ? { ...template.overlay } : emptyOverlay });
+  }
+
+  function startEdit(row: VariantRow) {
+    setEditing(row.id);
+    setForm({ name: row.name, genre: row.genre, description: row.description, overlay: { ...emptyOverlay, ...row.overlay } });
+  }
+
+  async function save() {
+    const path = editing === "new" ? `/api/admin/avatars/${id}/variants` : `/api/admin/avatars/${id}/variants/${editing}`;
+    const result = await call("variant", path, { method: editing === "new" ? "POST" : "PATCH", body: JSON.stringify(form) }, editing === "new" ? "Mode created." : "Mode saved. It needs approving again.");
+    if (result) {
+      setEditing("");
+      await load();
+      await reload();
+    }
+  }
+
+  async function act(row: VariantRow, path: string, init: RequestInit, success: string) {
+    const result = await call(`variant-${row.id}`, path, init, success);
+    if (result) {
+      await load();
+      await reload();
+    }
+  }
+
+  return (
+    <div className="screen-stack">
+      <section className="product-card">
+        <h2>Genre modes</h2>
+        <p className="field-hint">
+          One main persona, plus adaptable modes such as Action or Horror. A mode can add a style and extra topics to avoid, but it can never switch off the main persona&apos;s limits. Each mode needs the creator&apos;s own sign-off before fans can talk to it.
+        </p>
+        <p>
+          Fans currently talk to: <strong>{activeId ? variants?.find((row) => row.id === activeId)?.name || "a mode" : "the main persona"}</strong>
+        </p>
+        {activeId && (
+          <div className="button-row">
+            <button className="secondary-action" disabled={busy === "variant-main"} onClick={() => void act({ id: "main" } as VariantRow, `/api/admin/avatars/${id}/variants/active`, { method: "POST", body: JSON.stringify({ variantId: null }) }, "Back to the main persona.")}>
+              Switch back to the main persona
+            </button>
+          </div>
+        )}
+      </section>
+
+      {variants === null ? (
+        <p>Loading…</p>
+      ) : (
+        variants.map((row) => (
+          <section key={row.id} className="product-card">
+            <div className="section-heading-row">
+              <div>
+                <h3>
+                  {row.name} <span className="status-pill soon">{row.genre}</span>{" "}
+                  <span className={`status-pill ${row.approval_status === "approved" ? "live" : row.approval_status === "pending" ? "draft" : row.approval_status === "changes_requested" ? "paused" : "soon"}`}>
+                    {{ none: "Not submitted", pending: "Awaiting approval", approved: "Approved", changes_requested: "Changes requested" }[row.approval_status]}
+                  </span>{" "}
+                  {activeId === row.id && <span className="status-pill live">Active for fans</span>}
+                </h3>
+                <p className="field-hint">{row.overlay.styleNotes || "No style notes yet."}</p>
+              </div>
+            </div>
+            <div className="button-row">
+              <button className="secondary-action" onClick={() => (editing === row.id ? setEditing("") : startEdit(row))}>
+                {editing === row.id ? "Close" : "Edit"}
+              </button>
+              {(row.approval_status === "none" || row.approval_status === "changes_requested") && (
+                <button className="secondary-action" disabled={busy === `variant-${row.id}`} onClick={() => void act(row, `/api/admin/avatars/${id}/variants/${row.id}/review`, { method: "POST", body: JSON.stringify({ decision: "submit" }) }, "Submitted for approval.")}>
+                  Submit for approval
+                </button>
+              )}
+              {role === "admin" && row.approval_status === "pending" && (
+                <button className="primary-action" onClick={() => setSignoffFor(signoffFor === row.id ? "" : row.id)}>
+                  Record sign-off and approve
+                </button>
+              )}
+              {role === "admin" && row.approval_status === "approved" && activeId !== row.id && (
+                <button className="primary-action" disabled={busy === `variant-${row.id}`} onClick={() => void act(row, `/api/admin/avatars/${id}/variants/active`, { method: "POST", body: JSON.stringify({ variantId: row.id }) }, `${row.name} is now active for fans.`)}>
+                  Make active for fans
+                </button>
+              )}
+              {role === "admin" && (
+                <button className="secondary-action danger" disabled={busy === `variant-${row.id}`} onClick={() => void act(row, `/api/admin/avatars/${id}/variants/${row.id}`, { method: "DELETE" }, "Mode archived.")}>
+                  Archive
+                </button>
+              )}
+            </div>
+
+            {signoffFor === row.id && (
+              <div className="admin-form">
+                <p className="field-hint">The creator or their representative must have agreed to this mode. Record how.</p>
+                <div className="field-grid">
+                  <label>
+                    Who signed off
+                    <input value={signoff.by} onChange={(event) => setSignoff({ ...signoff, by: event.target.value })} />
+                  </label>
+                  <label>
+                    How
+                    <select value={signoff.method} onChange={(event) => setSignoff({ ...signoff, method: event.target.value })}>
+                      <option value="email">Email</option>
+                      <option value="whatsapp">WhatsApp</option>
+                      <option value="call">Phone call</option>
+                      <option value="meeting">Meeting</option>
+                      <option value="portal">Creator portal</option>
+                    </select>
+                  </label>
+                  <label>
+                    Date
+                    <input type="date" value={signoff.date} onChange={(event) => setSignoff({ ...signoff, date: event.target.value })} />
+                  </label>
+                  <label>
+                    Reference
+                    <input value={signoff.reference} onChange={(event) => setSignoff({ ...signoff, reference: event.target.value })} />
+                  </label>
+                </div>
+                <div className="button-row">
+                  <button
+                    className="primary-action"
+                    disabled={!signoff.by.trim()}
+                    onClick={async () => {
+                      await act(row, `/api/admin/avatars/${id}/variants/${row.id}/review`, { method: "POST", body: JSON.stringify({ decision: "approve", signoff }) }, "Mode approved.");
+                      setSignoffFor("");
+                    }}
+                  >
+                    Approve this mode
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {editing === row.id && <VariantForm form={form} setForm={setForm} lines={lines} commas={commas} onSave={() => void save()} saving={busy === "variant"} />}
+          </section>
+        ))
+      )}
+
+      <section className="product-card">
+        <h3 className="form-section-title">Add a mode</h3>
+        <div className="choice-row">
+          {templates.map((template) => (
+            <button key={template.genre} type="button" className="choice" onClick={() => startNew(template.genre)}>
+              {template.label}
+            </button>
+          ))}
+        </div>
+        {editing === "new" && <VariantForm form={form} setForm={setForm} lines={lines} commas={commas} onSave={() => void save()} saving={busy === "variant"} />}
+      </section>
+    </div>
+  );
+}
+
+function VariantForm({ form, setForm, lines, commas, onSave, saving }: {
+  form: { name: string; genre: string; description: string; overlay: VariantRow["overlay"] };
+  setForm: (value: { name: string; genre: string; description: string; overlay: VariantRow["overlay"] }) => void;
+  lines: (value: string) => string[];
+  commas: (value: string) => string[];
+  onSave: () => void;
+  saving: boolean;
+}) {
+  const setOverlay = (patch: Partial<VariantRow["overlay"]>) => setForm({ ...form, overlay: { ...form.overlay, ...patch } });
+  return (
+    <div className="admin-form">
+      <div className="field-grid">
+        <label>
+          Name
+          <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+        </label>
+        <label>
+          How this mode should sound and behave
+          <textarea className="compact-textarea" value={form.overlay.styleNotes} onChange={(event) => setOverlay({ styleNotes: event.target.value })} />
+        </label>
+        <label>
+          Extra instructions (optional)
+          <textarea className="compact-textarea" value={form.overlay.extraInstructions} onChange={(event) => setOverlay({ extraInstructions: event.target.value })} />
+        </label>
+        <label>
+          Opening line for this mode (optional)
+          <textarea className="compact-textarea" value={form.overlay.greeting} onChange={(event) => setOverlay({ greeting: event.target.value })} />
+        </label>
+        <label>
+          Voice delivery (optional)
+          <input value={form.overlay.voiceInstructions} onChange={(event) => setOverlay({ voiceInstructions: event.target.value })} />
+        </label>
+        <label>
+          Extra topics to avoid (comma separated)
+          <input value={form.overlay.extraAvoid.join(", ")} onChange={(event) => setOverlay({ extraAvoid: commas(event.target.value) })} />
+        </label>
+        <label>
+          Extra things never to say (one per line)
+          <textarea className="compact-textarea" value={form.overlay.extraNeverSay.join("\n")} onChange={(event) => setOverlay({ extraNeverSay: lines(event.target.value) })} />
+        </label>
+      </div>
+      <div className="button-row">
+        <button className="primary-action" disabled={saving || !form.name.trim() || !form.overlay.styleNotes.trim()} onClick={onSave}>
+          Save mode
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const presetVoiceNames = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"];
 
 function VoiceRepliesTab({ id, avatar, agreements, busy, call, setError }: { id: string; avatar: Avatar; agreements: Agreement[]; busy: string; call: Call; setError: (value: string) => void }) {
@@ -860,6 +1129,14 @@ function TestChat({ id, avatar }: { id: string; avatar: Avatar }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [variants, setVariants] = useState<{ id: string; name: string }[]>([]);
+  const [variantId, setVariantId] = useState("");
+  useEffect(() => {
+    void (async () => {
+      const response = await adminFetch(`/api/admin/avatars/${id}/variants`);
+      if (response.ok) setVariants((await response.json()).variants);
+    })();
+  }, [id]);
 
   async function send() {
     const message = input.trim();
@@ -869,7 +1146,7 @@ function TestChat({ id, avatar }: { id: string; avatar: Avatar }) {
     const history = turns.map((turn) => ({ role: turn.role, text: turn.text }));
     setTurns((current) => [...current, { role: "fan", text: message }]);
     setInput("");
-    const response = await adminFetch(`/api/admin/avatars/${id}/test`, { method: "POST", body: JSON.stringify({ message, history }) });
+    const response = await adminFetch(`/api/admin/avatars/${id}/test`, { method: "POST", body: JSON.stringify({ message, history, variantId }) });
     const data = await response.json();
     setSending(false);
     if (!response.ok) {
@@ -883,6 +1160,19 @@ function TestChat({ id, avatar }: { id: string; avatar: Avatar }) {
     <section className="product-card">
       <h2>Test as a fan</h2>
       <p className="field-hint">Talk to {avatar.creator_name}&apos;s avatar the way a fan would. Nothing here is saved or shown to fans. Try risky and off-topic questions too.</p>
+      {variants.length > 0 && (
+        <label className="admin-block">
+          Mode
+          <select value={variantId} onChange={(event) => { setVariantId(event.target.value); setTurns([]); }}>
+            <option value="">Main persona</option>
+            {variants.map((variant) => (
+              <option key={variant.id} value={variant.id}>
+                {variant.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="admin-chat" aria-live="polite">
         {turns.length === 0 && <p className="field-hint">Ask a question to begin.</p>}
         {turns.map((turn, index) => (

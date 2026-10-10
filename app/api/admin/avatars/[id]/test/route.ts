@@ -3,6 +3,7 @@ import { generateChatReply } from "../../../../../../lib/ai";
 import { adminError, requireStaff } from "../../../../../../lib/admin";
 import { loadAvatar } from "../../../../../../lib/admin-avatars";
 import { findFlag } from "../../../../../../lib/persona";
+import { applyVariant, loadVariant } from "../../../../../../lib/variants";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -26,8 +27,14 @@ export async function POST(request: NextRequest, context: Context) {
             text: String(turn.text || "").slice(0, 1000),
           }))
       : [];
-    const flag = findFlag(avatar, message);
-    const result = await generateChatReply(avatar, message, flag, history);
+    // Staff can test any mode, including ones not yet approved.
+    let persona = avatar;
+    if (typeof body.variantId === "string" && body.variantId) {
+      const variant = await loadVariant(body.variantId);
+      if (variant && variant.persona_id === id) persona = applyVariant(avatar, variant);
+    }
+    const flag = findFlag(persona, message);
+    const result = await generateChatReply(persona, message, flag, history);
     return NextResponse.json({ reply: result.reply, flagged: flag || null, used_ai: result.usedAI });
   } catch (error) {
     return adminError(error);

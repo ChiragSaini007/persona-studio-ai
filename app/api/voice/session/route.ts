@@ -1,7 +1,8 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { activeAgreement } from "../../../../lib/admin";
+import { activeAgreement, requestCountry, territoryAllows } from "../../../../lib/admin";
 import { bearerToken, getAuthUser } from "../../../../lib/auth";
 import { cleanHandle, PersonaRecord } from "../../../../lib/persona";
+import { resolveActivePersona } from "../../../../lib/variants";
 import { buildRealtimeInstructions, createRealtimeCall, endSession, realtimeLimits, VoiceSession } from "../../../../lib/realtime";
 import { supabaseRest } from "../../../../lib/supabase-rest";
 import { normalizeVoiceConfig } from "../../../../lib/tts";
@@ -27,8 +28,12 @@ export async function POST(request: NextRequest) {
     if (!persona || persona.status !== "live" || !voice.realtime_enabled || persona.approval_status !== "approved") {
       return NextResponse.json({ error: "Live voice is not available for this avatar." }, { status: 403 });
     }
-    if (!(await activeAgreement(persona.id as string, "realtime_voice"))) {
+    const liveAgreement = await activeAgreement(persona.id as string, "realtime_voice");
+    if (!liveAgreement) {
       return NextResponse.json({ error: "Live voice is not available for this avatar." }, { status: 403 });
+    }
+    if (!territoryAllows(liveAgreement, requestCountry(request))) {
+      return NextResponse.json({ error: "Live voice is not available in your region yet." }, { status: 403 });
     }
 
     const limits = realtimeLimits();
@@ -63,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     let call;
     try {
-      call = await createRealtimeCall(offer, buildRealtimeInstructions(persona), voice.realtime_voice);
+      call = await createRealtimeCall(offer, buildRealtimeInstructions((await resolveActivePersona(persona as PersonaRecord & { active_variant_id?: string | null })).persona), voice.realtime_voice);
     } catch (error) {
       await endSession(session, "failed");
       return NextResponse.json({ error: error instanceof Error ? error.message : "Could not start the call" }, { status: 502 });

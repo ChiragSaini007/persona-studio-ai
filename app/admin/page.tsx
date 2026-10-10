@@ -11,6 +11,7 @@ type AvatarRow = {
   status: string;
   approval_status: string;
   claim_email: string | null;
+  is_example?: boolean;
   agreement_channels: string[];
   updated_at: string;
 };
@@ -74,6 +75,19 @@ function AvatarList({ role }: { role: Role }) {
           <p>Every avatar your team manages for creators and celebrities who have signed an agreement.</p>
         </div>
         <div className="page-header-actions">
+          {avatars && !avatars.some((avatar) => avatar.is_example) && (
+            <button
+              className="secondary-action"
+              onClick={async () => {
+                const response = await adminFetch("/api/admin/avatars", { method: "POST", body: JSON.stringify({ example: true }) });
+                const data = await response.json();
+                if (!response.ok) setError(data.error || "Could not add the example");
+                else window.location.href = `/admin/avatars/${data.avatar.id}`;
+              }}
+            >
+              Add example avatar
+            </button>
+          )}
           <button className="primary-action" onClick={() => setCreating((open) => !open)}>
             {creating ? "Close" : "New avatar"}
           </button>
@@ -91,7 +105,7 @@ function AvatarList({ role }: { role: Role }) {
             </label>
             <label>
               Public handle
-              <input value={form.creator_handle} placeholder="e.g. priya" onChange={(event) => setForm({ ...form, creator_handle: event.target.value })} />
+              <input value={form.creator_handle} placeholder="e.g. shahrukhkhan" onChange={(event) => setForm({ ...form, creator_handle: event.target.value })} />
             </label>
             <label>
               Their email (so they can claim it later)
@@ -141,7 +155,9 @@ function AvatarList({ role }: { role: Role }) {
               {avatars.map((avatar) => (
                 <tr key={avatar.id}>
                   <td>
-                    <strong>{avatar.creator_name}</strong>
+                    <strong>
+                      {avatar.creator_name} {avatar.is_example && <span className="status-pill soon">Example</span>}
+                    </strong>
                     <small>@{avatar.creator_handle}</small>
                   </td>
                   <td>

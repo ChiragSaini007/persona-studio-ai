@@ -9,6 +9,8 @@ export type AdminPersona = PersonaRecord & {
   approved_at?: string | null;
   created_by_admin_email?: string | null;
   internal_notes?: string;
+  active_variant_id?: string | null;
+  is_example?: boolean;
   created_at?: string;
   updated_at?: string;
 };

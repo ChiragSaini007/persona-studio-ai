@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { managedAvatarBlocked } from "../../../../lib/admin";
 import { bearerToken, getAuthUser } from "../../../../lib/auth";
 import { PersonaRecord } from "../../../../lib/persona";
+import { resolveActivePersona } from "../../../../lib/variants";
 import { supabaseRest } from "../../../../lib/supabase-rest";
 import { normalizeVoiceConfig, synthesizeSpeech } from "../../../../lib/tts";
 
@@ -28,10 +29,12 @@ export async function POST(request: NextRequest) {
       `personas?id=eq.${conversation.persona_id}&select=*`,
     );
     const persona = personas[0];
-    if (!persona || persona.status !== "live" || (await managedAvatarBlocked(persona))) {
+    if (!persona || persona.status !== "live" || (await managedAvatarBlocked(persona, request))) {
       return NextResponse.json({ error: "Voice is not available" }, { status: 403 });
     }
+    const { variant } = await resolveActivePersona(persona as PersonaRecord & { active_variant_id?: string | null });
     const voice = normalizeVoiceConfig(persona.voice_config);
+    if (variant?.overlay.voiceInstructions) voice.instructions = `${voice.instructions} ${variant.overlay.voiceInstructions}`.slice(0, 400);
     if (!voice.enabled) return NextResponse.json({ error: "Voice replies are not enabled for this avatar" }, { status: 403 });
 
     const messages = await supabaseRest<{ text: string }[]>(

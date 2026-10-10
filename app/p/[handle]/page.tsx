@@ -97,6 +97,7 @@ function maskEmail(email: string) {
 export default function FanChatPage() {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [liveVoiceEnabled, setLiveVoiceEnabled] = useState(false);
+  const [modeLabel, setModeLabel] = useState("");
   const [voiceLoading, setVoiceLoading] = useState("");
   const [voicePlaying, setVoicePlaying] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -199,6 +200,7 @@ export default function FanChatPage() {
         });
         setVoiceEnabled(Boolean(persona.voice_enabled));
         setLiveVoiceEnabled(Boolean(persona.realtime_voice_enabled));
+        setModeLabel(persona.active_variant?.name || "");
         setNotice("");
       } catch (error) {
         setRemotePersona(null);
@@ -456,7 +458,7 @@ export default function FanChatPage() {
           <div className="fan-title-block">
             <div className="fan-avatar">{avatarInitials}</div>
             <div>
-              <p className="fan-label">AI avatar</p>
+              <p className="fan-label">AI avatar{modeLabel ? ` · ${modeLabel}` : ""}</p>
               <h1>
                 Chat with <span>{creatorName}</span>
               </h1>

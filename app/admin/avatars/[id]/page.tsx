@@ -134,10 +134,19 @@ function Workspace({ role }: { role: Role }) {
   if (!avatar) return <p>Loading…</p>;
 
   const activeText = agreements.find((item) => item.channel === "text" && item.status === "active" && (!item.expires_on || item.expires_on >= today()));
+  // A brand-new avatar already has a default profile, so look for an explicit draft or voice save.
+  const drafted = activity.some(
+    (entry) =>
+      entry.action === "profile_drafted" ||
+      (entry.action === "avatar_updated" &&
+        Array.isArray(entry.details.fields) &&
+        (entry.details.fields as string[]).includes("profile") &&
+        !(entry.details.fields as string[]).includes("source_content")),
+  );
   const checklist = [
     { label: "Signed text agreement on file", done: Boolean(activeText) },
     { label: "Content added (200+ characters)", done: avatar.source_content.trim().length >= 200 },
-    { label: "Voice and topics drafted", done: Boolean(avatar.profile.bio) },
+    { label: "Voice and topics drafted or edited", done: drafted },
     { label: "Submitted for approval", done: avatar.approval_status === "pending" || avatar.approval_status === "approved" },
     { label: "Creator sign-off recorded and approved", done: avatar.approval_status === "approved" },
   ];
@@ -170,7 +179,16 @@ function Workspace({ role }: { role: Role }) {
 
       <nav className="admin-tabs" aria-label="Avatar sections">
         {tabs.map((name) => (
-          <button key={name} className={tab === name ? "active" : ""} aria-current={tab === name ? "page" : undefined} onClick={() => setTab(name)}>
+          <button
+            key={name}
+            className={tab === name ? "active" : ""}
+            aria-current={tab === name ? "page" : undefined}
+            onClick={() => {
+              setTab(name);
+              setNotice("");
+              setError("");
+            }}
+          >
             {name}
           </button>
         ))}
@@ -235,6 +253,7 @@ function OverviewTab({ avatar, checklist, busy, onSave }: { avatar: Avatar; chec
 function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: string; role: Role; agreements: Agreement[]; busy: string; call: Call; setError: (value: string) => void }) {
   const [form, setForm] = useState({ channel: "text", signed_by_name: "", signer_role: "creator", signed_on: today(), expires_on: "", scope_notes: "" });
   const [file, setFile] = useState<File | null>(null);
+  const [fileKey, setFileKey] = useState(0);
 
   async function upload() {
     if (!file) {
@@ -247,6 +266,7 @@ function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: str
     const result = await call("upload", `/api/admin/avatars/${id}/agreements`, { method: "POST", body }, "Agreement saved.");
     if (result) {
       setFile(null);
+      setFileKey((key) => key + 1);
       setForm({ ...form, signed_by_name: "", scope_notes: "" });
     }
   }
@@ -364,7 +384,7 @@ function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: str
           </label>
           <label>
             Signed document (PDF, PNG, JPG or WebP, up to 10 MB)
-            <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+            <input key={fileKey} type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(event) => setFile(event.target.files?.[0] || null)} />
           </label>
         </div>
         <div className="button-row">

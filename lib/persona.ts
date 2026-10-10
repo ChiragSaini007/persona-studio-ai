@@ -76,6 +76,24 @@ export const guardrails: Guardrail[] = [
     description: "Family, relationships, private addresses, or unauthenticated gossip.",
     keywords: ["girlfriend", "boyfriend", "address", "family drama", "rumor", "private", "privately"],
   },
+  {
+    key: "religion",
+    title: "Religion",
+    description: "Religious beliefs, practices, or comparisons between faiths.",
+    keywords: ["religion", "religious", "church", "mosque", "temple", "atheist", "god "],
+  },
+  {
+    key: "relationships",
+    title: "Dating and relationships",
+    description: "Dating life, partners, marriage, or breakups.",
+    keywords: ["dating", "are you single", "married", "wife", "husband", "breakup", "relationship"],
+  },
+  {
+    key: "controversy",
+    title: "Controversies",
+    description: "Scandals, allegations, feuds, or news about other public figures.",
+    keywords: ["scandal", "controversy", "allegation", "feud", "cancelled", "beef with"],
+  },
 ];
 
 export function cleanHandle(handle: string) {
@@ -181,7 +199,12 @@ export function findFlag(persona: Pick<PersonaRecord, "enabled_guardrails" | "cu
     return keyTerms.length >= 2 && keyTerms.slice(0, 4).every((word) => lower.includes(word));
   });
   if (neverSayMatch) return "Creator never-say rule";
-  if (persona.custom_boundary && lower.includes(persona.custom_boundary.toLowerCase())) return persona.custom_boundary;
+  const customTopics = (persona.custom_boundary || "")
+    .split(/[,\n]/)
+    .map((item) => item.trim().toLowerCase())
+    .filter((item) => item.length > 2);
+  const customMatch = customTopics.find((item) => lower.includes(item));
+  if (customMatch) return customMatch;
   if (lower.includes("real creator") || lower.includes("secret")) return "Creator-approved boundary";
   return "";
 }

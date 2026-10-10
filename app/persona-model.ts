@@ -109,6 +109,24 @@ export const guardrails: Guardrail[] = [
     description: "Family, relationships, private addresses, or gossip.",
     keywords: ["girlfriend", "boyfriend", "address", "family drama", "rumor", "private", "privately"],
   },
+  {
+    key: "religion",
+    title: "Religion",
+    description: "Religious beliefs, practices, or comparisons between faiths.",
+    keywords: ["religion", "religious", "church", "mosque", "temple", "atheist", "god "],
+  },
+  {
+    key: "relationships",
+    title: "Dating and relationships",
+    description: "Dating life, partners, marriage, or breakups.",
+    keywords: ["dating", "are you single", "married", "wife", "husband", "breakup", "relationship"],
+  },
+  {
+    key: "controversy",
+    title: "Controversies",
+    description: "Scandals, allegations, feuds, or news about other public figures.",
+    keywords: ["scandal", "controversy", "allegation", "feud", "cancelled", "beef with"],
+  },
 ];
 
 export const uid = () => Math.random().toString(36).slice(2, 10);

@@ -151,6 +151,65 @@ export async function generateProfileWithAI(content: string): Promise<{ profile:
   }
 }
 
+export type SampleReplyInput = {
+  creatorName: string;
+  bio: string;
+  tone: string;
+  length: string;
+  emoji: string;
+  content: string;
+  question: string;
+};
+
+export async function generateSampleReplies(input: SampleReplyInput): Promise<{ replies: string[]; usedAI: boolean }> {
+  const fallback = [
+    `Honestly, start small and stay consistent. What are you working on right now?`,
+    `Here is how I would think about it: pick one thing, do it for a month, then look at what worked.`,
+    `Love this question! Keep it simple, enjoy the process, and tell me where you are stuck.`,
+  ];
+  if (!process.env.OPENAI_API_KEY) return { replies: fallback, usedAI: false };
+
+  const { data } = await createResponse({
+    input: [
+      {
+        role: "system",
+        content: [
+          `You write sample fan replies in the voice of a creator named ${input.creatorName || "the creator"}.`,
+          `Creator bio: ${input.bio || "not provided"}.`,
+          `Tone: ${input.tone}. Reply length: ${input.length}. Emoji use: ${input.emoji}.`,
+          "Write exactly 3 different replies to the fan question. Make them clearly different in structure: one very short, one with a concrete tip, one that ends by asking the fan a question.",
+          "Write in first person as the creator. Never claim to be the real person in real time, never invent private facts, no markdown.",
+          `Creator content for grounding:\n${input.content.slice(0, 4000)}`,
+          'Return only JSON like {"replies":["...","...","..."]}.',
+        ].join("\n"),
+      },
+      { role: "user", content: input.question },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "sample_replies",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["replies"],
+          properties: { replies: { type: "array", items: { type: "string" } } },
+        },
+      },
+    },
+    max_output_tokens: 1200,
+  });
+
+  if (!data) return { replies: fallback, usedAI: false };
+  try {
+    const parsed = JSON.parse(extractOutputText(data)) as { replies?: string[] };
+    const replies = (parsed.replies || []).map((item) => cleanChatReply(String(item))).filter(Boolean).slice(0, 3);
+    return replies.length === 3 ? { replies, usedAI: true } : { replies: fallback, usedAI: false };
+  } catch {
+    return { replies: fallback, usedAI: false };
+  }
+}
+
 export async function moderateText(text: string) {
   if (!process.env.OPENAI_API_KEY) return "";
 

@@ -50,6 +50,42 @@ function simulateInstagram(rawHandle: string): SimulatedInstagram {
   };
 }
 
+const promotingOptions = ["Products", "Brand partnerships", "Film or TV", "Music", "Events", "Just staying in touch"];
+const toneOptions = ["Warm", "Playful", "Direct", "Professional"];
+const lengthOptions = ["Short", "Medium"];
+const emojiOptions = ["None", "Some", "Lots"];
+const sampleQuestions = [
+  "What is your best advice for someone just starting out?",
+  "What are you working on right now?",
+  "How do you stay motivated?",
+];
+const fallbackPresets = [
+  {
+    label: "Polite step-back",
+    text: "I cannot speak to that one. It is outside the boundaries this AI avatar is approved to discuss, so please check the creator's official channels.",
+  },
+  {
+    label: "Point to official channels",
+    text: "That one is best answered by me directly. Please check my official channels for the latest.",
+  },
+  {
+    label: "Change the subject",
+    text: "I will leave that one alone. Ask me about my work or what I am up to instead.",
+  },
+];
+
+function composeResponseStyle(tone: string, length: string, emoji: string) {
+  const toneText: Record<string, string> = {
+    Warm: "Warm, friendly and encouraging.",
+    Playful: "Playful, light and a little cheeky.",
+    Direct: "Direct, practical and to the point.",
+    Professional: "Polished, professional and measured.",
+  };
+  const lengthText = length === "Short" ? "Keep replies to one to three sentences." : "Replies can run a short paragraph or two.";
+  const emojiText = emoji === "None" ? "Do not use emoji." : emoji === "Some" ? "Use an occasional emoji." : "Use emoji freely.";
+  return `${toneText[tone] || toneText.Warm} ${lengthText} ${emojiText}`;
+}
+
 const igStages = [
   "Opening Instagram…",
   "Verifying you control this account…",
@@ -68,9 +104,9 @@ const sampleMaterial = [
 
 const wizardSteps = [
   { id: 1, label: "Sign in" },
-  { id: 2, label: "Your content" },
-  { id: 3, label: "Review your voice" },
-  { id: 4, label: "Set boundaries" },
+  { id: 2, label: "Connect" },
+  { id: 3, label: "Confirm" },
+  { id: 4, label: "Voice and limits" },
   { id: 5, label: "Launch" },
 ];
 
@@ -147,6 +183,16 @@ export default function CreatorPortal() {
   const [igStage, setIgStage] = useState(-1);
   const [igConnected, setIgConnected] = useState<SimulatedInstagram | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [promoting, setPromoting] = useState<string[]>([]);
+  const [promotingDetails, setPromotingDetails] = useState("");
+  const [voiceTone, setVoiceTone] = useState("Warm");
+  const [voiceLength, setVoiceLength] = useState("Short");
+  const [voiceEmoji, setVoiceEmoji] = useState("Some");
+  const [sampleQuestion, setSampleQuestion] = useState(sampleQuestions[0]);
+  const [sampleReplies, setSampleReplies] = useState<string[]>([]);
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const [chosenSample, setChosenSample] = useState<number | null>(null);
+  const [sampleError, setSampleError] = useState("");
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
   const activePersonaId = personaPortfolio.find((persona) => cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle))?.id;
@@ -620,6 +666,77 @@ export default function CreatorPortal() {
     setIgStage(-1);
   }
 
+  function applyVoice() {
+    setWorkspace((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        tone: [voiceTone.toLowerCase()],
+        responseStyle: composeResponseStyle(voiceTone, voiceLength, voiceEmoji),
+      },
+    }));
+  }
+
+  function applyPromoting() {
+    setWorkspace((current) => {
+      const base = current.content.replace(/\n*\[Currently promoting\][\s\S]*?\[End promoting\]\n*/, "").trimEnd();
+      if (!promoting.length) return { ...current, content: base };
+      const details = promotingDetails.trim() ? ` Details: ${promotingDetails.trim()}` : "";
+      return {
+        ...current,
+        content: `${base}\n\n[Currently promoting]\nFocus areas: ${promoting.join(", ")}.${details}\n[End promoting]`,
+      };
+    });
+  }
+
+  function togglePromoting(option: string) {
+    setPromoting((current) => (current.includes(option) ? current.filter((item) => item !== option) : [...current, option]));
+  }
+
+  async function getSampleReplies() {
+    setSampleLoading(true);
+    setSampleError("");
+    setChosenSample(null);
+    try {
+      const response = await fetch("/api/personas/sample-replies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          consent: consentGiven,
+          question: sampleQuestion,
+          creatorName: workspace.creatorName,
+          bio: workspace.profile.bio,
+          tone: voiceTone,
+          length: voiceLength,
+          emoji: voiceEmoji,
+          content: workspace.content,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not write sample replies");
+      setSampleReplies(data.replies || []);
+    } catch (error) {
+      setSampleError(error instanceof Error ? error.message : "Could not write sample replies");
+    } finally {
+      setSampleLoading(false);
+    }
+  }
+
+  function chooseSample(index: number) {
+    const reply = sampleReplies[index];
+    if (!reply) return;
+    const previous = chosenSample !== null ? `Question: ${sampleQuestion} Answer: ${sampleReplies[chosenSample]}` : "";
+    const entry = `Question: ${sampleQuestion} Answer: ${reply}`;
+    setChosenSample(index);
+    setWorkspace((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        exampleReplies: [entry, ...current.profile.exampleReplies.filter((item) => item !== previous && item !== entry)].slice(0, 5),
+      },
+    }));
+  }
+
   function publish() {
     void savePersona("live");
     setStep(5);
@@ -690,6 +807,7 @@ export default function CreatorPortal() {
   }
 
   function editCurrentPersona(targetStep = 2) {
+    setManualOpen(true);
     setCreatingNewPersona(false);
     setViewMode("onboarding");
     setStep(targetStep);
@@ -1439,7 +1557,7 @@ export default function CreatorPortal() {
               </details>
               {showStep2Errors && step2ErrorList.length > 0 && (
                 <div className="error-summary" role="alert">
-                  <strong>Finish these before we draft your AI voice</strong>
+                  <strong>Finish these to continue</strong>
                   <ul>
                     {step2ErrorList.map(([key, message]) => (
                       <li key={key}>
@@ -1474,7 +1592,7 @@ export default function CreatorPortal() {
                   }}
                   disabled={drafting}
                 >
-                  {drafting ? "Drafting your voice…" : "Draft my AI voice"}
+                  {drafting ? "Reading your profile…" : "Continue"}
                 </button>
               </div>
             </div>
@@ -1484,94 +1602,132 @@ export default function CreatorPortal() {
             <div className="screen-stack">
               <div className="product-card">
                 <span className="section-kicker">Step 3 of 5</span>
-                <h2>Review your AI voice</h2>
-                <p>Fanline drafted this from your content. Edit anything that does not sound like you. Nothing is public yet.</p>
-                <div className="prompt-list">
-                  <span>Would fans recognize this as your public point of view?</span>
-                  <span>Are these the topics you actually want to answer?</span>
-                  <span>Do any phrases feel fake or overused?</span>
-                </div>
+                <h2>Here is what we found</h2>
+                <p>
+                  Check each card, edit anything that is off, and remove what does not fit.{" "}
+                  {igConnected ? "This comes from your connected Instagram (demo) and your content." : "This comes from your content."} Web research is
+                  not connected yet.
+                </p>
               </div>
-              <div className="product-card persona-instructions-card">
-                <span className="section-kicker">Drafted for you</span>
-                <div>
-                  <strong>Who fans are talking to</strong>
-                  <p>{workspace.profile.bio || "Add the creator bio in Step 2."}</p>
-                </div>
-                <div>
-                  <strong>Why fans come here</strong>
-                  <p>{workspace.profile.fanRelationship || "We will infer this from stronger public material."}</p>
-                </div>
-                <div>
-                  <strong>How replies should feel</strong>
-                  <p>{workspace.profile.responseStyle || "We will infer this from your example replies and public content."}</p>
-                </div>
-                <div>
-                  <strong>First message fans see</strong>
-                  <p>{workspace.profile.greetingStyle || `Hey, good to see you here. Ask me anything you would normally ask ${creatorFirstName}.`}</p>
-                </div>
-                <div>
-                  <strong>Languages</strong>
-                  <p>{workspace.profile.supportedLanguages.join(", ") || "English"}</p>
-                </div>
-                <div>
-                  <strong>Replies to copy</strong>
-                  <p>
-                    {workspace.profile.exampleReplies.length
-                      ? workspace.profile.exampleReplies.slice(0, 3).join(" / ")
-                      : "Optional. Add 3-5 ideal answers in Step 2 if you want tighter style."}
-                  </p>
-                </div>
-              </div>
-              <div className="profile-grid">
-                {[
-                  ["Topics", "topics", "topic", "Add a topic fans can ask about"],
-                  ["Reply style", "tone", "tone", "Add a style trait"],
-                  ["Phrases that sound like you", "phrases", "phrase", "Add a phrase"],
-                ].map(([title, field, key, placeholder]) => (
-                  <div key={String(title)} className="product-card mini-card">
-                    <h3>{String(title)}</h3>
-                    <form
-                      className="chip-editor"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        addProfileItem(field as "topics" | "tone" | "phrases");
-                      }}
-                    >
-                      <input
-                        value={profileInputs[field as "topics" | "tone" | "phrases"]}
-                        placeholder={String(placeholder)}
-                        onChange={(event) =>
-                          setProfileInputs((current) => ({
-                            ...current,
-                            [field as "topics" | "tone" | "phrases"]: event.target.value,
-                          }))
-                        }
-                      />
-                      <button type="submit">Add</button>
-                    </form>
-                    <div className="chip-wrap">
-                      {workspace.profile[field as "topics" | "tone" | "phrases"].map((item) => (
-                        <span key={item} className={`pill editable ${key}`}>
-                          {item}
-                          <button
-                            type="button"
-                            aria-label={`Remove ${item}`}
-                            onClick={() => removeProfileItem(field as "topics" | "tone" | "phrases", item)}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
+
+              <section className="found-grid">
+                <article className="found-card">
+                  <h3>Bio</h3>
+                  <textarea
+                    value={workspace.profile.bio}
+                    rows={4}
+                    aria-label="Bio"
+                    onChange={(event) =>
+                      setWorkspace((current) => ({ ...current, profile: { ...current.profile, bio: event.target.value } }))
+                    }
+                  />
+                </article>
+
+                <article className="found-card">
+                  <h3>Known for</h3>
+                  <div className="chip-wrap">
+                    {workspace.profile.topics.map((item) => (
+                      <span key={item} className="pill editable topic">
+                        {item}
+                        <button type="button" aria-label={`Remove ${item}`} onClick={() => removeProfileItem("topics", item)}>
+                          ×
+                        </button>
+                      </span>
+                    ))}
                   </div>
-                ))}
-              </div>
+                  <form
+                    className="chip-editor"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      addProfileItem("topics");
+                    }}
+                  >
+                    <input
+                      value={profileInputs.topics}
+                      placeholder="Add a topic"
+                      aria-label="Add a topic"
+                      onChange={(event) => setProfileInputs((current) => ({ ...current, topics: event.target.value }))}
+                    />
+                    <button type="submit">Add</button>
+                  </form>
+                </article>
+
+                <article className="found-card">
+                  <h3>Languages</h3>
+                  <div className="choice-row">
+                    {languageOptions.map((language) => {
+                      const selected = workspace.profile.supportedLanguages.some((item) => item.toLowerCase() === language.toLowerCase());
+                      return (
+                        <button key={language} type="button" className="choice" aria-pressed={selected} onClick={() => toggleLanguage(language)}>
+                          {language}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </article>
+
+                <article className="found-card wide">
+                  <h3>What are you promoting right now?</h3>
+                  <p className="field-hint">Your avatar will bring this up when it is relevant. Pick as many as apply.</p>
+                  <div className="choice-row">
+                    {promotingOptions.map((option) => (
+                      <button key={option} type="button" className="choice" aria-pressed={promoting.includes(option)} onClick={() => togglePromoting(option)}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                  {promoting.some((item) => item !== "Just staying in touch") && (
+                    <label className="promo-details">
+                      Tell us more (optional)
+                      <input
+                        value={promotingDetails}
+                        onChange={(event) => setPromotingDetails(event.target.value)}
+                        placeholder="e.g. My new film releases on 14 March"
+                      />
+                    </label>
+                  )}
+                </article>
+              </section>
+
+              <details className="manual-details">
+                <summary>How your avatar introduces itself</summary>
+                <div className="found-grid">
+                  <article className="found-card">
+                    <h3>First message fans see</h3>
+                    <textarea
+                      value={workspace.profile.greetingStyle}
+                      rows={3}
+                      aria-label="First message fans see"
+                      onChange={(event) =>
+                        setWorkspace((current) => ({ ...current, profile: { ...current.profile, greetingStyle: event.target.value } }))
+                      }
+                    />
+                  </article>
+                  <article className="found-card">
+                    <h3>Why fans come to you</h3>
+                    <textarea
+                      value={workspace.profile.fanRelationship}
+                      rows={3}
+                      aria-label="Why fans come to you"
+                      onChange={(event) =>
+                        setWorkspace((current) => ({ ...current, profile: { ...current.profile, fanRelationship: event.target.value } }))
+                      }
+                    />
+                  </article>
+                </div>
+              </details>
+
               <div className="button-row">
                 <button className="secondary-action" onClick={() => setStep(2)}>
                   Back
                 </button>
-                <button className="primary-action" onClick={() => setStep(4)}>
+                <button
+                  className="primary-action"
+                  onClick={() => {
+                    applyPromoting();
+                    setStep(4);
+                  }}
+                >
                   Looks right, continue
                 </button>
               </div>
@@ -1579,61 +1735,154 @@ export default function CreatorPortal() {
           )}
 
           {viewMode === "onboarding" && step === 4 && (
-            <div className="product-card">
-              <span className="section-kicker">Step 4 of 5</span>
-              <h2>Set your boundaries</h2>
-              <p>Choose what your AI should never answer for you. When a fan asks, it politely steps back instead of guessing.</p>
-              <div className="guardrail-grid">
-                {guardrails.map((rail) => (
-                  <label key={rail.key} className="guardrail-card">
-                    <span>
-                      <input
-                        type="checkbox"
-                        checked={workspace.enabledGuardrails[rail.key]}
-                        disabled={rail.locked}
-                        onChange={() => toggleGuardrail(rail.key)}
-                      />
-                      <span>
-                        <strong>{rail.title}</strong>
-                        {rail.locked && <em>Always on</em>}
-                        <small>{rail.description}</small>
-                      </span>
-                    </span>
+            <div className="screen-stack">
+              <div className="product-card">
+                <span className="section-kicker">Step 4 of 5</span>
+                <h2>Voice and limits</h2>
+                <p>Choose how your avatar sounds and what it should never discuss. Everything has a sensible default.</p>
+              </div>
+
+              <section className="product-card">
+                <h3 className="form-section-title">Voice</h3>
+                <div className="choice-group">
+                  <span className="choice-label">Tone</span>
+                  <div className="choice-row">
+                    {toneOptions.map((option) => (
+                      <button key={option} type="button" className="choice" aria-pressed={voiceTone === option} onClick={() => setVoiceTone(option)}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="choice-group">
+                  <span className="choice-label">Reply length</span>
+                  <div className="choice-row">
+                    {lengthOptions.map((option) => (
+                      <button key={option} type="button" className="choice" aria-pressed={voiceLength === option} onClick={() => setVoiceLength(option)}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="choice-group">
+                  <span className="choice-label">Emoji</span>
+                  <div className="choice-row">
+                    {emojiOptions.map((option) => (
+                      <button key={option} type="button" className="choice" aria-pressed={voiceEmoji === option} onClick={() => setVoiceEmoji(option)}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="sample-box">
+                  <label>
+                    Try it on a fan question
+                    <select value={sampleQuestion} onChange={(event) => setSampleQuestion(event.target.value)}>
+                      {sampleQuestions.map((question) => (
+                        <option key={question} value={question}>
+                          {question}
+                        </option>
+                      ))}
+                    </select>
                   </label>
-                ))}
-              </div>
-              <div className="field-grid">
-                <label>
-                  Custom off-limits topic
-                  <input value={workspace.customBoundary} onChange={(event) => updateField("customBoundary", event.target.value)} />
-                </label>
-                <label>
-                  Never say this
-                  <textarea
-                    className="compact-textarea"
-                    value={workspace.profile.neverSay.join("\n")}
-                    onChange={(event) => updateProfileList("neverSay", event.target.value)}
-                    placeholder={[
-                      "Add exact claims or phrases the persona must avoid, one per line.",
-                      "Example: I can meet you privately.",
-                      "Example: This is financial advice.",
-                    ].join("\n")}
-                  />
-                </label>
-                <div className="fallback-box">
-                  <strong>Fan access</strong>
-                  <p>Free for now. Fans sign in once, then continue from their own chat history.</p>
+                  <button className="secondary-action" onClick={() => void getSampleReplies()} disabled={sampleLoading}>
+                    {sampleLoading ? "Writing three options…" : sampleReplies.length ? "Show different options" : "Show me how I would answer"}
+                  </button>
+                  {sampleError && <p className="field-error">{sampleError}</p>}
+                  {sampleReplies.length > 0 && (
+                    <div className="sample-grid">
+                      {sampleReplies.map((reply, index) => (
+                        <button
+                          key={reply}
+                          type="button"
+                          className={`sample-card ${chosenSample === index ? "chosen" : ""}`}
+                          aria-pressed={chosenSample === index}
+                          onClick={() => chooseSample(index)}
+                        >
+                          <small>Option {String.fromCharCode(65 + index)}</small>
+                          <span>{reply}</span>
+                          <em>{chosenSample === index ? "Chosen. Your avatar will learn from this" : "This sounds like me"}</em>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="fallback-box">
-                  <strong>When the AI cannot answer</strong>
-                  <p>{workspace.fallbackText}</p>
+              </section>
+
+              <section className="product-card">
+                <h3 className="form-section-title">Limits</h3>
+                <p className="field-hint always-on">
+                  Always on: your avatar never pretends to be the real you, and never gives medical, financial or legal advice.
+                </p>
+                <div className="choice-group">
+                  <span className="choice-label">Also avoid</span>
+                  <div className="choice-row">
+                    {guardrails
+                      .filter((rail) => !rail.locked)
+                      .map((rail) => (
+                        <button
+                          key={rail.key}
+                          type="button"
+                          className="choice"
+                          aria-pressed={Boolean(workspace.enabledGuardrails[rail.key])}
+                          title={rail.description}
+                          onClick={() => toggleGuardrail(rail.key)}
+                        >
+                          {rail.title}
+                        </button>
+                      ))}
+                  </div>
                 </div>
-              </div>
+                <label className="fallback-select">
+                  When it cannot answer
+                  <select
+                    value={fallbackPresets.find((preset) => preset.text === workspace.fallbackText)?.label || "Custom"}
+                    onChange={(event) => {
+                      const preset = fallbackPresets.find((item) => item.label === event.target.value);
+                      if (preset) updateField("fallbackText", preset.text);
+                    }}
+                  >
+                    {!fallbackPresets.some((preset) => preset.text === workspace.fallbackText) && <option value="Custom">Custom message</option>}
+                    {fallbackPresets.map((preset) => (
+                      <option key={preset.label} value={preset.label}>
+                        {preset.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="field-hint">&ldquo;{workspace.fallbackText}&rdquo;</p>
+                <details className="manual-details">
+                  <summary>Advanced</summary>
+                  <div className="field-grid">
+                    <label>
+                      Other off-limits topics (separate with commas)
+                      <input value={workspace.customBoundary} onChange={(event) => updateField("customBoundary", event.target.value)} />
+                    </label>
+                    <label>
+                      Never say this
+                      <textarea
+                        className="compact-textarea"
+                        value={workspace.profile.neverSay.join("\n")}
+                        onChange={(event) => updateProfileList("neverSay", event.target.value)}
+                        placeholder="One phrase per line, for example: I can meet you privately."
+                      />
+                    </label>
+                  </div>
+                </details>
+              </section>
+
               <div className="button-row">
                 <button className="secondary-action" onClick={() => setStep(3)}>
                   Back
                 </button>
-                <button className="primary-action" onClick={() => setStep(5)}>
+                <button
+                  className="primary-action"
+                  onClick={() => {
+                    applyVoice();
+                    setStep(5);
+                  }}
+                >
                   Continue to launch
                 </button>
               </div>
@@ -1642,8 +1891,54 @@ export default function CreatorPortal() {
 
           {viewMode === "onboarding" && step === 5 && (
             <div className="screen-stack">
-              <div className="launch-card">
+              <section className="product-card summary-card">
                 <span className="section-kicker">Step 5 of 5</span>
+                <h2>Review and launch</h2>
+                <dl className="summary-list">
+                  <div>
+                    <dt>Avatar</dt>
+                    <dd>
+                      {workspace.creatorName || "Unnamed"} · @{cleanHandle(workspace.creatorHandle)}
+                    </dd>
+                    <button className="secondary-action" onClick={() => setStep(2)}>
+                      Edit
+                    </button>
+                  </div>
+                  <div>
+                    <dt>Promoting</dt>
+                    <dd>{promoting.length ? promoting.join(", ") : "Nothing specific"}</dd>
+                    <button className="secondary-action" onClick={() => setStep(3)}>
+                      Edit
+                    </button>
+                  </div>
+                  <div>
+                    <dt>Voice</dt>
+                    <dd>
+                      {voiceTone}, {voiceLength.toLowerCase()} replies, emoji: {voiceEmoji.toLowerCase()}
+                    </dd>
+                    <button className="secondary-action" onClick={() => setStep(4)}>
+                      Edit
+                    </button>
+                  </div>
+                  <div>
+                    <dt>Limits</dt>
+                    <dd>
+                      {guardrails.filter((rail) => workspace.enabledGuardrails[rail.key]).length} topics blocked
+                    </dd>
+                    <button className="secondary-action" onClick={() => setStep(4)}>
+                      Edit
+                    </button>
+                  </div>
+                  <div>
+                    <dt>Content</dt>
+                    <dd>{approvedSourceCount} pieces · {workspace.profile.supportedLanguages.join(", ") || "English"}</dd>
+                    <button className="secondary-action" onClick={() => setStep(2)}>
+                      Edit
+                    </button>
+                  </div>
+                </dl>
+              </section>
+              <div className="launch-card">
                 <h2>{workspace.status === "live" ? "You're live. Share your fan link" : "Ready to go live?"}</h2>
                 <p>
                   {workspace.status === "live"

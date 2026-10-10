@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { guardrails } from "../../../persona-model";
+import { LiveAvatarSandbox } from "../../../../components/live-avatar-sandbox";
 import { AdminGate, adminFetch, type Role } from "../../admin-client";
 
 type Profile = {
@@ -776,6 +777,13 @@ function VideoTab({ id, avatar, status, busy, call }: { id: string; avatar: Avat
   const [replicaId, setReplicaId] = useState(avatar.video_config?.replica_id || "");
   const [consent, setConsent] = useState(Boolean(avatar.video_config?.consent_verified));
   const [notes, setNotes] = useState(avatar.video_config?.notes || "");
+  const [liveAvatar, setLiveAvatar] = useState<{ connected: boolean; credits?: number; error?: string } | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const response = await adminFetch("/api/admin/liveavatar/status");
+      if (response.ok) setLiveAvatar(await response.json());
+    })();
+  }, []);
   const [heygen, setHeygen] = useState<{ connected: boolean; balanceUsd?: number; budget?: { maxPerVideoUsd: number; maxPerDayUsd: number; reserveUsd: number } } | null>(null);
   useEffect(() => {
     void (async () => {
@@ -789,7 +797,7 @@ function VideoTab({ id, avatar, status, busy, call }: { id: string; avatar: Avat
     ["Rights confirmed, including permission for a video likeness (Rights tab)", rights],
     ["Avatar brain ready: our server can speak for this avatar to a video provider", status.brainConfigured],
     [heygen?.connected ? `HeyGen connected for recorded video (wallet $${(heygen.balanceUsd ?? 0).toFixed(2)})` : "HeyGen connected for recorded video", Boolean(heygen?.connected)],
-    ["Real-time video provider (LiveAvatar, a separate HeyGen product and account): not connected yet", status.providerConfigured],
+    [liveAvatar?.connected ? `LiveAvatar connected for real-time video (${liveAvatar.credits ?? 0} credits)` : "Real-time video provider (LiveAvatar, a separate HeyGen product and account): not connected yet", Boolean(liveAvatar?.connected)],
     ["Creator's footage and recorded consent statement submitted to the provider and verified", consent],
   ];
   return (
@@ -824,6 +832,27 @@ function VideoTab({ id, avatar, status, busy, call }: { id: string; avatar: Avat
           </>
         ) : (
           <p className="field-hint">HeyGen is not connected.</p>
+        )}
+      </section>
+
+      <section className="product-card">
+        <h2>Real-time video (LiveAvatar)</h2>
+        {liveAvatar === null ? (
+          <p className="field-hint">Checking…</p>
+        ) : liveAvatar.connected ? (
+          <>
+            <p>
+              <span className="status-pill live">Connected</span> Credits left <strong>{liveAvatar.credits ?? 0}</strong>
+            </p>
+            <p className="field-hint">
+              This test runs in LiveAvatar&apos;s sandbox mode only: it uses no credits, lasts about a minute, and shows a public test avatar. It checks that the live connection, video and audio work end to end before any real avatar is used.
+            </p>
+            <LiveAvatarSandbox />
+          </>
+        ) : (
+          <p className="field-hint">
+            {liveAvatar.error ? `LiveAvatar did not accept the connection: ${liveAvatar.error}` : "Not connected. Create a free account at app.liveavatar.com, copy its API key from the developers page, and add it to Fanline."}
+          </p>
         )}
       </section>
 

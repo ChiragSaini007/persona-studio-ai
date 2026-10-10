@@ -4613,3 +4613,45 @@ a,
 .admin-main .field-grid select {
   height: 44px;
 }
+
+
+/* LiveAvatar sandbox test */
+.live-sandbox {
+  display: grid;
+  gap: 12px;
+}
+
+.live-sandbox-stage {
+  align-items: center;
+  aspect-ratio: 16 / 9;
+  background: #14231d;
+  border-radius: var(--radius);
+  color: white;
+  display: grid;
+  justify-items: center;
+  max-width: 560px;
+  overflow: hidden;
+}
+
+.live-sandbox-stage video {
+  grid-area: 1 / 1;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.live-sandbox-stage .field-hint {
+  color: rgba(255, 255, 255, 0.75);
+  grid-area: 1 / 1;
+}
+
+.live-sandbox-log {
+  background: #f4f4f2;
+  border-radius: var(--radius);
+  font-size: 12px;
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+}

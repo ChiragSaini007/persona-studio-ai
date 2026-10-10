@@ -16,10 +16,16 @@ export function LiveAvatarSandbox() {
   const sessionRef = useRef("");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const meterRef = useRef<number | null>(null);
+  const peakRef = useRef(0);
 
   const note = useCallback((line: string) => setLog((current) => [...current.slice(-14), `${new Date().toLocaleTimeString()}  ${line}`]), []);
 
   const stop = useCallback(async () => {
+    if (meterRef.current) window.clearInterval(meterRef.current);
+    meterRef.current = null;
+    if (peakRef.current) note(`peak audio level this session: ${peakRef.current}`);
+    peakRef.current = 0;
     const room = roomRef.current;
     roomRef.current = null;
     room?.disconnect();
@@ -58,14 +64,35 @@ export function LiveAvatarSandbox() {
       room.on(RoomEvent.TrackSubscribed, (track) => {
         note(`${track.kind} track arrived`);
         if (track.kind === Track.Kind.Video && videoRef.current) track.attach(videoRef.current);
-        if (track.kind === Track.Kind.Audio && audioRef.current) track.attach(audioRef.current);
+        if (track.kind === Track.Kind.Audio && audioRef.current) {
+          track.attach(audioRef.current);
+          try {
+            // Diagnostic: measure the incoming audio level so we can tell when the avatar is really speaking.
+            const context = new AudioContext();
+            const analyser = context.createAnalyser();
+            analyser.fftSize = 512;
+            context.createMediaStreamSource(new MediaStream([track.mediaStreamTrack])).connect(analyser);
+            const data = new Uint8Array(analyser.fftSize);
+            if (meterRef.current) window.clearInterval(meterRef.current);
+            meterRef.current = window.setInterval(() => {
+              analyser.getByteTimeDomainData(data);
+              let max = 0;
+              for (const value of data) max = Math.max(max, Math.abs(value - 128));
+              if (max > peakRef.current) peakRef.current = max;
+              if (max > 6) note(`audio level ${max}`);
+            }, 700);
+          } catch {
+            // metering is only a diagnostic
+          }
+        }
       });
       room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
+        const raw = new TextDecoder().decode(payload);
         try {
-          const event = JSON.parse(new TextDecoder().decode(payload));
-          if (topic === "agent-response" || event.event_type) note(`event: ${event.event_type}${event.text ? ` — ${event.text}` : ""}${event.end_reason ? ` (${event.end_reason})` : ""}`);
+          const event = JSON.parse(raw);
+          note(`data [${topic || "no topic"}]: ${event.event_type || "?"}${event.text ? ` — ${event.text}` : ""}${event.end_reason ? ` (${event.end_reason})` : ""}`);
         } catch {
-          // ignore non-JSON data
+          note(`data [${topic || "no topic"}]: ${raw.slice(0, 100)}`);
         }
       });
       room.on(RoomEvent.Disconnected, () => {

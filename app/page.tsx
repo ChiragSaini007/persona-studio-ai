@@ -21,6 +21,29 @@ const channels = [
   },
 ];
 
+const useCases = [
+  {
+    title: "Promote your products",
+    body: "Add your product details, drops and FAQs. Fans ask what to buy, what fits, or when something launches, and get an answer in your voice.",
+    ask: "Which one should I start with?",
+  },
+  {
+    title: "Promote brands you work with",
+    body: "Give your avatar the approved talking points for a partnership. It stays on message and inside the boundaries you and the brand agreed.",
+    ask: "Why do you use this?",
+  },
+  {
+    title: "Promote a film or TV show",
+    body: "Load the press kit, behind-the-scenes notes and release dates. Fans get answers about the release while it is on their mind.",
+    ask: "When can I watch it?",
+  },
+  {
+    title: "Stay in touch, 24/7",
+    body: "Your avatar is there when you are filming, travelling or asleep, so fans are never left in a comment thread waiting.",
+    ask: "Any advice for starting out?",
+  },
+];
+
 const steps = [
   {
     title: "Connect your content",
@@ -57,6 +80,7 @@ export default function Home() {
         </Link>
         <nav aria-label="Main">
           <Link href="#channels">Channels</Link>
+          <Link href="#use-cases">Use cases</Link>
           <Link href="#how">How it works</Link>
           <Link href="#control">Control</Link>
           <Link href="/demo/fan">Demo</Link>
@@ -140,6 +164,28 @@ export default function Home() {
                   <span className={channel.live ? "lp-badge live" : "lp-badge"}>{channel.status}</span>
                 </header>
                 <p>{channel.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="use-cases" className="lp-section">
+          <div className="lp-section-head">
+            <h2>How creators and celebrities use it.</h2>
+            <p>
+              Your avatar talks about whatever you give it. Add the material for a launch, a partnership or a release,
+              and fans can ask about it any time of day.
+            </p>
+          </div>
+          <div className="lp-usecases">
+            {useCases.map((item) => (
+              <article key={item.title} className="lp-usecase">
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+                <p className="lp-ask">
+                  <span>Fan asks</span>
+                  {item.ask}
+                </p>
               </article>
             ))}
           </div>

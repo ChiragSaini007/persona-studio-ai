@@ -3775,3 +3775,56 @@ a,
   display: inline-flex;
   min-height: 44px;
 }
+
+
+/* Landing: use cases */
+.lp-usecases {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lp-usecase {
+  background: #fafaf9;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 24px;
+}
+
+.lp-usecase h3 {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 22px;
+  margin: 0;
+}
+
+.lp-usecase p {
+  color: #4a4d46;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.lp-usecase .lp-ask {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  font-weight: 600;
+  padding: 12px 14px;
+}
+
+.lp-ask span {
+  color: #9d174d;
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+@media (max-width: 960px) {
+  .lp-usecases {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

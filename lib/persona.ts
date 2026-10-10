@@ -732,3 +732,35 @@ export function buildLocalReply(persona: PersonaRecord, text: string, flagReason
   }
   return "I’m having trouble pulling the creator-approved answer right now. Try again in a moment.";
 }
+
+
+// What the public fan page may see. Never expose source content, owner ids, consent records,
+// retrieval chunks, or any internal/admin fields here.
+export function toPublicPersona(row: PersonaRecord) {
+  const profile = normalizeProfile(row.profile, "");
+  return {
+    id: row.id,
+    creator_name: row.creator_name,
+    creator_handle: row.creator_handle,
+    source_content: "",
+    profile: {
+      topics: profile.topics,
+      phrases: [],
+      tone: profile.tone,
+      supportedLanguages: profile.supportedLanguages,
+      bio: profile.bio,
+      fanRelationship: "",
+      responseStyle: "",
+      greetingStyle: profile.greetingStyle,
+      exampleReplies: [],
+      neverSay: [],
+      retrievalChunks: [],
+    },
+    enabled_guardrails: row.enabled_guardrails,
+    custom_boundary: "",
+    fallback_text: row.fallback_text,
+    monetization: row.monetization,
+    price_cents: row.price_cents,
+    status: row.status,
+  };
+}

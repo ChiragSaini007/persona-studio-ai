@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { savePersonaEmbeddings } from "../../../lib/ai";
 import { bearerToken, getAuthUser } from "../../../lib/auth";
-import { buildRetrievalChunks, cleanHandle, normalizeProfile, PersonaRecord } from "../../../lib/persona";
+import { buildRetrievalChunks, cleanHandle, normalizeProfile, PersonaRecord, toPublicPersona } from "../../../lib/persona";
 import { supabaseRest } from "../../../lib/supabase-rest";
 
 type MessageRow = {
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     );
 
     if (!rows[0]) return NextResponse.json({ error: "Persona not found" }, { status: 404 });
-    return NextResponse.json({ persona: rows[0] });
+    return NextResponse.json({ persona: toPublicPersona(rows[0]) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load persona" }, { status: 500 });
   }

@@ -1,11 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 
-// Video avatar settings. The video face itself comes from a provider (Tavus is the pilot choice); our server supplies the brain:
+// Video avatar settings. The video face itself comes from a provider (HeyGen for recorded video; real-time video needs a separate LiveAvatar account); our server supplies the brain:
 // the persona, content grounding, boundaries and active genre mode. Provider calls are added once a provider account exists.
 
 export type VideoConfig = {
   enabled: boolean;
-  provider: "tavus";
+  provider: "heygen" | "tavus";
   replica_id: string;
   consent_verified: boolean;
   notes: string;
@@ -15,7 +15,7 @@ export function normalizeVideoConfig(raw: unknown): VideoConfig {
   const value = (raw && typeof raw === "object" ? raw : {}) as Partial<VideoConfig>;
   return {
     enabled: Boolean(value.enabled),
-    provider: "tavus",
+    provider: value.provider === "tavus" ? "tavus" : "heygen",
     replica_id: typeof value.replica_id === "string" ? value.replica_id.trim().slice(0, 120) : "",
     consent_verified: Boolean(value.consent_verified),
     notes: typeof value.notes === "string" ? value.notes.trim().slice(0, 1000) : "",

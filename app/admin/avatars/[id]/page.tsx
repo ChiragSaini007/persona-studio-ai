@@ -776,12 +776,20 @@ function VideoTab({ id, avatar, status, busy, call }: { id: string; avatar: Avat
   const [replicaId, setReplicaId] = useState(avatar.video_config?.replica_id || "");
   const [consent, setConsent] = useState(Boolean(avatar.video_config?.consent_verified));
   const [notes, setNotes] = useState(avatar.video_config?.notes || "");
+  const [heygen, setHeygen] = useState<{ connected: boolean; balanceUsd?: number; budget?: { maxPerVideoUsd: number; maxPerDayUsd: number; reserveUsd: number } } | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const response = await adminFetch("/api/admin/heygen/status");
+      if (response.ok) setHeygen(await response.json());
+    })();
+  }, []);
   const brainUrl = typeof window !== "undefined" ? `${window.location.origin}/api/video/llm/${id}` : `/api/video/llm/${id}`;
   const rights = Boolean(avatar.rights_confirmed_at);
   const items: [string, boolean][] = [
     ["Rights confirmed, including permission for a video likeness (Rights tab)", rights],
     ["Avatar brain ready: our server can speak for this avatar to a video provider", status.brainConfigured],
-    ["Video provider connected to Fanline (Tavus pilot): not connected yet", status.providerConfigured],
+    [heygen?.connected ? `HeyGen connected for recorded video (wallet $${(heygen.balanceUsd ?? 0).toFixed(2)})` : "HeyGen connected for recorded video", Boolean(heygen?.connected)],
+    ["Real-time video provider (LiveAvatar, a separate HeyGen product and account): not connected yet", status.providerConfigured],
     ["Creator's footage and recorded consent statement submitted to the provider and verified", consent],
   ];
   return (
@@ -802,6 +810,24 @@ function VideoTab({ id, avatar, status, busy, call }: { id: string; avatar: Avat
       </section>
 
       <section className="product-card">
+        <h2>HeyGen wallet</h2>
+        {heygen === null ? (
+          <p className="field-hint">Checking…</p>
+        ) : heygen.connected ? (
+          <>
+            <p>
+              <span className="status-pill live">Connected</span> Balance <strong>${(heygen.balanceUsd ?? 0).toFixed(2)}</strong>
+            </p>
+            <p className="field-hint">
+              HeyGen bills this wallet per second of generated video. Nothing is generated yet. When generation is added, the server will refuse any video over ${heygen.budget?.maxPerVideoUsd.toFixed(2)}, anything that would pass ${heygen.budget?.maxPerDayUsd.toFixed(2)} a day, and anything that would leave less than ${heygen.budget?.reserveUsd.toFixed(2)} in the wallet.
+            </p>
+          </>
+        ) : (
+          <p className="field-hint">HeyGen is not connected.</p>
+        )}
+      </section>
+
+      <section className="product-card">
         <h2>Settings</h2>
         <div className="choice-group">
           <span className="choice-label">Video calls</span>
@@ -816,7 +842,7 @@ function VideoTab({ id, avatar, status, busy, call }: { id: string; avatar: Avat
         </div>
         <div className="field-grid">
           <label>
-            Provider replica ID
+            Provider avatar ID
             <input value={replicaId} onChange={(event) => setReplicaId(event.target.value)} placeholder="Given by the provider once the replica is trained" />
           </label>
           <label>

@@ -80,10 +80,24 @@ export async function hangupCall(callId: string | null | undefined) {
   }
 }
 
+// Video calls store "<liveavatar session>|<llm configuration>|<secret>" so the temporary brain connection is removed with the call.
+async function endVideoCall(callId: string | null | undefined) {
+  const [sessionId, configId, secretId] = (callId || "").split("|");
+  try {
+    const { laDeleteLlmConfiguration, laDeleteSecret, laStopSession } = await import("./liveavatar");
+    if (sessionId) await laStopSession(sessionId).catch(() => undefined);
+    if (configId) await laDeleteLlmConfiguration(configId);
+    if (secretId) await laDeleteSecret(secretId);
+  } catch {
+    // best effort: the provider also ends the session at its own time limit
+  }
+}
+
 export type VoiceSession = {
   id: string;
   persona_id: string;
   fan_user_id: string;
+  channel?: "realtime_voice" | "realtime_video";
   call_id: string | null;
   status: "active" | "ended";
   started_at: string;
@@ -97,7 +111,8 @@ export type VoiceSession = {
 
 export async function endSession(session: VoiceSession, reason: string) {
   if (session.status !== "active") return;
-  await hangupCall(session.call_id);
+  if (session.channel === "realtime_video") await endVideoCall(session.call_id);
+  else await hangupCall(session.call_id);
   const seconds = Math.min(session.max_seconds + 30, Math.max(0, Math.round((Date.now() - new Date(session.started_at).getTime()) / 1000)));
   await supabaseRest(`voice_sessions?id=eq.${session.id}&status=eq.active`, {
     method: "PATCH",

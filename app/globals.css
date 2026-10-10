@@ -4664,3 +4664,17 @@ a,
   min-height: 44px;
   padding: 0 16px;
 }
+
+.live-call .live-sandbox-stage {
+  position: relative;
+}
+.ai-badge {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.8rem;
+  left: 12px;
+  padding: 4px 12px;
+  position: absolute;
+  top: 12px;
+}

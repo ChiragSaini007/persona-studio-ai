@@ -767,5 +767,6 @@ export function toPublicPersona(row: PersonaRecord) {
     status: row.status,
     voice_enabled: Boolean((row as { voice_config?: { enabled?: boolean } }).voice_config?.enabled),
     realtime_voice_enabled: Boolean((row as { voice_config?: { realtime_enabled?: boolean } }).voice_config?.realtime_enabled),
+    video_enabled: Boolean((row as { video_config?: { enabled?: boolean } }).video_config?.enabled),
   };
 }

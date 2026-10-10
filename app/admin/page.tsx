@@ -12,6 +12,7 @@ type AvatarRow = {
   approval_status: string;
   claim_email: string | null;
   is_example?: boolean;
+  managed_by_admin?: boolean;
   rights_confirmed_at?: string | null;
   territories?: string[] | null;
   updated_at: string;
@@ -159,7 +160,12 @@ function AvatarList({ role }: { role: Role }) {
                   </td>
                   <td>{approvalLabel[avatar.approval_status] || avatar.approval_status}</td>
                   <td>
-                    {avatar.rights_confirmed_at ? (
+                    {!avatar.managed_by_admin ? (
+                      <>
+                        <span className="status-pill soon">Creator-owned</span>
+                        <small>Signed up on Fanline</small>
+                      </>
+                    ) : avatar.rights_confirmed_at ? (
                       <>
                         <span className="status-pill live">Confirmed</span>
                         <small>

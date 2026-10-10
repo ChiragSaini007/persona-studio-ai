@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { activeAgreement, adminError, logAudit, requireStaff } from "../../../../../../lib/admin";
+import { adminError, logAudit, requireStaff, rightsConfirmed } from "../../../../../../lib/admin";
 import { loadAvatar, patchAvatar } from "../../../../../../lib/admin-avatars";
 import { endActiveSessions } from "../../../../../../lib/realtime";
 
@@ -24,10 +24,10 @@ export async function POST(request: NextRequest, context: Context) {
         return NextResponse.json({ error: "Example avatars are for practice and can never be published" }, { status: 400 });
       }
       if (avatar.approval_status !== "approved") {
-        return NextResponse.json({ error: "This avatar needs recorded creator sign-off and approval before it can go live" }, { status: 400 });
+        return NextResponse.json({ error: "This avatar needs admin approval before it can go live" }, { status: 400 });
       }
-      if (!(await activeAgreement(id, "text"))) {
-        return NextResponse.json({ error: "No active signed text agreement" }, { status: 400 });
+      if (!rightsConfirmed(avatar)) {
+        return NextResponse.json({ error: "Rights have not been confirmed for this avatar" }, { status: 400 });
       }
     }
     const saved = await patchAvatar(id, { status });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { activeAgreement, adminError, downloadTrainingFile, logAudit, requireStaff } from "../../../../../../lib/admin";
+import { adminError, downloadTrainingFile, logAudit, requireStaff, rightsConfirmed } from "../../../../../../lib/admin";
 import { loadAvatar } from "../../../../../../lib/admin-avatars";
 import { fileKind, IngestResult, readPdf, transcribeAudio } from "../../../../../../lib/ingest";
 
@@ -23,8 +23,8 @@ export async function POST(request: NextRequest, context: Context) {
   try {
     const avatar = await loadAvatar(id);
     if (!avatar) return NextResponse.json({ error: "Avatar not found" }, { status: 404 });
-    if (!(await activeAgreement(id, "text"))) {
-      return NextResponse.json({ error: "Upload an active signed text agreement before adding content" }, { status: 400 });
+    if (!rightsConfirmed(avatar)) {
+      return NextResponse.json({ error: "Confirm rights for this avatar before adding content" }, { status: 400 });
     }
 
     const buffer = await downloadTrainingFile(path);

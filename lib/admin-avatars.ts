@@ -11,6 +11,10 @@ export type AdminPersona = PersonaRecord & {
   internal_notes?: string;
   active_variant_id?: string | null;
   is_example?: boolean;
+  rights_confirmed_by_email?: string | null;
+  rights_confirmed_at?: string | null;
+  rights_reference?: string | null;
+  territories?: string[] | null;
   created_at?: string;
   updated_at?: string;
 };

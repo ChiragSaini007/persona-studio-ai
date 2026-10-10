@@ -57,37 +57,7 @@ export function adminError(error: unknown) {
   return NextResponse.json({ error: message }, { status: 500 });
 }
 
-export type Agreement = {
-  id: string;
-  persona_id: string;
-  channel: string;
-  signed_by_name: string;
-  signer_role: string;
-  signed_on: string;
-  expires_on: string | null;
-  scope_notes: string;
-  file_path: string;
-  territories?: string[];
-  status: "active" | "revoked";
-  uploaded_by_email: string;
-  created_at: string;
-};
-
-export function agreementIsActive(agreement: Pick<Agreement, "status" | "expires_on">) {
-  if (agreement.status !== "active") return false;
-  return !agreement.expires_on || new Date(agreement.expires_on).getTime() >= new Date(new Date().toDateString()).getTime();
-}
-
-export async function activeAgreement(personaId: string, channel: string) {
-  const rows = await supabaseRest<Agreement[]>(
-    `avatar_agreements?persona_id=eq.${encodeURIComponent(personaId)}&channel=eq.${encodeURIComponent(channel)}&status=eq.active&select=*`,
-  );
-  return rows.find((row) => agreementIsActive(row)) || null;
-}
-
-// ---- private file storage for signed agreements ----
-const bucket = "agreements";
-
+// ---- private file storage ----
 function storageBase() {
   return `${(process.env.SUPABASE_URL || "").replace(/\/$/, "")}/storage/v1`;
 }
@@ -97,7 +67,7 @@ function storageHeaders(extra: Record<string, string> = {}) {
   return { apikey: key, Authorization: `Bearer ${key}`, ...extra };
 }
 
-async function ensureBucket(name = bucket, limitBytes = 10 * 1024 * 1024) {
+async function ensureBucket(name: string, limitBytes: number) {
   const response = await fetch(`${storageBase()}/bucket`, {
     method: "POST",
     headers: storageHeaders({ "Content-Type": "application/json" }),
@@ -105,53 +75,36 @@ async function ensureBucket(name = bucket, limitBytes = 10 * 1024 * 1024) {
   });
   // 200 = created, 400/409 = already exists
   if (!response.ok && response.status !== 400 && response.status !== 409) {
-    throw new Error(`Could not prepare agreement storage (${response.status})`);
+    throw new Error(`Could not prepare storage (${response.status})`);
   }
 }
-
-export async function uploadAgreementFile(path: string, file: File) {
-  await ensureBucket();
-  const response = await fetch(`${storageBase()}/object/${bucket}/${path}`, {
-    method: "POST",
-    headers: storageHeaders({ "Content-Type": file.type || "application/octet-stream", "x-upsert": "false" }),
-    body: Buffer.from(await file.arrayBuffer()),
-  });
-  if (!response.ok) throw new Error(`Agreement upload failed (${response.status})`);
-}
-
-export async function signedAgreementUrl(path: string) {
-  const response = await fetch(`${storageBase()}/object/sign/${bucket}/${path}`, {
-    method: "POST",
-    headers: storageHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ expiresIn: 300 }),
-  });
-  if (!response.ok) throw new Error(`Could not open agreement (${response.status})`);
-  const data = (await response.json()) as { signedURL: string };
-  return `${storageBase()}${data.signedURL}`;
-}
-
 
 // Country of the request. On Vercel this header is set by the platform and cannot be spoofed by the visitor.
 export function requestCountry(request?: Request) {
   return (request?.headers.get("x-vercel-ip-country") || "").toUpperCase();
 }
 
-export function territoryAllows(agreement: Pick<Agreement, "territories">, country: string) {
-  const territories = agreement.territories && agreement.territories.length ? agreement.territories : ["IN", "US"];
-  if (!country || territories.includes("ROW")) return true; // unknown country (local development) is allowed
-  return territories.includes(country);
+export function territoryAllows(territories: string[] | null | undefined, country: string) {
+  const allowed = territories && territories.length ? territories : ["IN", "US"];
+  if (!country || allowed.includes("ROW")) return true; // unknown country (local development) is allowed
+  return allowed.includes(country);
 }
 
-// Ops-managed avatars may only talk to fans while approved, covered by an active signed text agreement,
-// and only in the territories that agreement covers.
-export async function managedAvatarBlocked(persona: { id?: string; managed_by_admin?: boolean; approval_status?: string }, request?: Request) {
+type RightsFields = { rights_confirmed_at?: string | null; territories?: string[] | null };
+
+export function rightsConfirmed(avatar: RightsFields) {
+  return Boolean(avatar.rights_confirmed_at);
+}
+
+// Ops-managed avatars only talk to fans while approved, with rights confirmed, and in the territories set for them.
+export function managedAvatarBlocked(
+  persona: { managed_by_admin?: boolean; approval_status?: string } & RightsFields,
+  request?: Request,
+) {
   if (!persona.managed_by_admin) return false;
-  if (persona.approval_status !== "approved") return true;
-  const agreement = await activeAgreement(persona.id as string, "text");
-  if (!agreement) return true;
-  return !territoryAllows(agreement, requestCountry(request));
+  if (persona.approval_status !== "approved" || !rightsConfirmed(persona)) return true;
+  return !territoryAllows(persona.territories, requestCountry(request));
 }
-
 
 // ---- training files (PDF, audio, text): uploaded straight from the browser to storage ----
 const trainingBucket = "training";

@@ -1,5 +1,5 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { activeAgreement, requestCountry, territoryAllows } from "../../../../lib/admin";
+import { requestCountry, rightsConfirmed, territoryAllows } from "../../../../lib/admin";
 import { bearerToken, getAuthUser } from "../../../../lib/auth";
 import { cleanHandle, PersonaRecord } from "../../../../lib/persona";
 import { resolveActivePersona } from "../../../../lib/variants";
@@ -9,7 +9,7 @@ import { normalizeVoiceConfig } from "../../../../lib/tts";
 
 export const maxDuration = 300;
 
-type Persona = PersonaRecord & { voice_config?: unknown; approval_status?: string };
+type Persona = PersonaRecord & { voice_config?: unknown; approval_status?: string; rights_confirmed_at?: string | null; territories?: string[] | null };
 
 // A fan starts a live voice call. Every rule is checked here, on the server, before any call is created.
 export async function POST(request: NextRequest) {
@@ -28,11 +28,10 @@ export async function POST(request: NextRequest) {
     if (!persona || persona.status !== "live" || !voice.realtime_enabled || persona.approval_status !== "approved") {
       return NextResponse.json({ error: "Live voice is not available for this avatar." }, { status: 403 });
     }
-    const liveAgreement = await activeAgreement(persona.id as string, "realtime_voice");
-    if (!liveAgreement) {
+    if (!rightsConfirmed(persona)) {
       return NextResponse.json({ error: "Live voice is not available for this avatar." }, { status: 403 });
     }
-    if (!territoryAllows(liveAgreement, requestCountry(request))) {
+    if (!territoryAllows(persona.territories, requestCountry(request))) {
       return NextResponse.json({ error: "Live voice is not available in your region yet." }, { status: 403 });
     }
 

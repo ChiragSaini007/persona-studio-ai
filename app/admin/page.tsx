@@ -12,17 +12,11 @@ type AvatarRow = {
   approval_status: string;
   claim_email: string | null;
   is_example?: boolean;
-  agreement_channels: string[];
+  rights_confirmed_at?: string | null;
+  territories?: string[] | null;
   updated_at: string;
 };
 
-const channelLabel: Record<string, string> = {
-  text: "Text",
-  voice: "Voice",
-  realtime_voice: "Live voice",
-  video: "Video",
-  realtime_video: "Live video",
-};
 
 const approvalLabel: Record<string, string> = {
   none: "Not submitted",
@@ -146,7 +140,7 @@ function AvatarList({ role }: { role: Role }) {
                 <th>Avatar</th>
                 <th>Status</th>
                 <th>Approval</th>
-                <th>Signed agreements</th>
+                <th>Rights</th>
                 <th>Updated</th>
                 <th />
               </tr>
@@ -165,16 +159,17 @@ function AvatarList({ role }: { role: Role }) {
                   </td>
                   <td>{approvalLabel[avatar.approval_status] || avatar.approval_status}</td>
                   <td>
-                    {avatar.agreement_channels.length ? (
-                      <span className="chip-wrap">
-                        {avatar.agreement_channels.map((channel) => (
-                          <span key={channel} className="status-pill soon">
-                            {channelLabel[channel] || channel}
-                          </span>
-                        ))}
-                      </span>
+                    {avatar.rights_confirmed_at ? (
+                      <>
+                        <span className="status-pill live">Confirmed</span>
+                        <small>
+                          {(avatar.territories && avatar.territories.length ? avatar.territories : ["IN", "US"])
+                            .map((code) => ({ IN: "India", US: "US", ROW: "Rest of world" }[code] || code))
+                            .join(", ")}
+                        </small>
+                      </>
                     ) : (
-                      <span className="status-pill paused">None</span>
+                      <span className="status-pill paused">Not confirmed</span>
                     )}
                   </td>
                   <td>{new Date(avatar.updated_at).toLocaleDateString()}</td>

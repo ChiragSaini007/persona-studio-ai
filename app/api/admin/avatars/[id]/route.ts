@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { savePersonaEmbeddings } from "../../../../../lib/ai";
-import { adminError, Agreement, logAudit, requireStaff } from "../../../../../lib/admin";
+import { adminError, logAudit, requireStaff } from "../../../../../lib/admin";
 import { loadAvatar, patchAvatar } from "../../../../../lib/admin-avatars";
 import { buildRetrievalChunks, normalizeProfile } from "../../../../../lib/persona";
 import { endActiveSessions } from "../../../../../lib/realtime";
@@ -17,11 +17,8 @@ export async function GET(request: NextRequest, context: Context) {
   try {
     const avatar = await loadAvatar(id);
     if (!avatar) return NextResponse.json({ error: "Avatar not found" }, { status: 404 });
-    const [agreements, activity] = await Promise.all([
-      supabaseRest<Agreement[]>(`avatar_agreements?persona_id=eq.${id}&select=*&order=created_at.desc`),
-      supabaseRest<unknown[]>(`admin_audit_log?persona_id=eq.${id}&select=*&order=created_at.desc&limit=50`),
-    ]);
-    return NextResponse.json({ role: auth.staff.role, avatar, agreements, activity });
+    const activity = await supabaseRest<unknown[]>(`admin_audit_log?persona_id=eq.${id}&select=*&order=created_at.desc&limit=50`);
+    return NextResponse.json({ role: auth.staff.role, avatar, activity });
   } catch (error) {
     return adminError(error);
   }

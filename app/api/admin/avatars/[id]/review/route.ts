@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { activeAgreement, adminError, logAudit, requireStaff } from "../../../../../../lib/admin";
+import { adminError, logAudit, requireStaff, rightsConfirmed } from "../../../../../../lib/admin";
 import { loadAvatar, patchAvatar } from "../../../../../../lib/admin-avatars";
 
 type Context = { params: Promise<{ id: string }> };
 
-const signoffMethods = ["email", "whatsapp", "call", "meeting", "portal"];
-
-// Review flow: ops submit -> admin records the creator's own sign-off and approves (or requests changes).
+// Review flow: ops submit, an admin approves (or asks for changes). Approval can carry a one-line reference,
+// for example "approved on WhatsApp, 12 Oct".
 export async function POST(request: NextRequest, context: Context) {
   const { id } = await context.params;
   const body = await request.json();
@@ -20,8 +19,8 @@ export async function POST(request: NextRequest, context: Context) {
     if (!avatar) return NextResponse.json({ error: "Avatar not found" }, { status: 404 });
 
     if (decision === "submit") {
-      if (!(await activeAgreement(id, "text"))) {
-        return NextResponse.json({ error: "An active signed text agreement is required" }, { status: 400 });
+      if (!rightsConfirmed(avatar)) {
+        return NextResponse.json({ error: "Confirm rights for this avatar first" }, { status: 400 });
       }
       if (avatar.source_content.trim().length < 200) {
         return NextResponse.json({ error: "Add more content before submitting for approval" }, { status: 400 });
@@ -35,27 +34,15 @@ export async function POST(request: NextRequest, context: Context) {
       if (avatar.approval_status !== "pending") {
         return NextResponse.json({ error: "Only avatars submitted for approval can be approved" }, { status: 400 });
       }
-      if (!(await activeAgreement(id, "text"))) {
-        return NextResponse.json({ error: "The text agreement is no longer active" }, { status: 400 });
-      }
-      const signoff = body.signoff || {};
-      const by = String(signoff.by || "").trim().slice(0, 160);
-      const method = String(signoff.method || "");
-      const date = String(signoff.date || "");
-      if (!by || !signoffMethods.includes(method) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return NextResponse.json(
-          { error: "Record how the creator signed off: who, how (email, WhatsApp, call, meeting or portal) and the date" },
-          { status: 400 },
-        );
+      if (!rightsConfirmed(avatar)) {
+        return NextResponse.json({ error: "Rights have not been confirmed for this avatar" }, { status: 400 });
       }
       const saved = await patchAvatar(id, {
         approval_status: "approved",
         approved_by_email: auth.staff.email,
         approved_at: new Date().toISOString(),
       });
-      await logAudit(auth.staff, "approved", id, {
-        creator_signoff: { by, method, date, reference: String(signoff.reference || "").slice(0, 500) },
-      });
+      await logAudit(auth.staff, "approved", id, { reference: String(body.reference || "").slice(0, 500) });
       return NextResponse.json({ avatar: saved });
     }
 

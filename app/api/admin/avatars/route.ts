@@ -1,33 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminError, agreementIsActive, Agreement, logAudit, requireStaff } from "../../../../lib/admin";
+import { adminError, logAudit, requireStaff } from "../../../../lib/admin";
 import { AdminPersona } from "../../../../lib/admin-avatars";
 import { cleanHandle, guardrails, normalizeProfile } from "../../../../lib/persona";
 import { genreTemplates } from "../../../../lib/variants";
 import { supabaseRest } from "../../../../lib/supabase-rest";
 
 const listColumns =
-  "id,creator_name,creator_handle,status,managed_by_admin,approval_status,claim_email,approved_by_email,approved_at,created_at,updated_at";
+  "id,creator_name,creator_handle,status,managed_by_admin,approval_status,claim_email,approved_by_email,approved_at,created_at,updated_at,is_example,rights_confirmed_at,territories";
 
 export async function GET(request: NextRequest) {
   const auth = await requireStaff(request);
   if (auth.error) return auth.error;
 
   try {
-    const [avatars, agreements] = await Promise.all([
-      supabaseRest<AdminPersona[]>(`personas?select=${listColumns}&order=updated_at.desc&limit=500`),
-      supabaseRest<Agreement[]>(`avatar_agreements?select=persona_id,channel,status,expires_on`),
-    ]);
-    const channelsByAvatar = new Map<string, string[]>();
-    for (const agreement of agreements) {
-      if (!agreementIsActive(agreement)) continue;
-      const list = channelsByAvatar.get(agreement.persona_id) || [];
-      if (!list.includes(agreement.channel)) list.push(agreement.channel);
-      channelsByAvatar.set(agreement.persona_id, list);
-    }
-    return NextResponse.json({
-      role: auth.staff.role,
-      avatars: avatars.map((avatar) => ({ ...avatar, agreement_channels: channelsByAvatar.get(avatar.id as string) || [] })),
-    });
+    const avatars = await supabaseRest<AdminPersona[]>(`personas?select=${listColumns}&order=updated_at.desc&limit=500`);
+    return NextResponse.json({ role: auth.staff.role, avatars });
   } catch (error) {
     return adminError(error);
   }

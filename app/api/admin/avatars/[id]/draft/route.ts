@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateProfileWithAI } from "../../../../../../lib/ai";
-import { activeAgreement, adminError, logAudit, requireStaff } from "../../../../../../lib/admin";
+import { adminError, logAudit, requireStaff, rightsConfirmed } from "../../../../../../lib/admin";
 import { loadAvatar, patchAvatar } from "../../../../../../lib/admin-avatars";
 import { buildRetrievalChunks } from "../../../../../../lib/persona";
 
@@ -15,8 +15,8 @@ export async function POST(request: NextRequest, context: Context) {
   try {
     const avatar = await loadAvatar(id);
     if (!avatar) return NextResponse.json({ error: "Avatar not found" }, { status: 404 });
-    if (!(await activeAgreement(id, "text"))) {
-      return NextResponse.json({ error: "Upload an active signed text agreement before training this avatar" }, { status: 400 });
+    if (!rightsConfirmed(avatar)) {
+      return NextResponse.json({ error: "Confirm rights for this avatar before training it" }, { status: 400 });
     }
     if (avatar.source_content.trim().length < 100) {
       return NextResponse.json({ error: "Add at least a few paragraphs of content first" }, { status: 400 });

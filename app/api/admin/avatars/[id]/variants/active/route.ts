@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { activeAgreement, adminError, logAudit, requireStaff } from "../../../../../../../lib/admin";
+import { adminError, logAudit, requireStaff, rightsConfirmed } from "../../../../../../../lib/admin";
 import { loadAvatar, patchAvatar } from "../../../../../../../lib/admin-avatars";
 import { endActiveSessions } from "../../../../../../../lib/realtime";
 import { loadVariant } from "../../../../../../../lib/variants";
@@ -21,9 +21,9 @@ export async function POST(request: NextRequest, context: Context) {
     if (variantId) {
       const variant = await loadVariant(variantId);
       if (!variant || variant.persona_id !== id || variant.status !== "active") return NextResponse.json({ error: "Variant not found" }, { status: 404 });
-      if (variant.approval_status !== "approved") return NextResponse.json({ error: "This mode needs recorded creator sign-off and approval first" }, { status: 400 });
+      if (variant.approval_status !== "approved") return NextResponse.json({ error: "This mode needs admin approval first" }, { status: 400 });
       if (avatar.approval_status !== "approved") return NextResponse.json({ error: "The main persona must be approved first" }, { status: 400 });
-      if (!(await activeAgreement(id, "text"))) return NextResponse.json({ error: "No active signed text agreement" }, { status: 400 });
+      if (!rightsConfirmed(avatar)) return NextResponse.json({ error: "Rights have not been confirmed for this avatar" }, { status: 400 });
     }
     const saved = await patchAvatar(id, { active_variant_id: variantId });
     await endActiveSessions(id, "variant_changed");

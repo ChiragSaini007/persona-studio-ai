@@ -36,34 +36,18 @@ type Avatar = {
   internal_notes: string;
   is_example?: boolean;
   active_variant_id?: string | null;
+  rights_confirmed_by_email?: string | null;
+  rights_confirmed_at?: string | null;
+  rights_reference?: string | null;
+  territories?: string[] | null;
   voice_config?: { enabled?: boolean; voice?: string; instructions?: string; realtime_enabled?: boolean; realtime_voice?: string };
-};
-
-type Agreement = {
-  id: string;
-  channel: string;
-  signed_by_name: string;
-  signer_role: string;
-  signed_on: string;
-  expires_on: string | null;
-  scope_notes: string;
-  territories?: string[];
-  status: "active" | "revoked";
-  uploaded_by_email: string;
 };
 
 type Activity = { id: string; action: string; actor_email: string; details: Record<string, unknown>; created_at: string };
 
-const tabs = ["Overview", "Agreements", "Content", "Voice and limits", "Variants", "Voice", "Test chat", "Approval", "Activity"] as const;
+const tabs = ["Overview", "Rights", "Content", "Voice and limits", "Variants", "Voice", "Test chat", "Approval", "Activity"] as const;
 type Tab = (typeof tabs)[number];
 
-const channelOptions = [
-  { value: "text", label: "Text chat", live: true },
-  { value: "voice", label: "Voice (recorded)", live: false },
-  { value: "realtime_voice", label: "Real-time voice", live: false },
-  { value: "video", label: "Video (recorded)", live: false },
-  { value: "realtime_video", label: "Real-time video", live: false },
-];
 
 const languageOptions = ["English", "Hindi", "Hinglish", "Tamil", "Telugu", "Kannada", "Bengali", "Marathi", "Gujarati", "Malayalam", "Punjabi"];
 const toneOptions = ["Warm", "Playful", "Direct", "Professional"];
@@ -94,7 +78,6 @@ function today() {
 function Workspace({ role }: { role: Role }) {
   const { id } = useParams<{ id: string }>();
   const [avatar, setAvatar] = useState<Avatar | null>(null);
-  const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [tab, setTab] = useState<Tab>("Overview");
   const [error, setError] = useState("");
@@ -110,7 +93,6 @@ function Workspace({ role }: { role: Role }) {
     }
     setError("");
     setAvatar(data.avatar);
-    setAgreements(data.agreements);
     setActivity(data.activity);
   }, [id]);
 
@@ -137,7 +119,7 @@ function Workspace({ role }: { role: Role }) {
   if (error && !avatar) return <div className="system-notice" role="alert">{error}</div>;
   if (!avatar) return <p>Loading…</p>;
 
-  const activeText = agreements.find((item) => item.channel === "text" && item.status === "active" && (!item.expires_on || item.expires_on >= today()));
+  const hasRights = Boolean(avatar.rights_confirmed_at);
   // A brand-new avatar already has a default profile, so look for an explicit draft or voice save.
   const drafted = activity.some(
     (entry) =>
@@ -148,11 +130,11 @@ function Workspace({ role }: { role: Role }) {
         !(entry.details.fields as string[]).includes("source_content")),
   );
   const checklist = [
-    { label: "Signed text agreement on file", done: Boolean(activeText) },
+    { label: "Rights confirmed", done: hasRights },
     { label: "Content added (200+ characters)", done: avatar.source_content.trim().length >= 200 },
     { label: "Voice and topics drafted or edited", done: drafted },
     { label: "Submitted for approval", done: avatar.approval_status === "pending" || avatar.approval_status === "approved" },
-    { label: "Creator sign-off recorded and approved", done: avatar.approval_status === "approved" },
+    { label: "Approved by an admin", done: avatar.approval_status === "approved" },
   ];
 
   return (
@@ -210,11 +192,11 @@ function Workspace({ role }: { role: Role }) {
       {tab === "Overview" && (
         <OverviewTab avatar={avatar} checklist={checklist} busy={busy} onSave={(notes) => call("notes", `/api/admin/avatars/${id}`, { method: "PATCH", body: JSON.stringify(notes) }, "Saved.")} />
       )}
-      {tab === "Agreements" && <AgreementsTab id={id} role={role} agreements={agreements} busy={busy} call={call} setError={setError} />}
-      {tab === "Content" && <ContentTab id={id} avatar={avatar} hasAgreement={Boolean(activeText)} busy={busy} call={call} />}
+      {tab === "Rights" && <RightsTab id={id} role={role} avatar={avatar} busy={busy} call={call} />}
+      {tab === "Content" && <ContentTab id={id} avatar={avatar} hasAgreement={hasRights} busy={busy} call={call} />}
       {tab === "Voice and limits" && <VoiceTab id={id} avatar={avatar} busy={busy} call={call} />}
       {tab === "Variants" && <VariantsTab id={id} avatar={avatar} role={role} busy={busy} call={call} setError={setError} reload={load} />}
-      {tab === "Voice" && <VoiceRepliesTab id={id} avatar={avatar} agreements={agreements} busy={busy} call={call} setError={setError} />}
+      {tab === "Voice" && <VoiceRepliesTab id={id} avatar={avatar} busy={busy} call={call} setError={setError} />}
       {tab === "Test chat" && <TestChat id={id} avatar={avatar} />}
       {tab === "Approval" && <ApprovalTab id={id} role={role} avatar={avatar} checklist={checklist} activity={activity} busy={busy} call={call} />}
       {tab === "Activity" && <ActivityTab activity={activity} />}
@@ -262,167 +244,71 @@ function OverviewTab({ avatar, checklist, busy, onSave }: { avatar: Avatar; chec
   );
 }
 
-function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: string; role: Role; agreements: Agreement[]; busy: string; call: Call; setError: (value: string) => void }) {
-  const [form, setForm] = useState({ channel: "text", signed_by_name: "", signer_role: "creator", signed_on: today(), expires_on: "", scope_notes: "" });
-  const [territories, setTerritories] = useState<Record<string, boolean>>({ IN: true, US: true, ROW: false });
-  const [file, setFile] = useState<File | null>(null);
-  const [fileKey, setFileKey] = useState(0);
-
-  async function upload() {
-    if (!file) {
-      setError("Attach the signed agreement first.");
-      return;
-    }
-    const body = new FormData();
-    Object.entries(form).forEach(([key, value]) => body.append(key, value));
-    body.append("territories", Object.keys(territories).filter((key) => territories[key]).join(","));
-    body.append("file", file);
-    const result = await call("upload", `/api/admin/avatars/${id}/agreements`, { method: "POST", body }, "Agreement saved.");
-    if (result) {
-      setFile(null);
-      setFileKey((key) => key + 1);
-      setForm({ ...form, signed_by_name: "", scope_notes: "" });
-    }
-  }
-
-  async function view(agreementId: string) {
-    const response = await adminFetch(`/api/admin/avatars/${id}/agreements/${agreementId}`);
-    const data = await response.json();
-    if (!response.ok) {
-      setError(data.error || "Could not open the agreement");
-      return;
-    }
-    window.open(data.url, "_blank", "noopener");
-  }
-
+function RightsTab({ id, role, avatar, busy, call }: { id: string; role: Role; avatar: Avatar; busy: string; call: Call }) {
+  const confirmed = Boolean(avatar.rights_confirmed_at);
+  const [confirm, setConfirm] = useState(confirmed);
+  const [reference, setReference] = useState(avatar.rights_reference || "");
+  const [territories, setTerritories] = useState<Record<string, boolean>>(() => {
+    const current = avatar.territories && avatar.territories.length ? avatar.territories : ["IN", "US"];
+    return { IN: current.includes("IN"), US: current.includes("US"), ROW: current.includes("ROW") };
+  });
+  const selected = Object.keys(territories).filter((key) => territories[key]);
   return (
     <div className="screen-stack">
       <section className="product-card">
-        <h2>Signed agreements</h2>
+        <h2>Rights</h2>
         <p className="field-hint">
-          Nothing can be trained or published without an active signed agreement. Make sure it covers the creator&apos;s consent for how their data and
-          likeness are used (including under India&apos;s Digital Personal Data Protection Act), and any rules on labelling AI-generated content. Have your
-          lawyer confirm the wording.
+          The signed agreement with the creator is handled outside this tool. Here, record that someone on the team confirmed it, with a one-line pointer to where it is kept, and where the avatar may be used.
         </p>
-        {agreements.length === 0 ? (
-          <div className="empty-state">
-            <strong>No agreements yet</strong>
-            <p>Upload the signed document below.</p>
-          </div>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Channel</th>
-                <th>Signed by</th>
-                <th>Signed on</th>
-                <th>Expires</th>
-                <th>Territories</th>
-                <th>Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {agreements.map((agreement) => (
-                <tr key={agreement.id}>
-                  <td>{channelOptions.find((option) => option.value === agreement.channel)?.label || agreement.channel}</td>
-                  <td>
-                    {agreement.signed_by_name}
-                    <small>{agreement.signer_role === "creator" ? "Creator" : "Authorised representative"}</small>
-                  </td>
-                  <td>{agreement.signed_on}</td>
-                  <td>{agreement.expires_on || "No expiry"}</td>
-                  <td>{(agreement.territories && agreement.territories.length ? agreement.territories : ["IN", "US"]).map((code) => ({ IN: "India", US: "United States", ROW: "Rest of world" }[code] || code)).join(", ")}</td>
-                  <td>
-                    <span className={`status-pill ${agreement.status === "active" ? "live" : "paused"}`}>{agreement.status}</span>
-                  </td>
-                  <td className="admin-row-actions">
-                    <button className="secondary-action" onClick={() => void view(agreement.id)}>
-                      View document
-                    </button>
-                    {role === "admin" && agreement.status === "active" && (
-                      <button
-                        className="secondary-action danger"
-                        disabled={busy === "revoke"}
-                        onClick={() => {
-                          if (window.confirm("Revoke this agreement? A revoked text agreement pauses the avatar immediately.")) {
-                            void call("revoke", `/api/admin/avatars/${id}/agreements/${agreement.id}`, { method: "DELETE" }, "Agreement revoked.");
-                          }
-                        }}
-                      >
-                        Revoke
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {confirmed && (
+          <p>
+            <span className="status-pill live">Rights confirmed</span> by {avatar.rights_confirmed_by_email} on {avatar.rights_confirmed_at ? new Date(avatar.rights_confirmed_at).toLocaleDateString() : ""}.
+          </p>
         )}
-      </section>
-
-      <section className="product-card admin-form">
-        <h2>Upload an agreement</h2>
+        <label className="consent-row live-call-consent">
+          <input type="checkbox" checked={confirm} onChange={(event) => setConfirm(event.target.checked)} />
+          <span>I confirm a signed agreement with this creator or celebrity (or their authorised representative) exists, and it covers this avatar.</span>
+        </label>
         <div className="field-grid">
           <label>
-            Covers
-            <select value={form.channel} onChange={(event) => setForm({ ...form, channel: event.target.value })}>
-              {channelOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                  {option.live ? "" : " (not active yet)"}
-                </option>
-              ))}
-            </select>
+            One-line reference
+            <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="e.g. Agreement signed 12 Oct, kept in Drive / Legal" />
           </label>
-          <label>
-            Signed by (full name)
-            <input value={form.signed_by_name} onChange={(event) => setForm({ ...form, signed_by_name: event.target.value })} />
-          </label>
-          <label>
-            Signer is
-            <select value={form.signer_role} onChange={(event) => setForm({ ...form, signer_role: event.target.value })}>
-              <option value="creator">The creator or celebrity</option>
-              <option value="authorised_representative">An authorised representative</option>
-            </select>
-          </label>
-          <label>
-            Date signed
-            <input type="date" value={form.signed_on} onChange={(event) => setForm({ ...form, signed_on: event.target.value })} />
-          </label>
-          <label>
-            Expires (optional)
-            <input type="date" value={form.expires_on} onChange={(event) => setForm({ ...form, expires_on: event.target.value })} />
-          </label>
-          <div className="choice-group">
-            <span className="choice-label">Where the avatar may be used</span>
-            <div className="choice-row">
-              {[
-                ["IN", "India"],
-                ["US", "United States"],
-                ["ROW", "Rest of world"],
-              ].map(([code, label]) => (
-                <button key={code} type="button" className="choice" aria-pressed={territories[code]} onClick={() => setTerritories({ ...territories, [code]: !territories[code] })}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <span className="field-hint">Fans outside these territories are blocked from this avatar.</span>
+        </div>
+        <div className="choice-group">
+          <span className="choice-label">Where this avatar may be used</span>
+          <div className="choice-row">
+            {[
+              ["IN", "India"],
+              ["US", "United States"],
+              ["ROW", "Rest of world"],
+            ].map(([code, label]) => (
+              <button key={code} type="button" className="choice" aria-pressed={territories[code]} onClick={() => setTerritories({ ...territories, [code]: !territories[code] })}>
+                {label}
+              </button>
+            ))}
           </div>
-          <label>
-            Scope notes (optional)
-            <textarea className="compact-textarea" value={form.scope_notes} onChange={(event) => setForm({ ...form, scope_notes: event.target.value })} />
-          </label>
-          <label>
-            Signed document (PDF, PNG, JPG or WebP, up to 10 MB)
-            <input key={fileKey} type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(event) => setFile(event.target.files?.[0] || null)} />
-          </label>
+          <span className="field-hint">Fans outside these regions can&apos;t use this avatar.</span>
         </div>
         <div className="button-row">
-          <button className="primary-action" disabled={busy === "upload" || !form.signed_by_name.trim() || !file} onClick={() => void upload()}>
-            {busy === "upload" ? "Uploading…" : "Save agreement"}
+          <button
+            className="primary-action"
+            disabled={busy === "rights" || !confirm || reference.trim().length < 5 || !selected.length}
+            onClick={() => void call("rights", `/api/admin/avatars/${id}/rights`, { method: "POST", body: JSON.stringify({ confirm: true, reference, territories: selected }) }, confirmed ? "Rights details updated." : "Rights confirmed.")}
+          >
+            {confirmed ? "Update" : "Confirm rights"}
           </button>
+          {role === "admin" && confirmed && (
+            <button
+              className="secondary-action danger"
+              disabled={busy === "withdraw"}
+              onClick={() => void call("withdraw", `/api/admin/avatars/${id}/rights`, { method: "DELETE" }, "Rights withdrawn. The avatar is paused and approval was cleared.")}
+            >
+              Withdraw rights
+            </button>
+          )}
         </div>
+        {role === "admin" && confirmed && <p className="field-hint">Withdrawing pauses the avatar right away, ends live calls and clears approval.</p>}
       </section>
     </div>
   );
@@ -479,7 +365,7 @@ function ContentTab({ id, avatar, hasAgreement, busy, call }: { id: string; avat
           <span>{content.trim().length.toLocaleString()} characters</span>
           <input key={fileKey} type="file" multiple accept=".pdf,.mp3,.m4a,.wav,.webm,.mp4,.mpeg,.ogg,.flac,.txt,.md,.srt,.vtt,.csv,.json" onChange={(event) => void addFiles(event.target.files)} aria-label="Add PDF, audio or text files" disabled={!hasAgreement} />
         </div>
-        {!hasAgreement && <p className="field-hint">Adding files unlocks once an active signed text agreement is uploaded.</p>}
+        {!hasAgreement && <p className="field-hint">Adding files unlocks once rights are confirmed (Rights tab).</p>}
         {fileStatuses.length > 0 && (
           <ul className="ingest-list" aria-live="polite">
             {fileStatuses.map((item) => (
@@ -497,13 +383,13 @@ function ContentTab({ id, avatar, hasAgreement, busy, call }: { id: string; avat
           <button
             className="primary-action"
             disabled={busy === "draft" || !hasAgreement || content !== avatar.source_content}
-            title={!hasAgreement ? "Upload an active signed text agreement first" : content !== avatar.source_content ? "Save the content first" : ""}
+            title={!hasAgreement ? "Confirm rights first (Rights tab)" : content !== avatar.source_content ? "Save the content first" : ""}
             onClick={() => void call("draft", `/api/admin/avatars/${id}/draft`, { method: "POST" }, "Voice and topics drafted from the content.")}
           >
             {busy === "draft" ? "Drafting…" : "Draft voice and topics"}
           </button>
         </div>
-        {!hasAgreement && <p className="field-error">Training is locked until an active signed text agreement is uploaded.</p>}
+        {!hasAgreement && <p className="field-error">Training is locked until rights are confirmed (Rights tab).</p>}
       </section>
     </div>
   );
@@ -681,7 +567,7 @@ function VariantsTab({ id, avatar, role, busy, call, setError, reload }: { id: s
   const [editing, setEditing] = useState<string>("");
   const [form, setForm] = useState({ name: "", genre: "custom", description: "", overlay: emptyOverlay });
   const [signoffFor, setSignoffFor] = useState("");
-  const [signoff, setSignoff] = useState({ by: "", method: "email", date: today(), reference: "" });
+  const [reference, setReference] = useState("");
   const lines = (value: string) => value.split("\n").map((item) => item.trim()).filter(Boolean);
   const commas = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
@@ -731,7 +617,7 @@ function VariantsTab({ id, avatar, role, busy, call, setError, reload }: { id: s
       <section className="product-card">
         <h2>Genre modes</h2>
         <p className="field-hint">
-          One main persona, plus adaptable modes such as Action or Horror. A mode can add a style and extra topics to avoid, but it can never switch off the main persona&apos;s limits. Each mode needs the creator&apos;s own sign-off before fans can talk to it.
+          One main persona, plus adaptable modes such as Action or Horror. A mode can add a style and extra topics to avoid, but it can never switch off the main persona&apos;s limits. Each mode needs an admin's approval before fans can talk to it.
         </p>
         <p>
           Fans currently talk to: <strong>{activeId ? variants?.find((row) => row.id === activeId)?.name || "a mode" : "the main persona"}</strong>
@@ -773,7 +659,7 @@ function VariantsTab({ id, avatar, role, busy, call, setError, reload }: { id: s
               )}
               {role === "admin" && row.approval_status === "pending" && (
                 <button className="primary-action" onClick={() => setSignoffFor(signoffFor === row.id ? "" : row.id)}>
-                  Record sign-off and approve
+                  Approve
                 </button>
               )}
               {role === "admin" && row.approval_status === "approved" && activeId !== row.id && (
@@ -790,38 +676,19 @@ function VariantsTab({ id, avatar, role, busy, call, setError, reload }: { id: s
 
             {signoffFor === row.id && (
               <div className="admin-form">
-                <p className="field-hint">The creator or their representative must have agreed to this mode. Record how.</p>
                 <div className="field-grid">
                   <label>
-                    Who signed off
-                    <input value={signoff.by} onChange={(event) => setSignoff({ ...signoff, by: event.target.value })} />
-                  </label>
-                  <label>
-                    How
-                    <select value={signoff.method} onChange={(event) => setSignoff({ ...signoff, method: event.target.value })}>
-                      <option value="email">Email</option>
-                      <option value="whatsapp">WhatsApp</option>
-                      <option value="call">Phone call</option>
-                      <option value="meeting">Meeting</option>
-                      <option value="portal">Creator portal</option>
-                    </select>
-                  </label>
-                  <label>
-                    Date
-                    <input type="date" value={signoff.date} onChange={(event) => setSignoff({ ...signoff, date: event.target.value })} />
-                  </label>
-                  <label>
-                    Reference
-                    <input value={signoff.reference} onChange={(event) => setSignoff({ ...signoff, reference: event.target.value })} />
+                    Approval reference (optional)
+                    <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="e.g. approved on WhatsApp, 12 Oct" />
                   </label>
                 </div>
                 <div className="button-row">
                   <button
                     className="primary-action"
-                    disabled={!signoff.by.trim()}
                     onClick={async () => {
-                      await act(row, `/api/admin/avatars/${id}/variants/${row.id}/review`, { method: "POST", body: JSON.stringify({ decision: "approve", signoff }) }, "Mode approved.");
+                      await act(row, `/api/admin/avatars/${id}/variants/${row.id}/review`, { method: "POST", body: JSON.stringify({ decision: "approve", reference }) }, "Mode approved.");
                       setSignoffFor("");
+                      setReference("");
                     }}
                   >
                     Approve this mode
@@ -902,7 +769,7 @@ function VariantForm({ form, setForm, lines, commas, onSave, saving }: {
 
 const presetVoiceNames = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"];
 
-function VoiceRepliesTab({ id, avatar, agreements, busy, call, setError }: { id: string; avatar: Avatar; agreements: Agreement[]; busy: string; call: Call; setError: (value: string) => void }) {
+function VoiceRepliesTab({ id, avatar, busy, call, setError }: { id: string; avatar: Avatar; busy: string; call: Call; setError: (value: string) => void }) {
   const [enabled, setEnabled] = useState(Boolean(avatar.voice_config?.enabled));
   const [voice, setVoice] = useState(avatar.voice_config?.voice || "coral");
   const [instructions, setInstructions] = useState(avatar.voice_config?.instructions || "Speak warmly and naturally, like a friendly person chatting with a fan. Clear, unhurried pace.");
@@ -919,8 +786,8 @@ function VoiceRepliesTab({ id, avatar, agreements, busy, call, setError }: { id:
   useEffect(() => {
     queueMicrotask(() => void loadCalls());
   }, [loadCalls]);
-  const liveAgreement = agreements.some((item) => item.channel === "realtime_voice" && item.status === "active" && (!item.expires_on || item.expires_on >= today()));
-  const voiceAgreement = agreements.some((item) => item.channel === "voice" && item.status === "active" && (!item.expires_on || item.expires_on >= today()));
+  const liveAgreement = Boolean(avatar.rights_confirmed_at);
+  const voiceAgreement = Boolean(avatar.rights_confirmed_at);
 
   async function preview() {
     setPreviewing(true);
@@ -1019,7 +886,7 @@ function VoiceRepliesTab({ id, avatar, agreements, busy, call, setError }: { id:
         <ul className="admin-checklist">
           <li className={liveAgreement ? "done" : ""}>
             <span aria-hidden="true">{liveAgreement ? "✓" : ""}</span>
-            A signed real-time voice agreement on file (Agreements tab, channel &ldquo;Real-time voice&rdquo;). Calls are blocked without it.
+            Rights confirmed (Rights tab). Calls are blocked without it.
           </li>
           <li className={avatar.approval_status === "approved" ? "done" : ""}>
             <span aria-hidden="true">{avatar.approval_status === "approved" ? "✓" : ""}</span>
@@ -1108,7 +975,7 @@ function VoiceRepliesTab({ id, avatar, agreements, busy, call, setError }: { id:
         <ul className="admin-checklist">
           <li className={voiceAgreement ? "done" : ""}>
             <span aria-hidden="true">{voiceAgreement ? "✓" : ""}</span>
-            A signed voice agreement on file (upload it on the Agreements tab, channel &ldquo;Voice&rdquo;)
+            Rights confirmed, including permission to use their voice (Rights tab)
           </li>
           <li>
             <span aria-hidden="true" />
@@ -1201,7 +1068,7 @@ function TestChat({ id, avatar }: { id: string; avatar: Avatar }) {
 }
 
 function ApprovalTab({ id, role, avatar, checklist, activity, busy, call }: { id: string; role: Role; avatar: Avatar; checklist: { label: string; done: boolean }[]; activity: Activity[]; busy: string; call: Call }) {
-  const [signoff, setSignoff] = useState({ by: "", method: "email", date: today(), reference: "" });
+  const [reference, setReference] = useState("");
   const [changeNote, setChangeNote] = useState("");
   const lastChange = activity.find((entry) => entry.action === "changes_requested");
   const ready = checklist.slice(0, 3).every((item) => item.done);
@@ -1237,34 +1104,16 @@ function ApprovalTab({ id, role, avatar, checklist, activity, busy, call }: { id
 
       {role === "admin" && avatar.approval_status === "pending" && (
         <section className="product-card admin-form">
-          <h2>Record the creator&apos;s sign-off and approve</h2>
-          <p className="field-hint">The creator or their representative must have reviewed this avatar and agreed to it going live. Record how, so there is a trail.</p>
+          <h2>Approve</h2>
+          <p className="field-hint">Review the avatar, try it in the test chat, then approve. A reference is optional, for example &ldquo;approved on WhatsApp, 12 Oct&rdquo;.</p>
           <div className="field-grid">
             <label>
-              Who signed off
-              <input value={signoff.by} onChange={(event) => setSignoff({ ...signoff, by: event.target.value })} />
-            </label>
-            <label>
-              How
-              <select value={signoff.method} onChange={(event) => setSignoff({ ...signoff, method: event.target.value })}>
-                <option value="email">Email</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="call">Phone call</option>
-                <option value="meeting">Meeting</option>
-                <option value="portal">Creator portal</option>
-              </select>
-            </label>
-            <label>
-              Date
-              <input type="date" value={signoff.date} onChange={(event) => setSignoff({ ...signoff, date: event.target.value })} />
-            </label>
-            <label>
-              Reference (message link, ticket, notes)
-              <input value={signoff.reference} onChange={(event) => setSignoff({ ...signoff, reference: event.target.value })} />
+              Approval reference (optional)
+              <input value={reference} onChange={(event) => setReference(event.target.value)} />
             </label>
           </div>
           <div className="button-row">
-            <button className="primary-action" disabled={!signoff.by.trim() || busy === "approve"} onClick={() => void post("approve", `/api/admin/avatars/${id}/review`, { decision: "approve", signoff }, "Approved.")}>
+            <button className="primary-action" disabled={busy === "approve"} onClick={() => void post("approve", `/api/admin/avatars/${id}/review`, { decision: "approve", reference }, "Approved.")}>
               Approve
             </button>
           </div>
@@ -1282,7 +1131,7 @@ function ApprovalTab({ id, role, avatar, checklist, activity, busy, call }: { id
 
       {avatar.approval_status === "pending" && role !== "admin" && (
         <section className="product-card">
-          <p>This avatar is waiting for an admin to record the creator&apos;s sign-off and approve it.</p>
+          <p>This avatar is waiting for an admin to approve it.</p>
         </section>
       )}
 

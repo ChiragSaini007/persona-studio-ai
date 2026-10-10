@@ -4471,3 +4471,68 @@ a,
   display: block;
   margin-top: 6px;
 }
+
+.ingest-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.ingest-list li {
+  background: #fafaf9;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.ingest-list li span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.ingest-list li.done {
+  border-color: #a8dcc0;
+}
+
+.ingest-list li.error {
+  border-color: #f0b8b0;
+}
+
+.ingest-list li.error span {
+  color: #8a1c1c;
+}
+
+.channel-tabs span.live {
+  color: var(--ink);
+}
+
+.listen-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.listen-row small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.listen-btn {
+  background: white;
+  border: 1px solid #c9c8c2;
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.listen-btn:hover:not(:disabled) {
+  border-color: var(--ink);
+}

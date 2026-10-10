@@ -34,6 +34,7 @@ type Avatar = {
   approved_at: string | null;
   claim_email: string | null;
   internal_notes: string;
+  voice_config?: { enabled?: boolean; voice?: string; instructions?: string };
 };
 
 type Agreement = {
@@ -50,7 +51,7 @@ type Agreement = {
 
 type Activity = { id: string; action: string; actor_email: string; details: Record<string, unknown>; created_at: string };
 
-const tabs = ["Overview", "Agreements", "Content", "Voice and limits", "Test chat", "Approval", "Activity"] as const;
+const tabs = ["Overview", "Agreements", "Content", "Voice and limits", "Voice replies", "Test chat", "Approval", "Activity"] as const;
 type Tab = (typeof tabs)[number];
 
 const channelOptions = [
@@ -203,6 +204,7 @@ function Workspace({ role }: { role: Role }) {
       {tab === "Agreements" && <AgreementsTab id={id} role={role} agreements={agreements} busy={busy} call={call} setError={setError} />}
       {tab === "Content" && <ContentTab id={id} avatar={avatar} hasAgreement={Boolean(activeText)} busy={busy} call={call} />}
       {tab === "Voice and limits" && <VoiceTab id={id} avatar={avatar} busy={busy} call={call} />}
+      {tab === "Voice replies" && <VoiceRepliesTab id={id} avatar={avatar} agreements={agreements} busy={busy} call={call} setError={setError} />}
       {tab === "Test chat" && <TestChat id={id} avatar={avatar} />}
       {tab === "Approval" && <ApprovalTab id={id} role={role} avatar={avatar} checklist={checklist} activity={activity} busy={busy} call={call} />}
       {tab === "Activity" && <ActivityTab activity={activity} />}
@@ -400,26 +402,65 @@ function AgreementsTab({ id, role, agreements, busy, call, setError }: { id: str
 function ContentTab({ id, avatar, hasAgreement, busy, call }: { id: string; avatar: Avatar; hasAgreement: boolean; busy: string; call: Call }) {
   const [content, setContent] = useState(avatar.source_content);
 
+  type FileStatus = { name: string; state: "uploading" | "reading" | "done" | "error"; note: string };
+  const [fileStatuses, setFileStatuses] = useState<FileStatus[]>([]);
+  const [fileKey, setFileKey] = useState(0);
+
+  function setStatus(name: string, patch: Partial<FileStatus>) {
+    setFileStatuses((current) => current.map((item) => (item.name === name ? { ...item, ...patch } : item)));
+  }
+
+  // Uploads each file straight to storage, then asks the server to read it (PDF text or audio transcript).
   async function addFiles(files: FileList | null) {
-    if (!files) return;
-    const parts: string[] = [];
-    for (const file of Array.from(files)) {
-      if (!/\.(txt|md|srt|vtt|csv|json)$/i.test(file.name)) continue;
-      parts.push(`# ${file.name}\n${await file.text()}`);
+    if (!files || !files.length) return;
+    const list = Array.from(files);
+    setFileStatuses(list.map((file) => ({ name: file.name, state: "uploading", note: "Uploading…" })));
+    for (const file of list) {
+      try {
+        const urlResponse = await adminFetch(`/api/admin/avatars/${id}/ingest/upload-url`, { method: "POST", body: JSON.stringify({ name: file.name, size: file.size }) });
+        const urlData = await urlResponse.json();
+        if (!urlResponse.ok) throw new Error(urlData.error || "Could not start the upload");
+
+        const put = await fetch(urlData.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file });
+        if (!put.ok) throw new Error("The upload failed");
+
+        const isAudio = /\.(mp3|m4a|wav|webm|mp4|mpeg|mpga|ogg|oga|flac)$/i.test(file.name);
+        setStatus(file.name, { state: "reading", note: isAudio ? "Transcribing the audio. This can take a minute…" : "Reading the file…" });
+        const readResponse = await adminFetch(`/api/admin/avatars/${id}/ingest`, { method: "POST", body: JSON.stringify({ path: urlData.path, name: file.name }) });
+        const readData = await readResponse.json();
+        if (!readResponse.ok) throw new Error(readData.error || "Could not read the file");
+
+        if (readData.text) setContent((current) => [current.trim(), `# ${file.name}\n${readData.text}`].filter(Boolean).join("\n\n"));
+        const warning = (readData.warnings || []).join(" ");
+        setStatus(file.name, { state: warning ? "error" : "done", note: warning || `Added ${Number(readData.chars).toLocaleString()} characters. Review, then save.` });
+      } catch (failure) {
+        setStatus(file.name, { state: "error", note: failure instanceof Error ? failure.message : "Something went wrong" });
+      }
     }
-    if (parts.length) setContent((current) => [current.trim(), ...parts].filter(Boolean).join("\n\n"));
+    setFileKey((key) => key + 1);
   }
 
   return (
     <div className="screen-stack">
       <section className="product-card">
         <h2>Training content</h2>
-        <p className="field-hint">Everything the creator has approved for their avatar to draw on: captions, transcripts, interviews, FAQs, press kits. Plain text files can be added directly. PDFs and audio are coming.</p>
+        <p className="field-hint">Everything the creator has approved for their avatar to draw on: captions, transcripts, interviews, FAQs, press kits. Add PDFs, audio or video recordings (we transcribe them, including Hindi and other Indian languages), or text files. Files can be up to 25 MB each.</p>
         <textarea className="admin-content" value={content} onChange={(event) => setContent(event.target.value)} aria-label="Training content" />
         <div className="material-helper">
           <span>{content.trim().length.toLocaleString()} characters</span>
-          <input type="file" multiple accept=".txt,.md,.srt,.vtt,.csv,.json,text/plain" onChange={(event) => void addFiles(event.target.files)} aria-label="Add text files" />
+          <input key={fileKey} type="file" multiple accept=".pdf,.mp3,.m4a,.wav,.webm,.mp4,.mpeg,.ogg,.flac,.txt,.md,.srt,.vtt,.csv,.json" onChange={(event) => void addFiles(event.target.files)} aria-label="Add PDF, audio or text files" disabled={!hasAgreement} />
         </div>
+        {!hasAgreement && <p className="field-hint">Adding files unlocks once an active signed text agreement is uploaded.</p>}
+        {fileStatuses.length > 0 && (
+          <ul className="ingest-list" aria-live="polite">
+            {fileStatuses.map((item) => (
+              <li key={item.name} className={item.state}>
+                <strong>{item.name}</strong>
+                <span>{item.note}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="button-row">
           <button className="secondary-action" disabled={busy === "content" || content === avatar.source_content} onClick={() => void call("content", `/api/admin/avatars/${id}`, { method: "PATCH", body: JSON.stringify({ source_content: content }) }, "Content saved.")}>
             Save content
@@ -585,6 +626,103 @@ function VoiceTab({ id, avatar, busy, call }: { id: string; avatar: Avatar; busy
             Save voice and limits
           </button>
         </div>
+      </section>
+    </div>
+  );
+}
+
+const presetVoiceNames = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"];
+
+function VoiceRepliesTab({ id, avatar, agreements, busy, call, setError }: { id: string; avatar: Avatar; agreements: Agreement[]; busy: string; call: Call; setError: (value: string) => void }) {
+  const [enabled, setEnabled] = useState(Boolean(avatar.voice_config?.enabled));
+  const [voice, setVoice] = useState(avatar.voice_config?.voice || "coral");
+  const [instructions, setInstructions] = useState(avatar.voice_config?.instructions || "Speak warmly and naturally, like a friendly person chatting with a fan. Clear, unhurried pace.");
+  const [previewing, setPreviewing] = useState(false);
+  const voiceAgreement = agreements.some((item) => item.channel === "voice" && item.status === "active" && (!item.expires_on || item.expires_on >= today()));
+
+  async function preview() {
+    setPreviewing(true);
+    setError("");
+    const response = await adminFetch(`/api/admin/avatars/${id}/voice/preview`, { method: "POST", body: JSON.stringify({ voice_config: { enabled, voice, instructions } }) });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setError(data.error || "Could not generate a preview");
+      setPreviewing(false);
+      return;
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const audio = new Audio(url);
+    audio.onended = () => URL.revokeObjectURL(url);
+    await audio.play().catch(() => setError("Your browser blocked audio playback. Click preview again."));
+    setPreviewing(false);
+  }
+
+  return (
+    <div className="screen-stack">
+      <section className="product-card">
+        <h2>Voice replies</h2>
+        <p className="field-hint">
+          Fans can tap Listen on any reply to hear it spoken. This uses a preset AI voice. It is <strong>not</strong> a clone of {avatar.creator_name}&apos;s own voice, and fans are told it is an AI voice.
+        </p>
+        <div className="choice-group">
+          <span className="choice-label">Voice replies</span>
+          <div className="choice-row">
+            <button type="button" className="choice" aria-pressed={enabled} onClick={() => setEnabled(true)}>
+              On
+            </button>
+            <button type="button" className="choice" aria-pressed={!enabled} onClick={() => setEnabled(false)}>
+              Off
+            </button>
+          </div>
+        </div>
+        <div className="field-grid">
+          <label>
+            Voice
+            <select value={voice} onChange={(event) => setVoice(event.target.value)}>
+              {presetVoiceNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            How it should sound
+            <textarea className="compact-textarea" value={instructions} onChange={(event) => setInstructions(event.target.value)} placeholder="e.g. Warm and upbeat, Indian English accent, relaxed pace" />
+          </label>
+        </div>
+        <div className="button-row">
+          <button className="secondary-action" disabled={previewing} onClick={() => void preview()}>
+            {previewing ? "Generating…" : "Preview this voice"}
+          </button>
+          <button
+            className="primary-action"
+            disabled={busy === "voicecfg"}
+            onClick={() => void call("voicecfg", `/api/admin/avatars/${id}`, { method: "PATCH", body: JSON.stringify({ voice_config: { enabled, voice, instructions } }) }, "Voice settings saved.")}
+          >
+            Save voice settings
+          </button>
+        </div>
+        <p className="field-hint">Changing voice settings resets approval, so an admin approves the avatar again before fans hear it. The preview reads the greeting. Hindi and other Indian languages work, with quality that varies by voice.</p>
+      </section>
+
+      <section className="product-card">
+        <h2>{avatar.creator_name}&apos;s own voice</h2>
+        <p className="field-hint">A cloned voice is not available yet. It needs:</p>
+        <ul className="admin-checklist">
+          <li className={voiceAgreement ? "done" : ""}>
+            <span aria-hidden="true">{voiceAgreement ? "✓" : ""}</span>
+            A signed voice agreement on file (upload it on the Agreements tab, channel &ldquo;Voice&rdquo;)
+          </li>
+          <li>
+            <span aria-hidden="true" />
+            Clean voice samples from the creator
+          </li>
+          <li>
+            <span aria-hidden="true" />
+            A voice-cloning provider connected to Fanline
+          </li>
+        </ul>
       </section>
     </div>
   );

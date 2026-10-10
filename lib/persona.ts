@@ -762,5 +762,6 @@ export function toPublicPersona(row: PersonaRecord) {
     monetization: row.monetization,
     price_cents: row.price_cents,
     status: row.status,
+    voice_enabled: Boolean((row as { voice_config?: { enabled?: boolean } }).voice_config?.enabled),
   };
 }

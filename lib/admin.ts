@@ -50,7 +50,7 @@ export function adminError(error: unknown) {
   const message = error instanceof Error ? error.message : "Request failed";
   if (/column|relation|does not exist|avatar_agreements|admin_audit_log|PGRST/i.test(message)) {
     return NextResponse.json(
-      { error: "Admin database tables are missing. Run supabase/migrations/001_admin_foundations.sql in the Supabase SQL editor." },
+      { error: "The database is missing a recent update. Run the SQL files in supabase/migrations (in order) in the Supabase SQL editor." },
       { status: 503 },
     );
   }
@@ -96,11 +96,11 @@ function storageHeaders(extra: Record<string, string> = {}) {
   return { apikey: key, Authorization: `Bearer ${key}`, ...extra };
 }
 
-async function ensureBucket() {
+async function ensureBucket(name = bucket, limitBytes = 10 * 1024 * 1024) {
   const response = await fetch(`${storageBase()}/bucket`, {
     method: "POST",
     headers: storageHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ id: bucket, name: bucket, public: false, file_size_limit: 10 * 1024 * 1024 }),
+    body: JSON.stringify({ id: name, name, public: false, file_size_limit: limitBytes }),
   });
   // 200 = created, 400/409 = already exists
   if (!response.ok && response.status !== 400 && response.status !== 409) {
@@ -135,4 +135,27 @@ export async function managedAvatarBlocked(persona: { id?: string; managed_by_ad
   if (!persona.managed_by_admin) return false;
   if (persona.approval_status !== "approved") return true;
   return !(await activeAgreement(persona.id as string, "text"));
+}
+
+
+// ---- training files (PDF, audio, text): uploaded straight from the browser to storage ----
+const trainingBucket = "training";
+export const maxTrainingFileBytes = 25 * 1024 * 1024;
+
+export async function createTrainingUpload(path: string) {
+  await ensureBucket(trainingBucket, maxTrainingFileBytes);
+  const response = await fetch(`${storageBase()}/object/upload/sign/${trainingBucket}/${path}`, {
+    method: "POST",
+    headers: storageHeaders({ "Content-Type": "application/json" }),
+    body: "{}",
+  });
+  if (!response.ok) throw new Error(`Could not prepare the upload (${response.status})`);
+  const data = (await response.json()) as { url: string };
+  return `${storageBase()}${data.url}`;
+}
+
+export async function downloadTrainingFile(path: string) {
+  const response = await fetch(`${storageBase()}/object/${trainingBucket}/${path}`, { headers: storageHeaders() });
+  if (!response.ok) throw new Error(`Could not read the uploaded file (${response.status})`);
+  return Buffer.from(await response.arrayBuffer());
 }

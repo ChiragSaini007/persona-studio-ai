@@ -3,6 +3,7 @@ import { savePersonaEmbeddings } from "../../../../../lib/ai";
 import { adminError, Agreement, logAudit, requireStaff } from "../../../../../lib/admin";
 import { loadAvatar, patchAvatar } from "../../../../../lib/admin-avatars";
 import { buildRetrievalChunks, normalizeProfile } from "../../../../../lib/persona";
+import { normalizeVoiceConfig } from "../../../../../lib/tts";
 import { supabaseRest } from "../../../../../lib/supabase-rest";
 
 type Context = { params: Promise<{ id: string }> };
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest, context: Context) {
 }
 
 // Edits that change what the avatar says reset approval, and pause a live avatar until it is re-approved.
-const reviewedFields = ["creator_name", "source_content", "profile", "enabled_guardrails", "custom_boundary", "fallback_text"] as const;
+const reviewedFields = ["creator_name", "source_content", "profile", "enabled_guardrails", "custom_boundary", "fallback_text", "voice_config"] as const;
 
 export async function PATCH(request: NextRequest, context: Context) {
   const auth = await requireStaff(request);
@@ -53,6 +54,7 @@ export async function PATCH(request: NextRequest, context: Context) {
       };
     }
     if (body.enabled_guardrails && typeof body.enabled_guardrails === "object") patch.enabled_guardrails = body.enabled_guardrails;
+    if (body.voice_config && typeof body.voice_config === "object") patch.voice_config = normalizeVoiceConfig(body.voice_config);
     if (typeof body.custom_boundary === "string") patch.custom_boundary = body.custom_boundary.slice(0, 1000);
     if (typeof body.fallback_text === "string") patch.fallback_text = body.fallback_text.slice(0, 600);
     if (typeof body.internal_notes === "string") patch.internal_notes = body.internal_notes.slice(0, 4000);

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChannelTabs } from "../../../components/channel-tabs";
 import { SiteNav } from "../../../components/site-nav";
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { clearStoredSession, getStoredSession, refreshStoredSession, supabasePasswordAuth } from "../../auth-client";
 import {
@@ -94,6 +94,10 @@ function maskEmail(email: string) {
 }
 
 export default function FanChatPage() {
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceLoading, setVoiceLoading] = useState("");
+  const [voicePlaying, setVoicePlaying] = useState("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { workspace, setWorkspace } = usePersonaWorkspace();
   const params = useParams<{ handle: string }>();
   const searchParams = useSearchParams();
@@ -191,6 +195,7 @@ export default function FanChatPage() {
           price: persona.price_cents / 100,
           status: persona.status,
         });
+        setVoiceEnabled(Boolean(persona.voice_enabled));
         setNotice("");
       } catch (error) {
         setRemotePersona(null);
@@ -200,6 +205,41 @@ export default function FanChatPage() {
 
     void loadPersona();
   }, [handle, restoreFanSession, workspace]);
+
+  async function listen(message: { id: string; text: string }) {
+    if (voicePlaying === message.id) {
+      audioRef.current?.pause();
+      setVoicePlaying("");
+      return;
+    }
+    audioRef.current?.pause();
+    setVoiceLoading(message.id);
+    try {
+      const response = await fetch("/api/chat/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${fanAccessToken}` },
+        body: JSON.stringify({ conversationId, text: message.text }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Could not play this reply");
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const audio = new Audio(url);
+      audio.onended = () => {
+        setVoicePlaying("");
+        URL.revokeObjectURL(url);
+      };
+      audioRef.current = audio;
+      setVoicePlaying(message.id);
+      await audio.play();
+    } catch (error) {
+      setVoicePlaying("");
+      setNotice(error instanceof Error ? error.message : "Could not play this reply");
+    } finally {
+      setVoiceLoading("");
+    }
+  }
 
   function resumeConversation(conversation: FanConversation) {
     setConversationId(conversation.id);
@@ -423,7 +463,7 @@ export default function FanChatPage() {
               </p>
             </div>
           </div>
-          <ChannelTabs />
+          <ChannelTabs voiceReplies={voiceEnabled} />
         </header>
 
         <section className="chat-layout public-chat-layout">
@@ -503,6 +543,14 @@ export default function FanChatPage() {
                           {message.usedWeb
                             ? `Creator context + current public sources${message.sourceCount ? ` · ${message.sourceCount} lookup${message.sourceCount === 1 ? "" : "s"}` : ""}`
                             : "Based on creator material"}
+                        </div>
+                      )}
+                      {voiceEnabled && message.from === "persona" && !message.flagged && message.text !== welcomeMessage && (
+                        <div className="listen-row">
+                          <button type="button" className="listen-btn" onClick={() => void listen(message)} disabled={voiceLoading === message.id}>
+                            {voiceLoading === message.id ? "Loading voice…" : voicePlaying === message.id ? "Stop" : "Listen"}
+                          </button>
+                          <small>AI voice</small>
                         </div>
                       )}
                       {message.flagged && <div className="flag-label">Needs review: {message.flagReason}</div>}

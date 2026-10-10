@@ -47,46 +47,46 @@ export const guardrails: Guardrail[] = [
     key: "medical",
     title: "Medical advice",
     description: "Diagnosis, medication, symptoms, treatment, or health-risk decisions.",
-    keywords: ["diagnose", "medicine", "symptom", "treatment", "doctor", "medication"],
+    keywords: ["diagnose", "medicine", "symptom", "symptoms", "treatment", "doctor", "medication"],
     locked: true,
   },
   {
     key: "financial",
     title: "Financial advice",
     description: "Investment picks, crypto trades, portfolio recommendations, or loan decisions.",
-    keywords: ["stock", "crypto", "invest", "portfolio", "loan", "buy bitcoin"],
+    keywords: ["stock market", "which stock", "buy stock", "buy stocks", "invest", "investing", "investment", "crypto", "stock portfolio", "investment portfolio", "loan", "buy bitcoin", "mutual fund"],
     locked: true,
   },
   {
     key: "legal",
     title: "Legal advice",
     description: "Contracts, lawsuits, liability, or legal strategy.",
-    keywords: ["lawsuit", "contract", "sue", "liable", "legal advice"],
+    keywords: ["lawsuit", "sue", "liable", "legal advice"],
     locked: true,
   },
   {
     key: "politics",
     title: "Politics",
     description: "Parties, candidates, voting advice, or ideological persuasion.",
-    keywords: ["election", "vote", "party", "president", "politics"],
+    keywords: ["election", "vote", "voting", "political party", "president", "politics", "political", "prime minister"],
   },
   {
     key: "personal",
     title: "Private personal life",
     description: "Family, relationships, private addresses, or unauthenticated gossip.",
-    keywords: ["girlfriend", "boyfriend", "address", "family drama", "rumor", "private", "privately"],
+    keywords: ["girlfriend", "boyfriend", "home address", "your address", "family drama", "rumor", "rumour", "gossip"],
   },
   {
     key: "religion",
     title: "Religion",
     description: "Religious beliefs, practices, or comparisons between faiths.",
-    keywords: ["religion", "religious", "church", "mosque", "temple", "atheist", "god "],
+    keywords: ["religion", "religious", "church", "mosque", "atheist"],
   },
   {
     key: "relationships",
     title: "Dating and relationships",
     description: "Dating life, partners, marriage, or breakups.",
-    keywords: ["dating", "are you single", "married", "wife", "husband", "breakup", "relationship"],
+    keywords: ["dating", "are you single", "married", "wife", "husband", "breakup", "relationship status", "love life"],
   },
   {
     key: "controversy",
@@ -185,8 +185,11 @@ export function buildRetrievalChunks(content: string) {
 
 export function findFlag(persona: Pick<PersonaRecord, "enabled_guardrails" | "custom_boundary" | "profile">, text: string) {
   const lower = text.toLowerCase();
+  // Whole-word / whole-phrase matching, so "dinner party" does not trip a politics rule.
+  const hasTerm = (term: string) =>
+    new RegExp(`(^|[^a-z0-9])${term.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`).test(lower);
   const matched = guardrails.find(
-    (rail) => persona.enabled_guardrails[rail.key] && rail.keywords.some((keyword) => lower.includes(keyword)),
+    (rail) => persona.enabled_guardrails[rail.key] && rail.keywords.some((keyword) => hasTerm(keyword)),
   );
 
   if (matched) return matched.title;
@@ -203,7 +206,7 @@ export function findFlag(persona: Pick<PersonaRecord, "enabled_guardrails" | "cu
     .split(/[,\n]/)
     .map((item) => item.trim().toLowerCase())
     .filter((item) => item.length > 2);
-  const customMatch = customTopics.find((item) => lower.includes(item));
+  const customMatch = customTopics.find((item) => hasTerm(item));
   if (customMatch) return customMatch;
   if (lower.includes("real creator") || lower.includes("secret")) return "Creator-approved boundary";
   return "";

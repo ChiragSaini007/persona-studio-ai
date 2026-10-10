@@ -17,6 +17,46 @@ function suggestHandle(name: string) {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "").slice(0, 24);
 }
 
+type SimulatedInstagram = {
+  handle: string;
+  name: string;
+  bio: string;
+  captions: string[];
+  languages: string[];
+};
+
+// DEMO ONLY: no real Instagram call is made. Data is derived from the handle the creator types.
+function simulateInstagram(rawHandle: string): SimulatedInstagram {
+  const handle = rawHandle.trim().replace(/^@/, "").toLowerCase().replace(/[^a-z0-9._]/g, "");
+  const name =
+    handle
+      .split(/[._]+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ") || "Creator";
+  return {
+    handle,
+    name,
+    bio: `${name} shares their work and ideas with fans. (Demo bio. A real connection would use your Instagram bio.)`,
+    captions: [
+      "Demo caption 1: Something I am working on right now, and why I care about it.",
+      "Demo caption 2: The one thing I wish I had known when I started.",
+      "Demo caption 3: A behind-the-scenes look at how this actually gets made.",
+      "Demo caption 4: Questions you keep sending me, answered in one place.",
+      "Demo caption 5: What is coming next, and how you can be part of it.",
+      "Demo caption 6: A small habit that changed how I work every day.",
+    ],
+    languages: ["English"],
+  };
+}
+
+const igStages = [
+  "Opening Instagram…",
+  "Verifying you control this account…",
+  "Reading your profile…",
+  "Reading your recent captions…",
+];
+
 const consentText =
   "I am this creator, or I have their written permission to create this AI persona. I own or may use this material, and I understand fans will always be told they are talking to an AI.";
 
@@ -103,6 +143,10 @@ export default function CreatorPortal() {
   const [personaChecked, setPersonaChecked] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [showConsentError, setShowConsentError] = useState(false);
+  const [igHandle, setIgHandle] = useState("");
+  const [igStage, setIgStage] = useState(-1);
+  const [igConnected, setIgConnected] = useState<SimulatedInstagram | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
   const publicPath = `/p/${cleanHandle(workspace.creatorHandle)}`;
   const shareUrl = `${origin}${publicPath}`;
   const activePersonaId = personaPortfolio.find((persona) => cleanHandle(persona.creator_handle) === cleanHandle(workspace.creatorHandle))?.id;
@@ -540,6 +584,40 @@ export default function CreatorPortal() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function connectInstagramDemo() {
+    if (!consentGiven) {
+      setShowStep2Errors(true);
+      document.getElementById("field-consent")?.focus();
+      return;
+    }
+    if (!igHandle.trim().replace(/^@/, "")) return;
+    for (let stage = 0; stage < igStages.length; stage += 1) {
+      setIgStage(stage);
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
+    }
+    const data = simulateInstagram(igHandle);
+    setWorkspace((current) => ({
+      ...current,
+      creatorName: data.name,
+      creatorHandle: `@${data.handle}`,
+      content: data.captions.join("\n\n"),
+      profile: {
+        ...current.profile,
+        bio: data.bio,
+        supportedLanguages: data.languages,
+      },
+    }));
+    setIgConnected(data);
+    setIgStage(-1);
+    setManualOpen(false);
+    setShowStep2Errors(false);
+  }
+
+  function disconnectInstagramDemo() {
+    setIgConnected(null);
+    setIgStage(-1);
   }
 
   function publish() {
@@ -1088,8 +1166,110 @@ export default function CreatorPortal() {
             <div className="product-card">
               <span className="section-kicker">Step 2 of 5</span>
               <h2>Add what fans already see from you</h2>
-              <p>Paste captions, transcripts, or FAQs. Fanline drafts your voice, topics, and welcome message. You review everything before it goes live.</p>
+              <p>Connect your Instagram and we fill in the rest. You review everything before it goes live.</p>
 
+              <div className={`consent-panel ${showStep2Errors && step2Errors.consent ? "invalid" : ""}`}>
+                <label className="consent-row">
+                  <input
+                    id="field-consent"
+                    type="checkbox"
+                    checked={consentGiven}
+                    onChange={(event) => setConsentGiven(event.target.checked)}
+                    aria-describedby="consent-help"
+                  />
+                  <span>{consentText}</span>
+                </label>
+                <p id="consent-help" className="field-hint">
+                  Required before anything is drafted, saved, or published. You can pause your AI at any time.
+                </p>
+              </div>
+
+              <section className="ig-card" aria-label="Connect Instagram">
+                <div className="ig-card-head">
+                  <div>
+                    <h3>{igConnected ? "Instagram connected" : "Connect your Instagram"}</h3>
+                    <p>
+                      {igConnected
+                        ? "We filled in your name, handle, bio and sample content. Check it below."
+                        : "We read your public profile and captions so you do not have to type them. You can edit everything."}
+                    </p>
+                  </div>
+                  <span className="status-pill soon">Demo mode</span>
+                </div>
+
+                {!igConnected && igStage < 0 && (
+                  <div className="ig-connect-row">
+                    <label>
+                      Instagram handle
+                      <input
+                        value={igHandle}
+                        onChange={(event) => setIgHandle(event.target.value)}
+                        placeholder="e.g. @priya"
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") void connectInstagramDemo();
+                        }}
+                      />
+                    </label>
+                    <button className="primary-action" onClick={() => void connectInstagramDemo()} disabled={!igHandle.trim().replace(/^@/, "")}>
+                      Connect Instagram
+                    </button>
+                  </div>
+                )}
+
+                {igStage >= 0 && (
+                  <ol className="ig-progress" aria-live="polite">
+                    {igStages.map((label, index) => (
+                      <li key={label} className={index < igStage ? "done" : index === igStage ? "active" : ""}>
+                        <span>{index < igStage ? "✓" : index === igStage ? "…" : ""}</span>
+                        {label}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+
+                {igConnected && (
+                  <div className="ig-result">
+                    <div className="ig-identity">
+                      <span className="ig-avatar" aria-hidden="true">
+                        {igConnected.name.slice(0, 2).toUpperCase()}
+                      </span>
+                      <div>
+                        <strong>{igConnected.name}</strong>
+                        <small>@{igConnected.handle}</small>
+                      </div>
+                      <span className="status-pill draft">Simulated verification</span>
+                    </div>
+                    <dl className="ig-found">
+                      <div>
+                        <dt>Bio</dt>
+                        <dd>{igConnected.bio}</dd>
+                      </div>
+                      <div>
+                        <dt>Content found</dt>
+                        <dd>{igConnected.captions.length} recent captions</dd>
+                      </div>
+                      <div>
+                        <dt>Languages</dt>
+                        <dd>{igConnected.languages.join(", ")}</dd>
+                      </div>
+                    </dl>
+                    <button className="secondary-action" onClick={disconnectInstagramDemo}>
+                      Use a different account
+                    </button>
+                  </div>
+                )}
+
+                <p className="field-hint ig-note">
+                  Demo only: no real Instagram connection or verification happens yet. Real sign-in and account verification are coming.
+                </p>
+              </section>
+
+              <details
+                className="manual-details"
+                open={manualOpen || (showStep2Errors && (Boolean(step2Errors.creatorName) || Boolean(step2Errors.creatorHandle) || Boolean(step2Errors.content)))}
+                onToggle={(event) => setManualOpen((event.currentTarget as HTMLDetailsElement).open)}
+              >
+                <summary>{igConnected ? "Edit details" : "Or enter your details manually"}</summary>
               <div className="creator-setup-grid">
                 <section className="profile-panel">
                   <h3 className="form-section-title">{creatingNewPersona ? "Who is this persona for?" : "Creator details"}</h3>
@@ -1256,21 +1436,7 @@ export default function CreatorPortal() {
                   ].join("\n")}
                 />
               </section>
-              <div className={`consent-panel ${showStep2Errors && step2Errors.consent ? "invalid" : ""}`}>
-                <label className="consent-row">
-                  <input
-                    id="field-consent"
-                    type="checkbox"
-                    checked={consentGiven}
-                    onChange={(event) => setConsentGiven(event.target.checked)}
-                    aria-describedby="consent-help"
-                  />
-                  <span>{consentText}</span>
-                </label>
-                <p id="consent-help" className="field-hint">
-                  Required before anything is drafted, saved, or published. You can pause your AI at any time.
-                </p>
-              </div>
+              </details>
               {showStep2Errors && step2ErrorList.length > 0 && (
                 <div className="error-summary" role="alert">
                   <strong>Finish these before we draft your AI voice</strong>

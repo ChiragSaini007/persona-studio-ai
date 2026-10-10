@@ -17,3 +17,6 @@ Manual end-to-end on production:
 | LiveAvatar brain test: persona-correct answer, credits unchanged (10), temp secret and config removed on stop | Pass |
 
 Known gaps: no automated tests for admin APIs or video; Hindi video voice untested; temp test avatar "Brain Test Temp" is paused (no delete route yet).
+
+## Fan video call API (10 Oct 2026)
+Pass: 401 without sign-in; 403 for example avatar; 200 sandbox start (preview, 60 s); 409 second open call; end 200; credits unchanged (10); fan page shows video section with AI label. Not tested: live microphone conversation and captions from a real fan (needs a human with a mic); daily/monthly limit paths; production (non-sandbox) face.

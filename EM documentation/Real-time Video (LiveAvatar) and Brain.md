@@ -19,3 +19,10 @@ Sandbox session with brain: asked "I am a total beginner. Where should I start?"
 
 ## Operations
 Rotate `VIDEO_LLM_SECRET` with `vercel env rm` then `vercel env add --sensitive`. Rotate every key that was pasted in chat (HeyGen, LiveAvatar, Supabase, OpenAI) after testing.
+
+## Fan video call (added 10 Oct 2026)
+- `POST /api/video/session` (fan token): checks live, video on, not example, and for managed avatars approved + rights + territory; one open call per fan; `VIDEO_DAILY_PER_FAN`; `VIDEO_MONTHLY_MINUTES`; max `VIDEO_MAX_SECONDS`. Creates a `voice_sessions` row (`channel=realtime_video`), a temporary secret and LLM configuration, and a LiveAvatar session. `call_id` stores `session|config|secret`; `endSession` stops the session and deletes both. Server safety hang-up after `maxSeconds + 10`.
+- Spend safety: sandbox (free, 60 s, public test face) unless `LIVEAVATAR_PRODUCTION=true` AND the avatar's `video_config.replica_id` holds its own LiveAvatar avatar id. Fans in sandbox see "preview face".
+- End/transcript: reuses `/api/voice/session/end`. Kill switch and pause already end video calls (shared `endSession`).
+- UI: `components/live-video-call.tsx` on `/p/[handle]` when `video_enabled`. Consent tick, permanent "AI avatar" badge, first spoken line says it is an AI, mute, end, countdown, captions.
+- Tested 10 Oct: no token 401; example avatar 403; start 200 (preview, 60 s); second call 409; end 200; credits stayed 10. Mic-based conversation not tested (no mic in automation).

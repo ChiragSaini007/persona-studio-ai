@@ -1,6 +1,6 @@
 "use client";
 
-import { Room, RoomEvent, Track } from "livekit-client";
+import { Room, RoomEvent, Track, type RemoteAudioTrack } from "livekit-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminFetch } from "../app/admin/admin-client";
 
@@ -24,7 +24,7 @@ export function LiveAvatarSandbox() {
   const stop = useCallback(async () => {
     if (meterRef.current) window.clearInterval(meterRef.current);
     meterRef.current = null;
-    if (peakRef.current) note(`peak audio level this session: ${peakRef.current}`);
+    if (peakRef.current) note(`loudest moment: ${peakRef.current}`);
     peakRef.current = 0;
     const room = roomRef.current;
     roomRef.current = null;
@@ -66,24 +66,30 @@ export function LiveAvatarSandbox() {
         if (track.kind === Track.Kind.Video && videoRef.current) track.attach(videoRef.current);
         if (track.kind === Track.Kind.Audio && audioRef.current) {
           track.attach(audioRef.current);
-          try {
-            // Diagnostic: measure the incoming audio level so we can tell when the avatar is really speaking.
-            const context = new AudioContext();
-            const analyser = context.createAnalyser();
-            analyser.fftSize = 512;
-            context.createMediaStreamSource(new MediaStream([track.mediaStreamTrack])).connect(analyser);
-            const data = new Uint8Array(analyser.fftSize);
-            if (meterRef.current) window.clearInterval(meterRef.current);
-            meterRef.current = window.setInterval(() => {
-              analyser.getByteTimeDomainData(data);
-              let max = 0;
-              for (const value of data) max = Math.max(max, Math.abs(value - 128));
-              if (max > peakRef.current) peakRef.current = max;
-              if (max > 6) note(`audio level ${max}`);
-            }, 700);
-          } catch {
-            // metering is only a diagnostic
-          }
+          // Diagnostic: read the connection's own audio statistics, so we can tell when sound is really arriving.
+          let lastEnergy = 0;
+          let lastBytes = 0;
+          if (meterRef.current) window.clearInterval(meterRef.current);
+          meterRef.current = window.setInterval(async () => {
+            try {
+              const report = await (track as RemoteAudioTrack).getRTCStatsReport();
+              report?.forEach((stat) => {
+                if (stat.type === "inbound-rtp" && stat.kind === "audio") {
+                  const energy = Number(stat.totalAudioEnergy || 0);
+                  const bytes = Number(stat.bytesReceived || 0);
+                  if (energy - lastEnergy > 0.0005) {
+                    peakRef.current = Math.max(peakRef.current, Math.round((energy - lastEnergy) * 1000));
+                    note(`sound arriving (energy +${(energy - lastEnergy).toFixed(4)}, ${bytes - lastBytes} bytes)`);
+                  }
+                  lastEnergy = energy;
+                  lastBytes = bytes;
+                }
+              });
+            } catch {
+              // statistics are only a diagnostic
+            }
+          }, 1000);
+        }
         }
       });
       room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
@@ -99,8 +105,9 @@ export function LiveAvatarSandbox() {
         note("disconnected");
         setPhase("ended");
       });
+      room.on(RoomEvent.ParticipantConnected, (participant) => note(`participant joined: ${participant.identity}`));
       await room.connect(data.livekitUrl, data.livekitToken);
-      note("joined the room");
+      note(`joined the room; already here: ${Array.from(room.remoteParticipants.values()).map((p) => p.identity).join(", ") || "nobody yet"}`);
       setPhase("live");
       window.setTimeout(() => {
         if (roomRef.current === room) speak(room, "Hello. This is a free sandbox test of the video avatar.");

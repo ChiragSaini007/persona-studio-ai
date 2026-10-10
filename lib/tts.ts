@@ -3,11 +3,15 @@
 
 export const presetVoices = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"] as const;
 
+export const realtimeVoices = ["marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"] as const;
+
 export type VoiceConfig = {
   enabled: boolean;
   provider: "openai";
   voice: string;
   instructions: string;
+  realtime_enabled: boolean;
+  realtime_voice: string;
 };
 
 export const defaultVoiceInstructions = "Speak warmly and naturally, like a friendly person chatting with a fan. Clear, unhurried pace.";
@@ -17,6 +21,8 @@ export function normalizeVoiceConfig(raw: unknown): VoiceConfig {
   const voice = (presetVoices as readonly string[]).includes(String(value.voice)) ? String(value.voice) : "coral";
   return {
     enabled: Boolean(value.enabled),
+    realtime_enabled: Boolean(value.realtime_enabled),
+    realtime_voice: (realtimeVoices as readonly string[]).includes(String(value.realtime_voice)) ? String(value.realtime_voice) : "marin",
     provider: "openai",
     voice,
     instructions: typeof value.instructions === "string" && value.instructions.trim() ? value.instructions.trim().slice(0, 400) : defaultVoiceInstructions,

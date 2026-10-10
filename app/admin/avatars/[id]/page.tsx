@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { guardrails } from "../../../persona-model";
 import { AdminGate, adminFetch, type Role } from "../../admin-client";
 
@@ -34,7 +34,7 @@ type Avatar = {
   approved_at: string | null;
   claim_email: string | null;
   internal_notes: string;
-  voice_config?: { enabled?: boolean; voice?: string; instructions?: string };
+  voice_config?: { enabled?: boolean; voice?: string; instructions?: string; realtime_enabled?: boolean; realtime_voice?: string };
 };
 
 type Agreement = {
@@ -51,7 +51,7 @@ type Agreement = {
 
 type Activity = { id: string; action: string; actor_email: string; details: Record<string, unknown>; created_at: string };
 
-const tabs = ["Overview", "Agreements", "Content", "Voice and limits", "Voice replies", "Test chat", "Approval", "Activity"] as const;
+const tabs = ["Overview", "Agreements", "Content", "Voice and limits", "Voice", "Test chat", "Approval", "Activity"] as const;
 type Tab = (typeof tabs)[number];
 
 const channelOptions = [
@@ -204,7 +204,7 @@ function Workspace({ role }: { role: Role }) {
       {tab === "Agreements" && <AgreementsTab id={id} role={role} agreements={agreements} busy={busy} call={call} setError={setError} />}
       {tab === "Content" && <ContentTab id={id} avatar={avatar} hasAgreement={Boolean(activeText)} busy={busy} call={call} />}
       {tab === "Voice and limits" && <VoiceTab id={id} avatar={avatar} busy={busy} call={call} />}
-      {tab === "Voice replies" && <VoiceRepliesTab id={id} avatar={avatar} agreements={agreements} busy={busy} call={call} setError={setError} />}
+      {tab === "Voice" && <VoiceRepliesTab id={id} avatar={avatar} agreements={agreements} busy={busy} call={call} setError={setError} />}
       {tab === "Test chat" && <TestChat id={id} avatar={avatar} />}
       {tab === "Approval" && <ApprovalTab id={id} role={role} avatar={avatar} checklist={checklist} activity={activity} busy={busy} call={call} />}
       {tab === "Activity" && <ActivityTab activity={activity} />}
@@ -638,12 +638,25 @@ function VoiceRepliesTab({ id, avatar, agreements, busy, call, setError }: { id:
   const [voice, setVoice] = useState(avatar.voice_config?.voice || "coral");
   const [instructions, setInstructions] = useState(avatar.voice_config?.instructions || "Speak warmly and naturally, like a friendly person chatting with a fan. Clear, unhurried pace.");
   const [previewing, setPreviewing] = useState(false);
+  const [liveOn, setLiveOn] = useState(Boolean(avatar.voice_config?.realtime_enabled));
+  const [liveVoice, setLiveVoice] = useState(avatar.voice_config?.realtime_voice || "marin");
+  type CallRow = { id: string; started_at: string; status: string; seconds: number; max_seconds: number; ended_reason: string | null; flagged_turns: number; fan_user_id: string; transcript: { role: string; text: string }[] };
+  const [calls, setCalls] = useState<CallRow[] | null>(null);
+  const [openCall, setOpenCall] = useState("");
+  const loadCalls = useCallback(async () => {
+    const response = await adminFetch(`/api/admin/avatars/${id}/voice-sessions`);
+    if (response.ok) setCalls((await response.json()).sessions);
+  }, [id]);
+  useEffect(() => {
+    queueMicrotask(() => void loadCalls());
+  }, [loadCalls]);
+  const liveAgreement = agreements.some((item) => item.channel === "realtime_voice" && item.status === "active" && (!item.expires_on || item.expires_on >= today()));
   const voiceAgreement = agreements.some((item) => item.channel === "voice" && item.status === "active" && (!item.expires_on || item.expires_on >= today()));
 
   async function preview() {
     setPreviewing(true);
     setError("");
-    const response = await adminFetch(`/api/admin/avatars/${id}/voice/preview`, { method: "POST", body: JSON.stringify({ voice_config: { enabled, voice, instructions } }) });
+    const response = await adminFetch(`/api/admin/avatars/${id}/voice/preview`, { method: "POST", body: JSON.stringify({ voice_config: { enabled, voice, instructions, realtime_enabled: liveOn, realtime_voice: liveVoice } }) });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       setError(data.error || "Could not generate a preview");
@@ -698,12 +711,126 @@ function VoiceRepliesTab({ id, avatar, agreements, busy, call, setError }: { id:
           <button
             className="primary-action"
             disabled={busy === "voicecfg"}
-            onClick={() => void call("voicecfg", `/api/admin/avatars/${id}`, { method: "PATCH", body: JSON.stringify({ voice_config: { enabled, voice, instructions } }) }, "Voice settings saved.")}
+            onClick={() => void call("voicecfg", `/api/admin/avatars/${id}`, { method: "PATCH", body: JSON.stringify({ voice_config: { enabled, voice, instructions, realtime_enabled: liveOn, realtime_voice: liveVoice } }) }, "Voice settings saved.")}
           >
             Save voice settings
           </button>
         </div>
         <p className="field-hint">Changing voice settings resets approval, so an admin approves the avatar again before fans hear it. The preview reads the greeting. Hindi and other Indian languages work, with quality that varies by voice.</p>
+      </section>
+
+      <section className="product-card">
+        <h2>Live voice calls</h2>
+        <p className="field-hint">
+          Fans can talk to the avatar in real time from the fan page, in the language they speak. It uses a preset AI voice, not {avatar.creator_name}&apos;s own, and says it is an AI at the start of every call. Calls are capped at a few minutes, limited per fan per day, and transcribed for review.
+        </p>
+        <div className="choice-group">
+          <span className="choice-label">Live calls</span>
+          <div className="choice-row">
+            <button type="button" className="choice" aria-pressed={liveOn} onClick={() => setLiveOn(true)}>
+              On
+            </button>
+            <button type="button" className="choice" aria-pressed={!liveOn} onClick={() => setLiveOn(false)}>
+              Off
+            </button>
+          </div>
+        </div>
+        <div className="field-grid">
+          <label>
+            Live voice
+            <select value={liveVoice} onChange={(event) => setLiveVoice(event.target.value)}>
+              {["marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"].map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <ul className="admin-checklist">
+          <li className={liveAgreement ? "done" : ""}>
+            <span aria-hidden="true">{liveAgreement ? "✓" : ""}</span>
+            A signed real-time voice agreement on file (Agreements tab, channel &ldquo;Real-time voice&rdquo;). Calls are blocked without it.
+          </li>
+          <li className={avatar.approval_status === "approved" ? "done" : ""}>
+            <span aria-hidden="true">{avatar.approval_status === "approved" ? "✓" : ""}</span>
+            Approved by an admin (saving these settings resets approval)
+          </li>
+        </ul>
+        <div className="button-row">
+          <button
+            className="primary-action"
+            disabled={busy === "voicecfg"}
+            onClick={() => void call("voicecfg", `/api/admin/avatars/${id}`, { method: "PATCH", body: JSON.stringify({ voice_config: { enabled, voice, instructions, realtime_enabled: liveOn, realtime_voice: liveVoice } }) }, "Voice settings saved.")}
+          >
+            Save voice settings
+          </button>
+          <button
+            className="secondary-action danger"
+            onClick={async () => {
+              const response = await adminFetch(`/api/admin/avatars/${id}/voice-sessions`, { method: "POST", body: JSON.stringify({ action: "end_all" }) });
+              const data = await response.json();
+              setError(response.ok ? "" : data.error || "Could not end the calls");
+              if (response.ok) await loadCalls();
+            }}
+          >
+            End all live calls now
+          </button>
+        </div>
+
+        <h3 className="form-section-title">Recent calls</h3>
+        {!calls ? (
+          <p className="field-hint">Loading…</p>
+        ) : calls.length === 0 ? (
+          <p className="field-hint">No calls yet.</p>
+        ) : (
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Started</th>
+                <th>Fan</th>
+                <th>Length</th>
+                <th>Ended</th>
+                <th>Flagged</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {calls.map((row) => (
+                <Fragment key={row.id}>
+                  <tr>
+                    <td>{new Date(row.started_at).toLocaleString()}</td>
+                    <td>{row.fan_user_id}</td>
+                    <td>{row.status === "active" ? "In progress" : `${Math.floor(row.seconds / 60)}m ${row.seconds % 60}s`}</td>
+                    <td>{row.ended_reason ? row.ended_reason.replace(/_/g, " ") : "—"}</td>
+                    <td>{row.flagged_turns ? <span className="status-pill paused">{row.flagged_turns}</span> : "0"}</td>
+                    <td>
+                      {row.transcript.length > 0 && (
+                        <button className="secondary-action" onClick={() => setOpenCall(openCall === row.id ? "" : row.id)}>
+                          {openCall === row.id ? "Hide" : "Transcript"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {openCall === row.id && (
+                    <tr>
+                      <td colSpan={6}>
+                        <ol className="live-captions">
+                          {row.transcript.map((turn, index) => (
+                            <li key={index} className={turn.role}>
+                              <small>{turn.role === "fan" ? "Fan" : "AI avatar"}</small>
+                              {turn.text}
+                            </li>
+                          ))}
+                        </ol>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       <section className="product-card">

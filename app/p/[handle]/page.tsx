@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChannelTabs } from "../../../components/channel-tabs";
+import { LiveVoiceCall } from "../../../components/live-voice-call";
 import { SiteNav } from "../../../components/site-nav";
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -95,6 +96,7 @@ function maskEmail(email: string) {
 
 export default function FanChatPage() {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [liveVoiceEnabled, setLiveVoiceEnabled] = useState(false);
   const [voiceLoading, setVoiceLoading] = useState("");
   const [voicePlaying, setVoicePlaying] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -196,6 +198,7 @@ export default function FanChatPage() {
           status: persona.status,
         });
         setVoiceEnabled(Boolean(persona.voice_enabled));
+        setLiveVoiceEnabled(Boolean(persona.realtime_voice_enabled));
         setNotice("");
       } catch (error) {
         setRemotePersona(null);
@@ -463,8 +466,10 @@ export default function FanChatPage() {
               </p>
             </div>
           </div>
-          <ChannelTabs voiceReplies={voiceEnabled} />
+          <ChannelTabs voiceReplies={voiceEnabled} liveVoice={liveVoiceEnabled} />
         </header>
+
+        {liveVoiceEnabled && <LiveVoiceCall handle={handle} creatorName={creatorName} token={fanAccessToken} />}
 
         <section className="chat-layout public-chat-layout">
           <div className="chat-window">

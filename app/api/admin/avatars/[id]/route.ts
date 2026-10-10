@@ -3,6 +3,7 @@ import { savePersonaEmbeddings } from "../../../../../lib/ai";
 import { adminError, Agreement, logAudit, requireStaff } from "../../../../../lib/admin";
 import { loadAvatar, patchAvatar } from "../../../../../lib/admin-avatars";
 import { buildRetrievalChunks, normalizeProfile } from "../../../../../lib/persona";
+import { endActiveSessions } from "../../../../../lib/realtime";
 import { normalizeVoiceConfig } from "../../../../../lib/tts";
 import { supabaseRest } from "../../../../../lib/supabase-rest";
 
@@ -69,6 +70,7 @@ export async function PATCH(request: NextRequest, context: Context) {
     }
 
     const saved = await patchAvatar(id, patch);
+    if (patch.status === "paused") await endActiveSessions(id, "edited");
     if (typeof patch.source_content === "string" && saved) {
       try {
         await savePersonaEmbeddings(saved);

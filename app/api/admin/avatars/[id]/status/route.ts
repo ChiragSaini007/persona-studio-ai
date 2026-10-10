@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { activeAgreement, adminError, logAudit, requireStaff } from "../../../../../../lib/admin";
 import { loadAvatar, patchAvatar } from "../../../../../../lib/admin-avatars";
+import { endActiveSessions } from "../../../../../../lib/realtime";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest, context: Context) {
       }
     }
     const saved = await patchAvatar(id, { status });
+    if (status === "paused") await endActiveSessions(id, "paused");
     await logAudit(auth.staff, status === "live" ? "published" : "paused", id, {});
     return NextResponse.json({ avatar: saved });
   } catch (error) {

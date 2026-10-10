@@ -4536,3 +4536,67 @@ a,
 .listen-btn:hover:not(:disabled) {
   border-color: var(--ink);
 }
+
+
+/* Live voice call */
+.live-call {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: grid;
+  gap: 14px;
+  margin: 0 0 20px;
+  padding: clamp(16px, 2.4vw, 24px);
+}
+
+.live-call-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.live-call h2 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+
+.live-call p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.live-call-consent {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+}
+
+.primary-action.danger-solid {
+  background: #b42318;
+}
+
+.live-captions {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.live-captions li {
+  background: #f4f4f2;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.live-captions li.fan {
+  background: #fdf2f8;
+}
+
+.live-captions li small {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+}

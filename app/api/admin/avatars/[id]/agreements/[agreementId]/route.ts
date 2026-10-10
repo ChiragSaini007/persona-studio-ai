@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminError, Agreement, logAudit, requireStaff, signedAgreementUrl } from "../../../../../../../lib/admin";
 import { patchAvatar, uuidPattern } from "../../../../../../../lib/admin-avatars";
+import { endActiveSessions } from "../../../../../../../lib/realtime";
 import { supabaseRest } from "../../../../../../../lib/supabase-rest";
 
 type Context = { params: Promise<{ id: string; agreementId: string }> };
@@ -43,6 +44,7 @@ export async function DELETE(request: NextRequest, context: Context) {
     if (agreement.channel === "text") {
       await patchAvatar(id, { status: "paused", approval_status: "none", approved_by_email: null, approved_at: null });
     }
+    if (agreement.channel === "text" || agreement.channel === "realtime_voice") await endActiveSessions(id, "agreement_revoked");
     await logAudit(auth.staff, "agreement_revoked", id, { agreement_id: agreementId, channel: agreement.channel });
     return NextResponse.json({ ok: true });
   } catch (error) {

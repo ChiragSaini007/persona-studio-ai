@@ -90,7 +90,6 @@ export function LiveAvatarSandbox() {
             }
           }, 1000);
         }
-        }
       });
       room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
         const raw = new TextDecoder().decode(payload);

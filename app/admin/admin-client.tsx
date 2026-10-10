@@ -53,11 +53,19 @@ export function AdminGate({ children }: { children: (ctx: { email: string; role:
     queueMicrotask(() => void check());
   }, [check]);
 
-  async function signIn() {
+  async function signIn(form: HTMLFormElement) {
+    // Read the real field values so browser autofill works.
+    const data = new FormData(form);
+    const typedEmail = String(data.get("email") || email).trim();
+    const typedPassword = String(data.get("password") || password);
+    if (!typedEmail || !typedPassword) {
+      setError("Enter your email and password.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      await supabasePasswordAuth("signin", email, password);
+      await supabasePasswordAuth("signin", typedEmail, typedPassword);
       setPassword("");
       await check();
     } catch (failure) {
@@ -84,21 +92,21 @@ export function AdminGate({ children }: { children: (ctx: { email: string; role:
             className="product-card admin-login"
             onSubmit={(event) => {
               event.preventDefault();
-              void signIn();
+              void signIn(event.currentTarget);
             }}
           >
             <h1>Fanline Admin</h1>
             <p>Staff sign-in. Access is limited to approved team members.</p>
             <label>
               Email
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" />
+              <input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" />
             </label>
             <label>
               Password
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
+              <input name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
             </label>
             {error && <p className="field-error">{error}</p>}
-            <button className="primary-action" disabled={busy || !email || !password}>
+            <button className="primary-action" disabled={busy}>
               {busy ? "Signing in…" : "Sign in"}
             </button>
           </form>

@@ -41,11 +41,12 @@ type Avatar = {
   rights_reference?: string | null;
   territories?: string[] | null;
   voice_config?: { enabled?: boolean; voice?: string; instructions?: string; realtime_enabled?: boolean; realtime_voice?: string };
+  video_config?: { enabled?: boolean; replica_id?: string; consent_verified?: boolean; notes?: string };
 };
 
 type Activity = { id: string; action: string; actor_email: string; details: Record<string, unknown>; created_at: string };
 
-const tabs = ["Overview", "Rights", "Content", "Voice and limits", "Variants", "Voice", "Test chat", "Approval", "Activity"] as const;
+const tabs = ["Overview", "Rights", "Content", "Voice and limits", "Variants", "Voice", "Video", "Test chat", "Approval", "Activity"] as const;
 type Tab = (typeof tabs)[number];
 
 
@@ -79,6 +80,7 @@ function Workspace({ role }: { role: Role }) {
   const { id } = useParams<{ id: string }>();
   const [avatar, setAvatar] = useState<Avatar | null>(null);
   const [activity, setActivity] = useState<Activity[]>([]);
+  const [videoStatus, setVideoStatus] = useState({ providerConfigured: false, brainConfigured: false });
   const [tab, setTab] = useState<Tab>("Overview");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -94,6 +96,7 @@ function Workspace({ role }: { role: Role }) {
     setError("");
     setAvatar(data.avatar);
     setActivity(data.activity);
+    if (data.video) setVideoStatus(data.video);
   }, [id]);
 
   useEffect(() => {
@@ -197,6 +200,7 @@ function Workspace({ role }: { role: Role }) {
       {tab === "Voice and limits" && <VoiceTab id={id} avatar={avatar} busy={busy} call={call} />}
       {tab === "Variants" && <VariantsTab id={id} avatar={avatar} role={role} busy={busy} call={call} setError={setError} reload={load} />}
       {tab === "Voice" && <VoiceRepliesTab id={id} avatar={avatar} busy={busy} call={call} setError={setError} />}
+      {tab === "Video" && <VideoTab id={id} avatar={avatar} status={videoStatus} busy={busy} call={call} />}
       {tab === "Test chat" && <TestChat id={id} avatar={avatar} />}
       {tab === "Approval" && <ApprovalTab id={id} role={role} avatar={avatar} checklist={checklist} activity={activity} busy={busy} call={call} />}
       {tab === "Activity" && <ActivityTab activity={activity} />}
@@ -763,6 +767,87 @@ function VariantForm({ form, setForm, lines, commas, onSave, saving }: {
           Save mode
         </button>
       </div>
+    </div>
+  );
+}
+
+function VideoTab({ id, avatar, status, busy, call }: { id: string; avatar: Avatar; status: { providerConfigured: boolean; brainConfigured: boolean }; busy: string; call: Call }) {
+  const [enabled, setEnabled] = useState(Boolean(avatar.video_config?.enabled));
+  const [replicaId, setReplicaId] = useState(avatar.video_config?.replica_id || "");
+  const [consent, setConsent] = useState(Boolean(avatar.video_config?.consent_verified));
+  const [notes, setNotes] = useState(avatar.video_config?.notes || "");
+  const brainUrl = typeof window !== "undefined" ? `${window.location.origin}/api/video/llm/${id}` : `/api/video/llm/${id}`;
+  const rights = Boolean(avatar.rights_confirmed_at);
+  const items: [string, boolean][] = [
+    ["Rights confirmed, including permission for a video likeness (Rights tab)", rights],
+    ["Avatar brain ready: our server can speak for this avatar to a video provider", status.brainConfigured],
+    ["Video provider connected to Fanline (Tavus pilot): not connected yet", status.providerConfigured],
+    ["Creator's footage and recorded consent statement submitted to the provider and verified", consent],
+  ];
+  return (
+    <div className="screen-stack">
+      <section className="product-card">
+        <h2>Video avatar</h2>
+        <p className="field-hint">
+          A video avatar is {avatar.creator_name}&apos;s face speaking live with fans. The face comes from a video provider, trained on the creator&apos;s own footage with their recorded consent. The words come from our server, using the same persona, content, limits and active genre mode as chat and voice. Video is not live for fans yet.
+        </p>
+        <ul className="admin-checklist">
+          {items.map(([label, done]) => (
+            <li key={label} className={done ? "done" : ""}>
+              <span aria-hidden="true">{done ? "✓" : ""}</span>
+              {label}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="product-card">
+        <h2>Settings</h2>
+        <div className="choice-group">
+          <span className="choice-label">Video calls</span>
+          <div className="choice-row">
+            <button type="button" className="choice" aria-pressed={enabled} onClick={() => setEnabled(true)}>
+              On
+            </button>
+            <button type="button" className="choice" aria-pressed={!enabled} onClick={() => setEnabled(false)}>
+              Off
+            </button>
+          </div>
+        </div>
+        <div className="field-grid">
+          <label>
+            Provider replica ID
+            <input value={replicaId} onChange={(event) => setReplicaId(event.target.value)} placeholder="Given by the provider once the replica is trained" />
+          </label>
+          <label>
+            Notes (never shown to fans)
+            <textarea className="compact-textarea" value={notes} onChange={(event) => setNotes(event.target.value)} />
+          </label>
+        </div>
+        <label className="consent-row live-call-consent">
+          <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
+          <span>The provider has verified the creator&apos;s recorded consent statement and footage for this replica.</span>
+        </label>
+        <div className="button-row">
+          <button
+            className="primary-action"
+            disabled={busy === "videocfg"}
+            onClick={() => void call("videocfg", `/api/admin/avatars/${id}`, { method: "PATCH", body: JSON.stringify({ video_config: { enabled, replica_id: replicaId, consent_verified: consent, notes } }) }, "Video settings saved.")}
+          >
+            Save video settings
+          </button>
+        </div>
+        <p className="field-hint">Saving resets approval, so an admin approves the avatar again before fans can reach video.</p>
+      </section>
+
+      <section className="product-card">
+        <h2>Avatar brain address</h2>
+        <p className="field-hint">When the video provider is connected, it is pointed at this address so the face speaks with this avatar&apos;s persona. It is protected by a secret key that is set on the server and is never shown here.</p>
+        <div className="share-url-box compact">
+          <span>Custom LLM address</span>
+          <strong>{brainUrl}</strong>
+        </div>
+      </section>
     </div>
   );
 }

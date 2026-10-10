@@ -48,7 +48,7 @@ export async function logAudit(staff: Staff, action: string, personaId: string |
 
 export function adminError(error: unknown) {
   const message = error instanceof Error ? error.message : "Request failed";
-  if (/column|relation|does not exist|avatar_agreements|admin_audit_log|PGRST/i.test(message)) {
+  if (/column|relation|does not exist|admin_audit_log|PGRST/i.test(message)) {
     return NextResponse.json(
       { error: "The database is missing a recent update. Run the SQL files in supabase/migrations (in order) in the Supabase SQL editor." },
       { status: 503 },

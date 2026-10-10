@@ -15,6 +15,7 @@ export type AdminPersona = PersonaRecord & {
   rights_confirmed_at?: string | null;
   rights_reference?: string | null;
   territories?: string[] | null;
+  video_config?: unknown;
   created_at?: string;
   updated_at?: string;
 };

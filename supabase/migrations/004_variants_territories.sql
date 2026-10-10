@@ -23,6 +23,10 @@ create table if not exists public.persona_variants (
 create index if not exists persona_variants_persona_idx on public.persona_variants (persona_id, created_at);
 alter table public.persona_variants enable row level security;
 
--- Where an agreement allows the avatar to be used. IN = India, US = United States, ROW = rest of world.
-alter table public.avatar_agreements
-  add column if not exists territories text[] not null default array['IN', 'US'];
+-- Where an agreement allowed the avatar to be used (skipped if the old agreement table has been dropped).
+do $$
+begin
+  if to_regclass('public.avatar_agreements') is not null then
+    alter table public.avatar_agreements add column if not exists territories text[] not null default array['IN', 'US'];
+  end if;
+end $$;

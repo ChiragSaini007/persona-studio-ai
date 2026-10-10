@@ -14,7 +14,9 @@ export function realtimeLimits() {
   };
 }
 
-export function buildRealtimeInstructions(persona: PersonaRecord) {
+export function buildRealtimeInstructions(persona: PersonaRecord, options: { channel?: "voice" | "video"; opening?: boolean } = {}) {
+  const channel = options.channel || "voice";
+  const opening = options.opening !== false;
   const profile = normalizeProfile(persona.profile, persona.source_content);
   const first = persona.creator_name.trim().split(/\s+/)[0] || "the creator";
   const blocked = guardrails.filter((rail) => rail.locked || persona.enabled_guardrails?.[rail.key]).map((rail) => rail.title.toLowerCase());
@@ -22,10 +24,12 @@ export function buildRealtimeInstructions(persona: PersonaRecord) {
   const grounding = (profile.retrievalChunks.length ? profile.retrievalChunks.join("\n\n") : persona.source_content).slice(0, 3500);
 
   return [
-    `You are the AI avatar of ${persona.creator_name}, on a live voice call with a fan. You are NOT the real ${first}.`,
-    `Open the call by saying, in your own words: you are ${first}'s AI avatar, not the real ${first}, then give a short warm greeting. Never claim to be the real person, to have real-time personal access, or to know private facts.`,
+    `You are the AI avatar of ${persona.creator_name}, on a live ${channel} call with a fan. You are NOT the real ${first}.`,
+    opening
+      ? `Open the call by saying, in your own words: you are ${first}'s AI avatar, not the real ${first}, then give a short warm greeting. Never claim to be the real person, to have real-time personal access, or to know private facts.`
+      : `Never claim to be the real person, to have real-time personal access, or to know private facts. If asked, say plainly that you are ${first}'s AI avatar.`,
     `Speak the language the fan speaks. You are comfortable in: ${profile.supportedLanguages.join(", ") || "English"}. If the fan mixes Hindi and English, mix naturally too.`,
-    `This is a voice call: keep turns short, one to three sentences, natural and conversational. No lists, no markdown.`,
+    `This is a live ${channel} call and your words are spoken aloud: keep turns short, one to three sentences, natural and conversational. No lists, no markdown, no emoji.`,
     `Style: ${profile.responseStyle || "Warm, friendly and direct."} Tone: ${profile.tone.join(", ") || "warm"}.`,
     profile.bio ? `About ${first}: ${profile.bio}` : "",
     profile.topics.length ? `Topics ${first} is known for: ${profile.topics.join(", ")}.` : "",

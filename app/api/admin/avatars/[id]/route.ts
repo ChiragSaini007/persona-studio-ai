@@ -5,6 +5,7 @@ import { loadAvatar, patchAvatar } from "../../../../../lib/admin-avatars";
 import { buildRetrievalChunks, normalizeProfile } from "../../../../../lib/persona";
 import { endActiveSessions } from "../../../../../lib/realtime";
 import { normalizeVoiceConfig } from "../../../../../lib/tts";
+import { normalizeVideoConfig } from "../../../../../lib/video";
 import { supabaseRest } from "../../../../../lib/supabase-rest";
 
 type Context = { params: Promise<{ id: string }> };
@@ -18,14 +19,19 @@ export async function GET(request: NextRequest, context: Context) {
     const avatar = await loadAvatar(id);
     if (!avatar) return NextResponse.json({ error: "Avatar not found" }, { status: 404 });
     const activity = await supabaseRest<unknown[]>(`admin_audit_log?persona_id=eq.${id}&select=*&order=created_at.desc&limit=50`);
-    return NextResponse.json({ role: auth.staff.role, avatar, activity });
+    return NextResponse.json({
+      role: auth.staff.role,
+      avatar,
+      activity,
+      video: { providerConfigured: Boolean(process.env.TAVUS_API_KEY), brainConfigured: (process.env.VIDEO_LLM_SECRET || "").length >= 24 },
+    });
   } catch (error) {
     return adminError(error);
   }
 }
 
 // Edits that change what the avatar says reset approval, and pause a live avatar until it is re-approved.
-const reviewedFields = ["creator_name", "source_content", "profile", "enabled_guardrails", "custom_boundary", "fallback_text", "voice_config"] as const;
+const reviewedFields = ["creator_name", "source_content", "profile", "enabled_guardrails", "custom_boundary", "fallback_text", "voice_config", "video_config"] as const;
 
 export async function PATCH(request: NextRequest, context: Context) {
   const auth = await requireStaff(request);
@@ -53,6 +59,7 @@ export async function PATCH(request: NextRequest, context: Context) {
     }
     if (body.enabled_guardrails && typeof body.enabled_guardrails === "object") patch.enabled_guardrails = body.enabled_guardrails;
     if (body.voice_config && typeof body.voice_config === "object") patch.voice_config = normalizeVoiceConfig(body.voice_config);
+    if (body.video_config && typeof body.video_config === "object") patch.video_config = normalizeVideoConfig(body.video_config);
     if (typeof body.custom_boundary === "string") patch.custom_boundary = body.custom_boundary.slice(0, 1000);
     if (typeof body.fallback_text === "string") patch.fallback_text = body.fallback_text.slice(0, 600);
     if (typeof body.internal_notes === "string") patch.internal_notes = body.internal_notes.slice(0, 4000);

@@ -33,6 +33,8 @@ export async function supabaseRest<T>(path: string, options: SupabaseOptions = {
     throw new Error(`Supabase request failed: ${response.status} ${detail}`);
   }
 
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  // Writes with Prefer: return=minimal answer 201/204 with an empty body.
+  const text = await response.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }

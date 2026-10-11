@@ -9,15 +9,15 @@ const channels = [
   },
   {
     name: "Voice",
-    status: "Coming soon",
-    live: false,
-    body: "Fans talk to your avatar out loud. Your voice is only ever used with your explicit, recorded consent.",
+    status: "Live",
+    live: true,
+    body: "Fans get spoken replies and can talk to your avatar live. It is switched on per avatar after approval, and your own voice is only ever used with your explicit, recorded consent.",
   },
   {
     name: "Video calls",
-    status: "Coming soon",
+    status: "In preview",
     live: false,
-    body: "Face-to-face conversations with a video avatar, under the same approvals and boundaries as chat.",
+    body: "Face-to-face conversations with a video avatar, under the same approvals and boundaries as chat. Working today with a preview face; your own face needs your recorded consent and footage.",
   },
 ];
 
@@ -101,7 +101,7 @@ export default function Home() {
             <p className="lp-eyebrow">For creators and public figures</p>
             <h1 id="lp-title">Your AI avatar, for every fan.</h1>
             <p className="lp-lede">
-              Build an AI version of yourself that talks with fans one-to-one in chat, and soon in voice and video. You
+              Build an AI version of yourself that talks with fans one-to-one in chat, and in voice, with video in preview. You
               give consent, you approve every detail, and you see what it is worth.
             </p>
             <div className="lp-cta-row">
@@ -128,10 +128,10 @@ export default function Home() {
             <div className="lp-tabs" role="presentation">
               <span className="on">Chat</span>
               <span>
-                Voice <em>Soon</em>
+                Voice <em>Live</em>
               </span>
               <span>
-                Video <em>Soon</em>
+                Video <em>Preview</em>
               </span>
             </div>
             <div className="lp-convo">

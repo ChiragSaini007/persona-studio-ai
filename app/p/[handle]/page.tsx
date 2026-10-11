@@ -471,7 +471,7 @@ export default function FanChatPage() {
               </p>
             </div>
           </div>
-          <ChannelTabs voiceReplies={voiceEnabled} liveVoice={liveVoiceEnabled} />
+          <ChannelTabs voiceReplies={voiceEnabled} liveVoice={liveVoiceEnabled} video={videoEnabled} />
         </header>
 
         {liveVoiceEnabled && <LiveVoiceCall handle={handle} creatorName={creatorName} token={fanAccessToken} />}

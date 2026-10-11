@@ -1138,16 +1138,16 @@ export default function CreatorPortal() {
                   <article className="channel-card">
                     <header>
                       <h3>Voice</h3>
-                      <span className="status-pill soon">Coming soon</span>
+                      <span className="status-pill live">Live</span>
                     </header>
-                    <p>Fans talk to your avatar out loud. Voice will only ever use your voice with your explicit consent.</p>
+                    <p>Fans get spoken replies and live voice calls. Our team switches it on for approved avatars, and your own voice is only ever used with your explicit consent.</p>
                   </article>
                   <article className="channel-card">
                     <header>
                       <h3>Video calls</h3>
-                      <span className="status-pill soon">Coming soon</span>
+                      <span className="status-pill soon">In preview</span>
                     </header>
-                    <p>Face-to-face conversations with a video avatar, under the same approvals and boundaries as chat.</p>
+                    <p>Face-to-face conversations with a video avatar, under the same approvals and boundaries as chat. Your own face needs your recorded consent and footage.</p>
                   </article>
                 </section>
               )}
